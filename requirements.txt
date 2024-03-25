@@ -10,10 +10,8 @@ corner
 crayons
 cryptography
 cycler
-emcee
+emcee==2.2.1
 enum34
-functools32
-futures
 h5py
 html5lib
 idna
@@ -23,7 +21,7 @@ linecache2
 lxml
 matplotlib
 mkl
-numpy
+numpy==1.20
 pandas
 patsy
 pprintpp
