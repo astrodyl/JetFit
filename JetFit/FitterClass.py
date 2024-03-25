@@ -6,7 +6,7 @@ This module contains the ScaleFit class for boosted fireball model. It depends o
 import numpy as np
 import pandas as pd
 import emcee as em
-from FluxGeneratorClass import FluxGeneratorClass
+from JetFit.FluxGeneratorClass import FluxGeneratorClass
 import sys
 
 

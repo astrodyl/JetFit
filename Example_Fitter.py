@@ -3,7 +3,7 @@ import emcee as em
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from JetFit import FitterClass
+from JetFit.FitterClass import FitterClass
 
 ### Parameters
 Table = "./Table.h5"

@@ -5,7 +5,7 @@ This module contains the FluxGeneratorClass, which generates synthetic light cur
 
 import numpy as np
 import h5py as h5
-from InterpolatorClass import InterpolatorClass
+from JetFit.InterpolatorClass import InterpolatorClass
 
 class FluxGeneratorClass:
     '''
