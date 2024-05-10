@@ -1,3 +1,7 @@
+# The requirements listed here and their versions are for Python 3.8.
+# The original Python tool was written using Python 2.7, which is no
+# longer supported.
+
 backports-abc
 backports.functools-lru-cache
 beautifulsoup4
@@ -10,7 +14,7 @@ corner
 crayons
 cryptography
 cycler
-emcee==2.2.1
+emcee==2.2.1  # Required for PTSampler
 enum34
 h5py
 html5lib
@@ -21,7 +25,7 @@ linecache2
 lxml
 matplotlib
 mkl
-numpy==1.20
+numpy==1.20  # Required for emcee version above
 pandas
 patsy
 pprintpp

@@ -1,0 +1,4 @@
+.idea/
+
+jetfit/**/__pycache__/
+jetfit/results/

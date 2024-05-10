@@ -1,0 +1,18 @@
+{
+    "quick": {
+        "sampler": "ParallelTempered",
+        "num_temps": 2,
+        "num_walkers": 20,
+        "threads": 1,
+        "burn_length": 100,
+        "run_length": 100
+    },
+    "full": {
+        "sampler": "ParallelTempered",
+        "num_temps": 10,
+        "num_walkers": 100,
+        "threads": 1,
+        "burn_length": 10000,
+        "run_length": 10000
+    }
+}
