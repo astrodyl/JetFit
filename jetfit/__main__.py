@@ -55,6 +55,12 @@ def main(**kwargs):
     if not os.path.exists(results_path):
         os.mkdir(results_path)
 
+    # TEMP BURNER
+    burn_chain = burn_result['Chain']
+    plotter2 = Plot(burn_chain, fitter, burn_chain[best_walker], **kwargs)
+    plotter2.plot_autocorrelation(results_path + 'auto_corr.png')
+    plotter2.plot_markov_chain(results_path + 'burn_chain.png')
+
     # Plot the light curves and parameter distributions
     plotter = Plot(result_chain, fitter, result_chain[best_walker], **kwargs)
     plotter.plot_light_curves(data_frame, parameter_defaults, results_path + 'curves.png')

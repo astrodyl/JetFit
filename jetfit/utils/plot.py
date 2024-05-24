@@ -1,4 +1,5 @@
 import os
+from typing import Union
 
 import emcee
 import numpy as np
@@ -26,29 +27,16 @@ class Plot:
         if not os.path.exists('./jetfit/results/'):
             os.mkdir('./jetfit/results/')
 
-    def log_to_linear(self) -> np.ndarray:
-        """ Converts all fitting parameters that were passed in as log
-        to linear.
-        """
-        linear = []
-        for i, key in enumerate(self.fitted_params):
-            value = self.best_params[i]
-
-            if key in self.log_params:
-                value = np.power(10.0, value) if self.log_type == 'Log10' else np.exp(value)
-
-            linear.append(value)
-
-        return np.array(linear)
-
-    def plot_autocorrelation(self):
+    def plot_autocorrelation(self, path: str):
         """ Estimate the normalized autocorrelation function of a 1-D series.
         """
+        fig, axes = plt.subplots(len(self.fitted_params), figsize=(10, 7), sharex='all')
+
         def next_pow_two(n):
-            i = 1
-            while i < n:
-                i = i << 1
-            return i
+            i1 = 1
+            while i1 < n:
+                i1 = i1 << 1
+            return i1
 
         def autocorr_func_1d(x, norm: bool = True):
             x = np.atleast_1d(x)
@@ -66,12 +54,16 @@ class Plot:
 
             return acf
 
-        # Plot the auto-correlation function
-        plt.plot(autocorr_func_1d(self.chain[:, :, 0].reshape(-1)))
-        plt.xlabel('Lag')
-        plt.ylabel('Auto-correlation')
-        plt.title('Auto-correlation Function')
-        plt.show()
+        labels = [self.get_pretty_label(param) for param in self.fitted_params]
+
+        for i in range(len(self.fitted_params)):
+            axes[i].plot(autocorr_func_1d(self.chain[:, :, i].reshape(-1)), "k")
+
+            axes[i].set_xlim(0, len(self.chain[i]))
+            axes[i].set_ylabel(labels[i])
+
+        axes[-1].set_xlabel("Lag")
+        fig.savefig(path)
 
     def plot_light_curves(self, data_frame, default_params: dict, path: str) -> None:
         """ Plots the generated synthetic light curves.
@@ -138,32 +130,37 @@ class Plot:
 
         fig.savefig(path)
 
-    def plot_corner_plot(self, bounds: dict, path: str):
-        """ Plots the parameter distribution as a corner plot.
+    def plot_corner_plot(self, bounds: dict, path: str) -> None:
+        """ Plots the corner plot of parameter distributions.
 
         :param bounds: dictionary of upper and lower bounds
         :param path: path to save plot
         """
-        # Convert to the proper bounds
-        for param in self.fitted_params:
+        # Concatenate all the walkers
+        chain = self.chain.reshape((-1, len(self.fitted_params)))
+
+        labels, ranges, bins = [], [], []
+        for i, param in enumerate(self.fitted_params):
+            # Convert to the proper bounds
             if param in self.log_params:
                 func = np.log10 if self.log_type == 'Log10' else np.log
                 bounds[param][0] = func(bounds[param][0])
                 bounds[param][1] = func(bounds[param][1])
 
-        # Calculate the plot range for each parameter
-        ranges = [tuple(bounds[param]) for param in self.fitted_params]
+            # Store the plot ranges a list of tuples
+            ranges.append(tuple(bounds[param]))
+
+            # Create LaTeX labels for each parameter
+            labels.append(self.get_pretty_label(param))
+
+            # Determine the number of bins for each parameter set
+            bins.append(self.freedman_diaconis(chain[:, i]))
 
         # Create the two-tailed sigma levels to plot
         sigma_fractions = [self.sigma_to_fraction(sigma) for sigma in [0.25, 1, 2, 3]]
 
-        # Create LaTeX labels for each parameter
-        labels = [self.get_pretty_label(param) for param in self.fitted_params]
-
-        chain = self.chain.reshape((-1, len(self.fitted_params)))
-
         fig = corner(chain,
-                     bins=40,
+                     bins=bins,
                      color='mediumblue',
                      labels=labels,
                      label_size=20,
@@ -185,13 +182,40 @@ class Plot:
 
         fig.savefig(path)
 
+    def log_to_linear(self) -> np.ndarray:
+        """ Converts all fitting parameters that were passed in as log
+        to linear.
+        """
+        linear = []
+        for i, key in enumerate(self.fitted_params):
+            value = self.best_params[i]
+
+            if key in self.log_params:
+                value = np.power(10.0, value) if self.log_type == 'Log10' else np.exp(value)
+
+            linear.append(value)
+
+        return np.array(linear)
+
+    def overwrite_defaults(self, default_params: dict) -> dict:
+        """ Overwrites default values with best fitted values.
+
+        :param default_params: {param_name: default value}
+        """
+        best_linear_params = self.log_to_linear()
+
+        for i, key in enumerate(self.fitted_params):
+            default_params[key] = best_linear_params[i]
+
+        return default_params
+
     @staticmethod
-    def get_pretty_label(key: str):
+    def get_pretty_label(key: str) -> Union[str, None]:
         """ Returns LaTeX label for the provided fitting parameter. If the
         provided key is not valid, returns None.
 
         :param key: fitting parameter name
-        :return: str or None
+        :return: LaTeX formatted str or None
         """
         try:
             return {
@@ -207,17 +231,17 @@ class Plot:
         except KeyError:
             return None
 
-    def overwrite_defaults(self, default_params: dict) -> dict:
-        """ Overwrites default values with best fitted values.
+    @staticmethod
+    def freedman_diaconis(data: np.ndarray) -> int:
+        """ Implements the Freedman–Diaconis rule which can be used to
+        select the width of the bins to be used in a histogram.
 
-        :param default_params: {param_name: default value}
+        :param data: 1d numpy array of data to be binned
+        :return: integer number of bins
         """
-        best_linear_params = self.log_to_linear()
-
-        for i, key in enumerate(self.fitted_params):
-            default_params[key] = best_linear_params[i]
-
-        return default_params
+        q25, q75 = np.percentile(data, [25, 75])
+        bin_width = 2 * (q75 - q25) * len(data) ** (-1 / 3)
+        return int((np.max(data) - np.min(data)) / bin_width)
 
     @staticmethod
     def sigma_to_fraction(sigma: float) -> float:
@@ -225,4 +249,4 @@ class Plot:
 
         :param sigma: sigma level
         """
-        return 2 * stats.norm.cdf(sigma) - 1
+        return 2.0 * stats.norm.cdf(sigma) - 1.0
