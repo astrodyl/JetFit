@@ -19,4 +19,5 @@ def df_to_dict(df: pd.DataFrame) -> dict:
             'time_bounds': df['TimeBnds'].values,
             'fluxes': df['Fluxes'].values,
             'flux_errors': df['FluxErrs'].values,
+            'flux_types': df['FluxType'].values,
             'frequencies': df['Freqs'].values}

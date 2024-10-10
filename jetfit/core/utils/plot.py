@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 import scipy.stats as stats
 
 
+
 class Plot:
     def __init__(self, chain: np.ndarray, fitter, bp: np.ndarray, **kwargs):
         self.chain = chain
@@ -98,14 +99,33 @@ class Plot:
         if self.options['legend']:
             ax.legend(loc=0)
 
+        flux_model = []
         for i, freq in enumerate(data_frame['Freqs'].unique()):
             new_times = np.linspace(data_frame['Times'].min() * 1.0, data_frame['Times'].max() * 2.0, 200)
             new_frequencies = np.ones(len(new_times)) * freq
 
-            flux_model = np.asarray(self.fitter.flux_generator.get_spectral(new_times, new_frequencies, best_params))
+            # flux_model = np.asarray(self.fitter.flux_generator.get_spectral(new_times, new_frequencies, best_params))
+            # flux_model = np.asarray(self.fitter.flux_generator.get_integrated_flux(new_times, new_frequencies, best_params))
+
+            f_peak, nu_c, nu_m = self.fitter.flux_generator.get_transformed_value(
+                self.fitter.flux_generator.get_taus(new_times, best_params), best_params
+            )
+
+            for j in range(len(f_peak)):
+                flux_model.append(self.fitter.flux_generator.get_integrated(
+                    bounds=(7.25e16, 2.42e18),
+                    spectral_index=best_params['spectral_index'],
+                    cooling_frequency=nu_c[j],
+                    synchrotron_frequency=nu_m[j],
+                    peak_flux=f_peak[j])
+                )
+            flux_model = np.array(flux_model)
+
             plt.loglog(new_times / 24. / 3600., flux_model * scales[i], '--', color=colors[i], linewidth=1.5)
 
-        plt.savefig(path)
+        np.savetxt(path + 'model.txt', flux_model, newline='\n')
+
+        plt.savefig(path + 'curves.png')
 
     def plot_markov_chain(self, path: str) -> None:
         """ Plots the markov chain for all walkers and saves the figure
@@ -155,6 +175,7 @@ class Plot:
 
             # Determine the number of bins for each parameter set
             bins.append(self.freedman_diaconis(chain[:, i]))
+            # bins.append(40)
 
         # Create the two-tailed sigma levels to plot
         sigma_fractions = [self.sigma_to_fraction(sigma) for sigma in [0.25, 1, 2, 3]]

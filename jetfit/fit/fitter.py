@@ -6,7 +6,7 @@ import numpy as np
 import emcee as em
 
 from jetfit.fit.flux_generator import FluxGenerator
-from jetfit.utils.log import log_progress, log_results
+from jetfit.core.utils.log import log_progress, log_results
 
 
 """
@@ -43,6 +43,7 @@ class Fitter:
     time_bounds = None
     fluxes = None
     flux_errs = None
+    flux_types = None
     frequencies = None
 
     def __init__(self, csf: str, options: dict, bounds: dict, defaults: dict,
@@ -131,6 +132,7 @@ class Fitter:
         self.time_bounds = kwargs['time_bounds']
         self.fluxes = kwargs['fluxes']
         self.flux_errs = kwargs['flux_errors']
+        self.flux_types = kwargs['flux_types']
         self.frequencies = kwargs['frequencies']
 
     def set_sampler(self, sampler: str, num_temps: int, num_walkers: int, threads: int) -> None:
@@ -146,7 +148,7 @@ class Fitter:
         if sampler == "Ensemble":
             self._sampler = em.EnsembleSampler(num_walkers, self._fitting_dimensions, log_posterior,
                                                args=[self._fitting_bounds, self._info, self._params, self.flux_generator,
-                                                     self.times, self.frequencies, self.fluxes, self.flux_errs],
+                                                     self.times, self.frequencies, self.fluxes, self.flux_errs, self.flux_types],
                                                threads=threads)
 
             self._burn_position = (self._initial_bound[:, 0] + (self._initial_bound[:, 1]-self._initial_bound[:, 0]) *
@@ -154,7 +156,7 @@ class Fitter:
         else:
             self._sampler = em.PTSampler(num_temps, num_walkers, self._fitting_dimensions, log_like, log_prior,
                                          loglargs=[self._info, self._params, self.flux_generator, self.times,
-                                                   self.frequencies, self.fluxes, self.flux_errs],
+                                                   self.frequencies, self.fluxes, self.flux_errs, self.flux_types],
                                          logpargs=[self._fitting_bounds, self._info], threads=threads)
 
             self._burn_position = (self._initial_bound[:, 0] + (self._initial_bound[:, 1]-self._initial_bound[:, 0]) *
@@ -255,8 +257,14 @@ def log_prior(fit_params: np.ndarray, bounds, info: dict) -> float:
 
 
 def log_like(fit_params: np.ndarray, info: dict, params: dict, flux_generator,
-             times: np.ndarray, frequencies: np.ndarray, flux: np.ndarray, flux_errs: np.ndarray) -> float:
-    """ This method is for PTSampler
+             times: np.ndarray, frequencies: np.ndarray, flux: np.ndarray,
+             flux_errs: np.ndarray, flux_types: np.ndarray = None) -> float:
+    """ Returns the log of the likelihood function. Ignores the constant
+    term since it is irrelevant in parameter estimation and model fitting.
+    This method is used for the Parallel Tempered Sampler.
+
+    See: GAMMA-RAY BURSTS ARE OBSERVED OFF-AXIS (Ryan et al. 2015) Sec. 4,
+    https://iopscience.iop.org/article/10.1088/0004-637X/799/1/3/pdf.
 
     :param fit_params: values for fitting parameters
     :param info: prior information
@@ -266,7 +274,8 @@ def log_like(fit_params: np.ndarray, info: dict, params: dict, flux_generator,
     :param frequencies: frequencies. The length should be the same as times
     :param flux: flux in mJy
     :param flux_errs: flux error in mJy
-    :return: calculate Chi^2 and return -0.5*Chi^2 (details see Ryan+ 2014)
+    :param flux_types: `spectral` or `integrated`
+    :return: log of the likelihood function (i.e., -0.5 * Chi squared)
     """
     for i, key in enumerate(info['fit']):
         if key in info['log']:
@@ -277,22 +286,48 @@ def log_like(fit_params: np.ndarray, info: dict, params: dict, flux_generator,
         else:
             params[key] = fit_params[i]
 
-    if info['flux_type'] == 'Spectral':
-        flux_model = flux_generator.get_spectral(times, frequencies, params)
-    elif info['fluxType'] == 'Integrated':
-        flux_model = flux_generator.get_integrated_flux(times, frequencies, params)
-    else:
-        raise ValueError("Integrated Flux has not implemented!")
+    f_peak, nu_c, nu_m = flux_generator.get_transformed_value(
+        flux_generator.get_taus(times, params), params
+    )
 
-    if np.isnan(flux_model[0]):
+    if np.isnan(f_peak[0]):
         return -np.inf
 
-    chi_square = np.sum(((flux - flux_model) / flux_errs)**2)
-    return -0.5 * chi_square
+    modeled_flux = []
+    for i, f in enumerate(frequencies):
+        if flux_types[i] == 'Integrated':
+            modeled_flux.append(flux_generator.get_integrated(bounds=(7.25e16, 2.42e18),
+                                                              spectral_index=params['spectral_index'],
+                                                              cooling_frequency=nu_c[i],
+                                                              synchrotron_frequency=nu_m[i],
+                                                              peak_flux=f_peak[i])
+                                )
+        else:
+            modeled_flux.append(flux_generator.get_spectral_flux(frequency=f,
+                                                                 spectral_index=params['spectral_index'],
+                                                                 cooling_frequency=nu_c[i],
+                                                                 synchrotron_frequency=nu_m[i],
+                                                                 peak_flux=f_peak[i])
+                                )
+    modeled_flux = np.array(modeled_flux)
+
+    # Generate the flux model
+    # if info['flux_type'] == 'Spectral':
+    #     modeled_flux = flux_generator.get_spectral(times, frequencies, params)
+    # elif info['flux_type'] == 'Integrated':
+    #     modeled_flux = flux_generator.get_integrated_flux(times, frequencies, params)
+    # else:
+    #     raise ValueError("Integrated Flux has not implemented!")
+
+    # if np.isnan(modeled_flux[0]):
+    #     return -np.inf
+
+    return -0.5 * np.sum(((flux - modeled_flux) / flux_errs) ** 2)
 
 
 def log_posterior(fit_params: np.ndarray, bounds, info: dict, params: dict, flux_generator,
-                  times: np.ndarray, frequencies: np.ndarray, flux: np.ndarray, flux_errs: np.ndarray) -> float:
+                  times: np.ndarray, frequencies: np.ndarray, flux: np.ndarray, flux_errs: np.ndarray,
+                  flux_types: np.ndarray) -> float:
     """ This method is for EnsembleSampler.
 
     :param fit_params: values for fitting parameters
@@ -304,10 +339,12 @@ def log_posterior(fit_params: np.ndarray, bounds, info: dict, params: dict, flux
     :param frequencies: frequencies. The length should be the same as times
     :param flux: flux in mJy
     :param flux_errs: flux error in mJy
+    :param flux_types: `spectral` or `integrated`
     :return: log(prior) + log(likelihood)
     """
     log_prior_function = log_prior(fit_params, bounds, info)
-    log_like_function = log_like(fit_params, info, params, flux_generator, times, frequencies, flux, flux_errs)
+    log_like_function = log_like(fit_params, info, params, flux_generator, times,
+                                 frequencies, flux, flux_errs, flux_types)
 
     # Log Posterior
     if np.isfinite(log_prior_function) and np.isfinite(log_like_function):
