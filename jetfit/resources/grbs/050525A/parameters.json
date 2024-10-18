@@ -7,8 +7,8 @@
             "asymptotic_lorentz_factor": 8.0
         },
         "bounds": {
-            "explosion_energy": [1e-6, 1e3],
-            "circumburst_density": [1e-6, 1e3],
+            "explosion_energy": [1e-10, 1e3],
+            "circumburst_density": [1e-5, 1e5],
             "boost_lorentz_factor":[1.0, 12.0],
             "asymptotic_lorentz_factor": [2.0, 10.0]
         }
@@ -21,9 +21,9 @@
             "accelerated_electron_fraction": 1.0
         },
         "bounds": {
-            "spectral_index": [2.0, 2.5],
-            "electron_energy_fraction": [1e-6, 1.0],
-            "magnetic_energy_fraction": [1e-6, 1.0]
+            "spectral_index": [2.0, 5],
+            "electron_energy_fraction": [1e-10, 1.0],
+            "magnetic_energy_fraction": [1e-10, 1.0]
         }
     },
     "observational": {
