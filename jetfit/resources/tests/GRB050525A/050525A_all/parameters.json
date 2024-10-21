@@ -1,14 +1,14 @@
 {
     "hydrodynamic": {
         "defaults": {
-            "explosion_energy": 0.1,
-            "circumburst_density": 0.01,
+            "explosion_energy": 0.15,
+            "circumburst_density": 0.001,
             "boost_lorentz_factor": 11.0,
             "asymptotic_lorentz_factor": 8.0
         },
         "bounds": {
-            "explosion_energy": [1e-6, 1e3],
-            "circumburst_density": [1e-6, 1e3],
+            "explosion_energy": [1e-10, 1e3],
+            "circumburst_density": [1e-5, 1e5],
             "boost_lorentz_factor":[1.0, 12.0],
             "asymptotic_lorentz_factor": [2.0, 10.0]
         }
@@ -16,20 +16,20 @@
     "radiation": {
         "defaults": {
             "spectral_index": 2.25,
-            "electron_energy_fraction": 0.01,
-            "magnetic_energy_fraction": 0.01,
+            "electron_energy_fraction": 0.1,
+            "magnetic_energy_fraction": 0.1,
             "accelerated_electron_fraction": 1.0
         },
         "bounds": {
-            "spectral_index": [2.0, 2.5],
-            "electron_energy_fraction": [1e-6, 1.0],
-            "magnetic_energy_fraction": [1e-6, 1.0]
+            "spectral_index": [2.0, 5],
+            "electron_energy_fraction": [1e-10, 1.0],
+            "magnetic_energy_fraction": [1e-10, 1.0]
         }
     },
     "observational": {
         "defaults": {
-            "redshift": 0.00973,
-            "luminosity_distance": 0.012188,
+            "redshift": 0.606,
+            "luminosity_distance": 1.14,
             "observation_angle": 0.5
         },
         "bounds": {

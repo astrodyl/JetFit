@@ -28,8 +28,8 @@
     },
     "observational": {
         "defaults": {
-            "redshift": 2.1,
-            "luminosity_distance": 5.22,
+            "redshift": 2.198,
+            "luminosity_distance": 5.52,
             "observation_angle": 0.5
         },
         "bounds": {

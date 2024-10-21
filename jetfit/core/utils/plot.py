@@ -18,10 +18,10 @@ class Plot:
         self.log_type = kwargs['log_type']
 
         self.options = {
-            'colors': ['orange', 'red', 'g', 'b'],
-            'scale': [6.0, 1.0, 100.0, 800.0E8],
+            'colors': ['orange', 'red', 'g', 'b', 'violet', 'black'],
+            'scale': [1.0, 5.0, 10.0, 20.0, 40.0, 80.0],
             'legend': True,
-            'x_axis_day': True
+            'x_axis_day': False
         }
 
         if not os.path.exists('./jetfit/results/'):
@@ -85,12 +85,20 @@ class Plot:
             sub_df = data_frame[data_frame['Freqs'] == freq]
 
             times = sub_df['Times']
+            flux = sub_df['Fluxes']
+            flux_errors = sub_df['FluxErrs']
+
+            # Convert seconds to days
             if self.options['x_axis_day']:
                 times = times / 24. / 3600
 
+            # Convert erg / s / cm^2 to mJy
+            if sub_df['FluxUnits'].iloc[0] == 'cgs':
+                flux = flux / (1e-26 * 2.3475e18)
+                flux_errors = flux_errors / (1e-26 * 2.3475e18)
+
             label = '%.1e x %d' % (freq, scale) if max(scales) > 1.0 else '%.1e' % freq
-            ax.errorbar(times, sub_df['Fluxes'] * scale, yerr=sub_df['FluxErrs'] * scale,
-                        color=color, fmt='.', label=label)
+            ax.errorbar(times, flux * scale, yerr=flux_errors * scale, color=color, fmt='.', label=label)
 
         ax.set_yscale('log'), ax.set_xscale('log'), ax.set_ylabel('Flux density (mJy)')
         ax.set_xlabel('Time (day)') if self.options['x_axis_day'] else ax.set_xlabel('Time (s)')
@@ -100,6 +108,9 @@ class Plot:
 
         flux_models = []
         new_times = np.linspace(data_frame['Times'].min() * 1.0, data_frame['Times'].max() * 2.0, 200)
+
+        if self.options['x_axis_day']:
+            new_times = new_times / 24. / 3600
 
         for i, freq in enumerate(data_frame['Freqs'].unique()):
             flux_model = []
@@ -122,18 +133,18 @@ class Plot:
                         peak_flux=f_peak[j])
                     )
             else:
-                # Since data sets likely have multiple
+                # Calculate integrated flux and convert to mJy
                 for j in range(len(f_peak)):
                     flux_model.append(self.fitter.flux_generator.get_integrated(
                         bounds=(7.25e16, 2.42e18),
                         spectral_index=best_params['spectral_index'],
                         cooling_frequency=nu_c[j],
                         synchrotron_frequency=nu_m[j],
-                        peak_flux=f_peak[j])
+                        peak_flux=f_peak[j]) / (1e-26 * 2.3475e+18)
                     )
 
             flux_models.extend(flux_model)
-            plt.loglog(new_times / 24. / 3600., np.array(flux_model) * scales[i], '--', color=colors[i], linewidth=1.5)
+            plt.loglog(new_times, np.array(flux_model) * scales[i], '--', color=colors[i], linewidth=1.5)
 
         # Save the figure values and the figure
         np.savetxt(path + 'times.txt', np.array(new_times), newline='\n')
@@ -187,8 +198,8 @@ class Plot:
             labels.append(self.get_pretty_label(param))
 
             # Determine the number of bins for each parameter set
-            bins.append(self.freedman_diaconis(chain[:, i]))
-            # bins.append(40)
+            # bins.append(self.freedman_diaconis(chain[:, i]))
+            bins.append(50)
 
         # Create the two-tailed sigma levels to plot
         sigma_fractions = [self.sigma_to_fraction(sigma) for sigma in [0.25, 1, 2, 3]]
