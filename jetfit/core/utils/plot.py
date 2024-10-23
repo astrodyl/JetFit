@@ -1,7 +1,6 @@
 import os
 from typing import Union
 
-import emcee
 import numpy as np
 from corner import corner, overplot_lines
 from matplotlib import pyplot as plt
@@ -180,6 +179,9 @@ class Plot:
         :param bounds: dictionary of upper and lower bounds
         :param path: path to save plot
         """
+        # Save chain to disk
+        np.save(os.path.join(os.path.dirname(path), 'chain.npy'), self.chain)
+
         # Concatenate all the walkers
         chain = self.chain.reshape((-1, len(self.fitted_params)))
 

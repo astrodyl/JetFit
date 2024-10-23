@@ -1,5 +1,5 @@
+import json
 import os
-from datetime import datetime
 
 import numpy as np
 
@@ -52,7 +52,23 @@ def main(**kwargs):
     fitter.load_data(**observational_data)
     fitter.set_sampler(**mcmc)
 
+    # if False:
+    #     loaded_chain = np.load(rf"./jetfit/results/{kwargs.get('event')}/chain.npy", allow_pickle=True)
+    #
+    #     with open(rf"./jetfit/results/{kwargs.get('event')}/best_fits.json", 'r') as f:
+    #         best_fits = json.load(f)
+    #
+    #     best_loc = (int(best_fits.get('location').get('index1')), int(best_fits.get('location').get('index2')))
+    #
+    #     plotter = Plot(loaded_chain, fitter, loaded_chain[best_loc], **kwargs)
+    #     plotter.plot_light_curves(data_frame, parameter_defaults, f"./jetfit/results/{kwargs.get('event')}/")
+    #     plotter.plot_corner_plot(parameter_bounds, f"./jetfit/results/{kwargs.get('event')}/" + 'corner.png')
+    #     plotter.plot_markov_chain(f"./jetfit/results/{kwargs.get('event')}/" + 'chain.png')
+    #
+    #     exit()
+
     # Burn in and then perform actual run
+
     burn_result = fitter.run(iterations=burn_length, action='burning')
     mcmc_result = fitter.run(iterations=run_length, action='running')
 
@@ -81,33 +97,3 @@ def main(**kwargs):
 
     # Log the best values and medians to the console
     log.log_best_values(result_chain, best_walker, kwargs['fit'], results_path + 'best_fits.json')
-
-
-# if __name__ == '__main__':
-#
-#     params = {
-#         'run_type': 'quick',               # One of: 'quick' or 'full'
-#         'input_table': 'Table.h5',        # Characteristic Spectral Functions
-#         'input_data': 'GW170817.csv',     # Observational data
-#         'fit': np.array([                 # Parameters to fit
-#             'explosion_energy',
-#             'circumburst_density',
-#             'asymptotic_lorentz_factor',
-#             'boost_lorentz_factor',
-#             'observation_angle',
-#             'electron_energy_fraction',
-#             'magnetic_energy_fraction',
-#             'spectral_index'
-#         ]),
-#         'log': np.array([                 # Sets parameters in log scale
-#             'explosion_energy',
-#             'circumburst_density',
-#             'electron_energy_fraction',
-#             'magnetic_energy_fraction'
-#         ]),
-#         'log_type': 'Log10',              # One of: 'Log10' or 'Log'
-#         'obs_angle_prior': 'Sine',        # One of: 'Sine' or 'Uniform'
-#         'flux_type': 'Spectral'           # One of: 'Spectral' or 'Integrated'
-#     }
-#
-#     main(**params)

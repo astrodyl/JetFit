@@ -82,7 +82,6 @@ Times,TimeBnds,Fluxes,FluxErrs,Freqs,FluxType,FluxUnits
 79004.16,,0.008446733,0.001789271,4.56E+14,Spectral,mJy
 79971.84,,0.012231985,0.003154384,3.75E+14,Spectral,mJy
 84188.16,,0.013561163,0.001611188,3.75E+14,Spectral,mJy
-80.697,5.085,2.65E-10,3.89E-11,1,Integrated,cgs
 5915.461,56.537,2.04E-11,4.59E-12,1,Integrated,cgs
 6007.673,37.375,2.59E-11,5.81E-12,1,Integrated,cgs
 6111.402,61.693,2.10E-11,4.75E-12,1,Integrated,cgs

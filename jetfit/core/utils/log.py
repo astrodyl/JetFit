@@ -53,7 +53,11 @@ def log_best_values(chain: np.ndarray, best_walker: tuple, params: np.ndarray, p
 
         return np.median(data) - lower_bound, upper_bound - np.median(data)
 
-    results = {}
+    results = {'location': {
+        'index1': int(best_walker[0]),
+        'index2': int(best_walker[1]),
+    }}
+
     for i, param in enumerate(params):
         # All walkers
         flat_chain = chain.reshape((-1, len(params)))
