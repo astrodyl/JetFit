@@ -2,19 +2,11 @@ import json
 import os
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from jetfit.fit.fitter import Fitter
 from jetfit.core.utils import csv, log, config
 from jetfit.core.utils.plot import Plot
-
-
-class JetFit:
-    def __init__(self):
-        self.mcmc = None        # settings, results (burn, run, best fit, ..)
-        self.table = None       # path to file
-        self.output = None      # directory
-        self.photometry = None  # path to file
-        self.parameters = None  # fitting + bounds + scale + prior, fixed
 
 
 def main(**kwargs):
@@ -46,42 +38,50 @@ def main(**kwargs):
     data_frame = csv.read(inputs.get('data'))
     observational_data = csv.df_to_dict(data_frame)
 
+    # Create a unique results directory
+    results_path = f"./jetfit/results/{kwargs.pop('event')}/"
+
+    if not os.path.exists(results_path):
+        os.mkdir(results_path)
+
     # Get Fitter object and initialize data and sampler
     input_table = inputs.get('table')
     fitter = Fitter(input_table, kwargs, parameter_bounds, parameter_defaults, explore=True)
     fitter.load_data(**observational_data)
     fitter.set_sampler(**mcmc)
 
-    # if False:
-    #     loaded_chain = np.load(rf"./jetfit/results/{kwargs.get('event')}/chain.npy", allow_pickle=True)
+    # if True:
+    #     import pickle
     #
-    #     with open(rf"./jetfit/results/{kwargs.get('event')}/best_fits.json", 'r') as f:
+    #     base_dir = rf"C:\Projects\repos\JetFit\jetfit\results\050525A"
+    #
+    #     with open(r"C:\Projects\repos\JetFit\jetfit\results\050525A\mcmc.pkl", 'rb') as f:
+    #         data = pickle.load(f)
+    #
+    #     loaded_chain = data['result']['Chain']
+    #
+    #     with open(rf"{base_dir}/best_fits.json", 'r') as f:
     #         best_fits = json.load(f)
     #
     #     best_loc = (int(best_fits.get('location').get('index1')), int(best_fits.get('location').get('index2')))
     #
     #     plotter = Plot(loaded_chain, fitter, loaded_chain[best_loc], **kwargs)
-    #     plotter.plot_light_curves(data_frame, parameter_defaults, f"./jetfit/results/{kwargs.get('event')}/")
-    #     plotter.plot_corner_plot(parameter_bounds, f"./jetfit/results/{kwargs.get('event')}/" + 'corner.png')
-    #     plotter.plot_markov_chain(f"./jetfit/results/{kwargs.get('event')}/" + 'chain.png')
+    #     # for i in (20, 40, 60, 80, 100, 200):
+    #     plotter.plot_corner_plot(parameter_bounds, f"{base_dir}/{50}_corner.png", 50)
+    #
+    #     # plotter.plot_light_curves(data_frame, parameter_defaults, f"{base_dir}/loaded/")
+    #     # plotter.plot_markov_chain(f"{base_dir}/loaded/" + 'chain.png')
     #
     #     exit()
 
     # Burn in and then perform actual run
-
     burn_result = fitter.run(iterations=burn_length, action='burning')
-    mcmc_result = fitter.run(iterations=run_length, action='running')
+    mcmc_result = fitter.run(iterations=run_length, action='running', output=results_path + 'mcmc.pkl')
 
     # Find the best fitting parameters
     result_chain = mcmc_result['Chain']
     ln_probability = mcmc_result['LnProbability']
     best_walker = np.unravel_index(np.nanargmax(ln_probability), ln_probability.shape)
-
-    # Create a unique results directory
-    results_path = f"./jetfit/results/{kwargs.pop('event')}/"
-
-    if not os.path.exists(results_path):
-        os.mkdir(results_path)
 
     # TEMP BURNER
     burn_chain = burn_result['Chain']

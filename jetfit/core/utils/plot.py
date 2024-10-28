@@ -173,15 +173,13 @@ class Plot:
 
         fig.savefig(path)
 
-    def plot_corner_plot(self, bounds: dict, path: str) -> None:
+    def plot_corner_plot(self, bounds: dict, path: str, num_bins: int = None) -> None:
         """ Plots the corner plot of parameter distributions.
 
         :param bounds: dictionary of upper and lower bounds
         :param path: path to save plot
+        :param num_bins:
         """
-        # Save chain to disk
-        np.save(os.path.join(os.path.dirname(path), 'chain.npy'), self.chain)
-
         # Concatenate all the walkers
         chain = self.chain.reshape((-1, len(self.fitted_params)))
 
@@ -201,10 +199,13 @@ class Plot:
 
             # Determine the number of bins for each parameter set
             # bins.append(self.freedman_diaconis(chain[:, i]))
-            bins.append(50)
+            if num_bins is None:
+                bins.append(50)
+            else:
+                bins.append(num_bins)
 
         # Create the two-tailed sigma levels to plot
-        sigma_fractions = [self.sigma_to_fraction(sigma) for sigma in [0.25, 1, 2, 3]]
+        sigma_fractions = [self.sigma_to_fraction(sigma) for sigma in [1, 2, 3]]
 
         fig = corner(chain,
                      bins=bins,
@@ -217,8 +218,8 @@ class Plot:
                      label_kwargs={'fontsize': 18},
                      title_kwargs={"fontsize": 18},
                      fill_contours=True,
-                     smooth=True,
-                     smooth1d=True,
+                     smooth=0.75,
+                     smooth1d=0.75,
                      range=ranges,
                      levels=sigma_fractions
                      )

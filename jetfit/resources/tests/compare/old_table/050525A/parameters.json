@@ -21,15 +21,15 @@
             "accelerated_electron_fraction": 1.0
         },
         "bounds": {
-            "spectral_index": [2.0, 5],
+            "spectral_index": [2.0, 5.0],
             "electron_energy_fraction": [1e-10, 1.0],
             "magnetic_energy_fraction": [1e-10, 1.0]
         }
     },
     "observational": {
         "defaults": {
-            "redshift": 1.1,
-            "luminosity_distance": 2.30619,
+            "redshift": 0.606,
+            "luminosity_distance": 1.14,
             "observation_angle": 0.5
         },
         "bounds": {

@@ -26,10 +26,11 @@ def log_results(path: str, fitter, result: dict) -> None:
     """
     output_data = {
         "result": result,
-        "options": fitter.get_info(),
-        "parameter_bounds": fitter.get_fitting_bounds_dict(),
-        "parameter_defaults": fitter.get_params(),
-        "table_info": fitter.flux_generator.table_info
+        # "sampler": fitter.get_sampler(),
+        # "options": fitter.get_info(),
+        # "parameter_bounds": fitter.get_fitting_bounds_dict(),
+        # "parameter_defaults": fitter.get_params(),
+        # "table_info": fitter.flux_generator.table_info
     }
 
     with open(path, 'wb') as handle:

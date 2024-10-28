@@ -159,7 +159,9 @@ class Fitter:
                                                    self.frequencies, self.fluxes, self.flux_errs, self.flux_types],
                                          logpargs=[self._fitting_bounds, self._info], threads=threads)
 
-            self._burn_position = (self._initial_bound[:, 0] + (self._initial_bound[:, 1]-self._initial_bound[:, 0]) *
+            # Start at some random position between the bounds
+            # initial_positions = np.random.uniform(low=self._initial_bound[:, 0], high=self._initial_bound[:, 1], size=(num_temps, num_walkers, self._fitting_dimensions))
+            self._burn_position = (self._initial_bound[:, 0] + (self._initial_bound[:, 1] - self._initial_bound[:, 0]) *
                                    np.random.rand(num_temps, num_walkers, self._fitting_dimensions))
 
     def run(self, iterations: int, action: str, output: str = None) -> dict:
@@ -189,7 +191,7 @@ class Fitter:
         if action == 'burning':
             self._run_position = step_result[0]
 
-        if output is not None:
+        if output is not None and action == 'running':
             log_results(output, self, self.get_results())
 
         return self.get_results()
@@ -221,7 +223,7 @@ class Fitter:
             return {
                 'Chain': self._sampler.chain[0],
                 'LnProbability': self._sampler.lnprobability[0],
-                'AcceptanceFraction': self._sampler.acceptance_fraction[0]
+                'AcceptanceFraction': self._sampler.acceptance_fraction[0],
             }
 
 
