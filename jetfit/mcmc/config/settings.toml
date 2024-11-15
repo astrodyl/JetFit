@@ -1,0 +1,6 @@
+# MCMC Configuration File
+
+[settings]
+num_walkers = 100
+burn_length = 10000
+run_length  = 10000

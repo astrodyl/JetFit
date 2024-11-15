@@ -1,0 +1,97 @@
+# MCMC Parameter Configuriation File
+
+# ==========================
+#  HYDRODYNAMIC PARAMETERS
+# ==========================
+[explosion_energy]
+    group = "hydrodynamic"
+    scale = "log"
+
+    [explosion_energy.prior]
+        type  = "uniform"
+        lower = -10.0
+        upper = 3.0
+
+[circumburst_density]
+    group = "hydrodynamic"
+    scale = "log"
+
+    [circumburst_density.prior]
+        type  = "uniform"
+        lower = -5.0
+        upper = 5.0
+
+[asymptotic_lorentz_factor]
+    group = "hydrodynamic"
+    scale = "linear"
+
+    [asymptotic_lorentz_factor.prior]
+        type  = "uniform"
+        lower = 2.0
+        upper = 15.0
+
+[boost_lorentz_factor]
+    group = "hydrodynamic"
+    scale = "linear"
+
+    [boost_lorentz_factor.prior]
+        type  = "uniform"
+        lower = 1.0
+        upper = 20.0
+
+# ==========================
+#    RADIATION PARAMETERS
+# ==========================
+[electron_energy_fraction]
+    group = "radiation"
+    scale = "log"
+
+    [electron_energy_fraction.prior]
+        type  = "uniform"
+        lower = -10.0
+        upper = 0.0
+
+[magnetic_energy_fraction]
+    group = "radiation"
+    scale = "log"
+
+    [magnetic_energy_fraction.prior]
+        type  = "uniform"
+        lower = -10.0
+        upper = 0.0
+
+[electron_energy_index]
+    group = "radiation"
+    scale = "linear"
+
+    [electron_energy_index.prior]
+        type  = "uniform"
+        lower = 2.0
+        upper = 5.0
+
+[accelerated_electron_fraction]
+    group = "radiation"
+    scale = "linear"
+    value = 1.0
+
+# ==========================
+#  OBSERVATIONAL PARAMETERS
+# ==========================
+[obs_angle]
+    group = "observational"
+    scale = "linear"
+
+    [obs_angle.prior]
+        type  = "sine"
+        lower = 0.0
+        upper = 1.0
+
+[redshift]
+    group = "observational"
+    scale = "linear"
+    value = 0.8304
+
+[luminosity_distance]
+    group = "observational"
+    scale = "linear"
+    value = 1.67

@@ -1,7 +1,3 @@
-# The requirements listed here and their versions are for Python 3.8.
-# The original Python tool was written using Python 2.7, which is no
-# longer supported.
-
 arviz
 backports-abc
 backports.functools-lru-cache
@@ -15,7 +11,7 @@ corner
 crayons
 cryptography
 cycler
-emcee==2.2.1  # Required for PTSampler
+emcee  # ==2.2.1  # Required for PTSampler
 enum34
 h5py
 html5lib
@@ -26,7 +22,7 @@ linecache2
 lxml
 matplotlib
 mkl
-numpy==1.20  # Required for emcee version above
+numpy  # ==1.20  # Required for emcee version above
 pandas
 patsy
 pprintpp
