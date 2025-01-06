@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from jetfit.core.defns.enums import FluxType, TimeUnits, FluxUnits
+from jetfit.core.defns.enums import FluxType
 from jetfit.core.utilities.io import csv
-from jetfit.core.values.flux_value import IntegratedFluxValue
-from jetfit.core.values.flux_value import SpectralFluxValue
-from jetfit.core.values.flux_value import FluxValue
-from jetfit.core.values.time_value import TimeValue
+from jetfit.core.values.flux import IntegratedFluxValue
+from jetfit.core.values.flux import SpectralFluxValue
+from jetfit.core.values.flux import FluxValue
+from jetfit.core.values.time import TimeValue
 
 
 class Observation:
@@ -21,8 +21,18 @@ class Observation:
         List of `SpectralFluxValue` and `IntegratedFluxValue` objects.
     """
     def __init__(self, times: list[TimeValue], fluxes: list):
+        self.times = times if times else []
+        self.fluxes = fluxes if fluxes else []
+
+    @classmethod
+    def from_csv(cls, path: str | Path):
         """
-        Initializes the instance using a path to an observation file.
+        Populates `times` and `fluxes` from a CSV file.
+
+        Parameters
+        ----------
+        path : str or Path, optional
+            Path to a CSV file containing observation info.
 
         Notes
         -----
@@ -42,22 +52,6 @@ class Observation:
         - `FluxLower` : Lower frequency if `FluxType` is `integrated`.
         - `FluxUpper` : Upper frequency if `FluxType` is `integrated`.
 
-        If times, fluxes, and csv_path are all provided, then the values in
-        the CSV will overwrite the provided lists.
-        """
-        self.times = times if times else []
-        self.fluxes = fluxes if fluxes else []
-
-    @classmethod
-    def from_csv(cls, path: str | Path):
-        """
-        Populates `times` and `fluxes` from a CSV file.
-
-        Parameters
-        ----------
-        path : str or Path, optional
-            Path to a CSV file containing observation info.
-
         Raises
         ------
         ValueError
@@ -69,19 +63,15 @@ class Observation:
         for row in csv.read(path).itertuples():
             times.append(TimeValue.from_csv_row(row))
 
-            if row.FluxType.lower() == FluxType.INTEGRATED.value:
+            if row.ValueType.lower() == FluxType.INTEGRATED.value:
                 fluxes.append(IntegratedFluxValue.from_csv_row(row))
 
-            elif row.FluxType.lower() == FluxType.SPECTRAL.value:
+            elif row.ValueType.lower() == FluxType.SPECTRAL.value:
                 fluxes.append(SpectralFluxValue.from_csv_row(row))
 
             else:
-                raise ValueError(f'Unsupported flux type: {row.flux_type}. '
+                raise ValueError(f'Unsupported flux type: {row.ValueType}. '
                                  f'Supported flux types include '
                                  f'{[f.value for f in FluxType]}.')
 
         return cls(times, fluxes)
-
-    def numpyify(self):
-        """ Converts the time and flux value objects into numpy arrays. """
-        pass

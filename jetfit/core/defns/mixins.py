@@ -21,6 +21,17 @@ class BoundedMixin:
         self.lower = lower
         self.upper = upper
 
+    def bounds(self) -> tuple[float, float]:
+        """
+        Returns the lower and upper bounds as a tuple.
+
+        Returns
+        -------
+        tuple of float with length 2
+            The lower and upper bound.
+        """
+        return self.lower, self.upper
+
     def encompasses(self, value: float):
         """
         Checks if the value is contained within the bounds.

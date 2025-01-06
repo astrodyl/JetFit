@@ -1,33 +1,145 @@
 from pathlib import Path
 import pandas as pd
 
+from jetfit.core.defns.enums import IndexType, FluxType
+from jetfit.core.utilities.exceptions import EvidenceTypeError
+from jetfit.core.utilities.exceptions import EvidenceColumnError
+from jetfit.core.utilities.exceptions import EvidenceValueError
 
-def read(path: str | Path):
+
+SCHEMA = {
+    'required': {
+        'Time': {"type": float},
+        'TimeUnits': {"type": str},
+        'Value': {"type": float},
+        'ValueType': {"type": float},
+        'ValueLower': {"type": float},
+        'ValueUpper': {"type": float},
+        'ValueUnits': {"type": str},
+        'Model': {'type': str}
+    },
+    'conditional': {
+        'Frequency': {'type': float, 'required_by': {'ValueType': 'SpectralFlux'}},
+        'FrequencyLower': {'type': float, 'required_by': {'ValueType': 'IntegratedFlux'}},
+        'FrequencyUpper': {'type': float, 'required_by': {'ValueType': 'IntegratedFlux'}},
+        'FrequencyUnits': {'type': float, 'required_by': {'ValueType': 'IntegratedFlux'}},
+    }
+}
+
+
+class CSVReader:
     """
-    Reads a csv at the path and returns a pd.DataFrame
+    Reads an evidence CSV and stores it in a pandas DataFrame.
 
-    Parameters
+    Attributes
     ----------
-    path : str | Path
-        Location to the csv file.
+    df : pd.DataFrame
+        Pandas representation of the CSV file.
     """
-    return pd.read_csv(path)
+    schema = SCHEMA
 
+    def __init__(self, path: str | Path, live_dangerously: bool = False):
+        """
 
-def df_to_dict(df: pd.DataFrame) -> dict:
-    """ Converts a pd.DataFrame to a dictionary.
+        Parameters
+        ----------
+        path : str | Path
+            Location to the csv file.
 
-    :param df: pd.DataFrame
-    :return: dictionary with key, value from df
-    """
-    return {'times': df['Times'].values,
-            'time_bounds': df['TimeBnds'].values,
-            'fluxes': df['Fluxes'].values,
-            'flux_errors': df['FluxErrs'].values,
-            'flux_types': df['FluxType'].values,
-            'frequencies': df['Freqs'].values}
+        live_dangerously : bool, optional
+            If `True`, skips verification of CSV.
+        """
+        self.df = pd.read_csv(path)
 
+        if not live_dangerously:
+            self.validate()
 
-def row_has_null() -> bool:
-    """ """
-    pass
+    def rows(self):
+        """"""
+        return self.df.itertuples(name='Evidence')
+
+    def validate(self) -> None:
+        """ Checks that the CSV contains the required valid information. """
+        self.validate_headers()
+        self.validate_rows()
+
+    def validate_headers(self) -> None:
+        """
+        Checks that the required headers are present.
+
+        Does not check if the CSV contains any column headers that are not
+        required or conditionally required since it does not affect the
+        read-in. Users are allowed to have a CSV containing anything that
+        they want so long as the required data are present.
+
+        Raises
+        ------
+        EvidenceColumnError
+            If the CSV is missing any of the required column headers.
+        """
+        for header in self.schema.get('required'):
+            if header not in self.df.columns:
+                raise EvidenceColumnError(header)
+
+    def validate_rows(self) -> None:
+        """
+        Checks that every row has the required valid values.
+
+        Raises
+        ------
+        EvidenceTypeError
+        """
+        for row in self.rows():
+            self.validate_required_values(row)
+
+            match row.ValueType.lower():  # type: ignore
+                case FluxType.INTEGRATED.value:
+                    self.validate_value(row, 'FrequencyLower', float)
+                    self.validate_value(row, 'FrequencyUpper', float)
+                    self.validate_value(row, 'FrequencyUnits', str)
+
+                case FluxType.SPECTRAL.value:
+                    self.validate_value(row, 'Frequency', float)
+                    self.validate_value(row, 'FrequencyUnits', str)
+
+                case IndexType.SPECTRAL.value:
+                    pass
+
+                case _:
+                    raise EvidenceValueError(row)
+
+    def validate_required_values(self, row) -> None:
+        """
+        Checks that the required values are present and valid.
+
+        Parameters
+        ----------
+        row : NamedTuple
+
+        """
+        self.validate_value(row, 'Time', float)
+        self.validate_value(row, 'TimeUnits', str)
+        self.validate_value(row, 'Value', float)
+        self.validate_value(row, 'ValueLower', float)
+        self.validate_value(row, 'ValueUpper', float)
+        self.validate_value(row, 'ValueUnits', str)
+        self.validate_value(row, 'ValueType', str)
+        self.validate_value(row, 'Model', str)
+
+    @staticmethod
+    def validate_value(row, name: str, expected_type) -> None:
+        """
+
+        Parameters
+        ----------
+
+        Raises
+        ------
+        """
+        if (value := getattr(row, name)) is None:
+            raise EvidenceValueError(row)
+
+        if not isinstance(value, expected_type):
+            raise EvidenceTypeError(row)
+
+        return value

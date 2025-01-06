@@ -1,14 +1,9 @@
 from enum import Enum
 
 
-class ParameterGroup(Enum):
-    HYDRODYNAMIC = 'hydrodynamic'
-    RADIATION = 'radiation'
-    OBSERVATIONAL = 'observational'
-
-
 class ScaleType(Enum):
-    """ Types of scales that can be applied to data values.
+    """
+    Types of scales that can be applied to data values.
 
     Attributes
     ----------
@@ -28,39 +23,90 @@ class ScaleType(Enum):
     magnitude which could make sampling very expensive and difficult.
     """
     LINEAR = 'linear'
-    LOG = 'log'
-    LN = 'ln'
+    LOG    = 'log'
+    LN     = 'ln'
 
 
 class Prior(Enum):
     """
 
     """
-    GAUSSIAN = 'gaussian'
+    GAUSSIAN  = 'gaussian'
     TGAUSSIAN = 'tgaussian'
-    UNIFORM = 'uniform'
-    SINE = 'sine'
+    UNIFORM   = 'uniform'
+    SINE      = 'sine'
 
 
 class FluxType(Enum):
     """
+    Type of flux measurement.
 
+    Attributes
+    ----------
+    SPECTRAL : FluxType
+        The amount of energy per unit area per unit frequency.
+
+    INTEGRATED : FluxType
+        The total energy per unit area calculated by summing up the spectral
+        flux across all frequencies within some range.
     """
-    SPECTRAL = 'spectral'
+    SPECTRAL   = 'spectral'
     INTEGRATED = 'integrated'
+
+    @classmethod
+    def from_str(cls, s: str):
+        """
+
+        Parameters
+        ----------
+        s : str
+            Type of flux.
+        """
+        return cls[s.lower()]
 
 
 class FluxUnits(Enum):
     """
+    Units of a flux measurement.
 
+    Attributes
+    ----------
+    CGS : FluxUnits
+        Centigrade-Gram-Seconds units.
+
+    MJY : FluxUnits
+        Milli-Jansky units.
     """
     CGS = 'cgs'
     MJY = 'mjy'
 
 
-class TimeUnits(Enum):
+class IndexType(Enum):
     """
 
+
+    Attributes
+    ----------
+    PHOTON : Index
+
+    SPECTRAL : Index
+
+    """
+    PHOTON   = 'photonindex'
+    SPECTRAL = 'spectralindex'
+
+
+class TimeUnits(Enum):
+    """
+    Units of a time measurement.
+
+    Attributes
+    ----------
+    SEC : TimeUnits
+
+    HRS : TimeUnits
+
+    DAY : TimeUnits
     """
     SEC = 'seconds'
     HRS = 'hours'
