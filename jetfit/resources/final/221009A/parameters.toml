@@ -89,16 +89,16 @@
 [redshift]
     group = "observational"
     scale = "linear"
-    value = 4.61
+    value = 0.151
 
 [luminosity_distance]
     group = "observational"
     scale = "linear"
-    value = 13.39
+    value = 0.23
 
 [ebv_milky_way]
     scale = "linear"
-    value = 0.05
+    value = 1.3
 
 [ebv_source_frame]
     scale = "linear"
