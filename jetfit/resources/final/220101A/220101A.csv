@@ -1,7 +1,6 @@
 Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueType,Model,Frequency,FrequencyLower,FrequencyUpper,FrequencyUnits,,
 18921.6,,,seconds,0.287804069,0.002650773,0.002650773,mjy,Spectral,SpectralFlux,3.72E+14,,,hz,,
 19267.2,,,seconds,0.106240171,0.001957016,0.001957016,mjy,Spectral,SpectralFlux,4.56E+14,,,hz,,
-19612.8,,,seconds,0.041364128,0.002285866,0.002285866,mjy,Spectral,SpectralFlux,5.44E+14,,,hz,,
 190339.2,,,seconds,0.011649003,0.00085833,0.00085833,mjy,Spectral,SpectralFlux,4.56E+14,,,hz,,
 192412.8,,,seconds,0.03829102,0.00105802,0.00105802,mjy,Spectral,SpectralFlux,3.72E+14,,,hz,,
 364521.6,,,seconds,0.017502373,0.000644811,0.000644811,mjy,Spectral,SpectralFlux,3.72E+14,,,hz,,

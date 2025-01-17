@@ -7,14 +7,14 @@ from jetfit.models.data.flux.flux_model import FluxModel
 
 class IntegratedFluxModel(FluxModel):
     """
-    Sari Piran Integrated Flux Model.
+    Implements the integrated flux models from Sari & Piran (1998) [1]_.
 
     Ignores the self-absorption regime (segment A for fast cooling and segment
     E for slow cooling) since it does not affect either the optical nor the
     X-ray radiation in which we are interested.
 
     If the ``lower`` and ``upper`` span multiple spectral segments, the model
-    is evaluated as a sum of the integrands for the relevant segments.
+    is evaluated as a sum of the integrands for each relevant segment.
 
     For example, ``get_segment_cd_flux(lower, upper)`` is equivalent to:
     ``get_segment_c_flux(lower, sf)`` + ``get_segment_c_flux(sf, upper)``.
@@ -27,9 +27,6 @@ class IntegratedFluxModel(FluxModel):
     upper : float
         The upper integration limit measured in Hz.
 
-    segment : str
-        The Sari & Piran spectral segment.
-
     References
     ----------
     .. [1] Sari & Piran (1998)
@@ -40,7 +37,8 @@ class IntegratedFluxModel(FluxModel):
     Create an instance:
 
     >>> ranges = (7.25e16, 2.42e18)  # Swift XRT integration limits
-    >>> int_model = IntegratedFluxModel(pf, cf, sf, p, 2.42e16, FluxUnits.CGS)
+    >>> pf, cf, sf, p = 0, 0, 0, 0  # Placeholder values for example
+    >>> int_model = IntegratedFluxModel(pf, cf, sf, p, ranges[0], ranges[1], FluxUnits.CGS)
 
     Get the regime and segment:
 
@@ -66,6 +64,9 @@ class IntegratedFluxModel(FluxModel):
     jetfit.models.afterglow.sari_piran.sari_piran.SariPiran :
         A wrapper class that provides an easy way to evaluate Sari & Piran
         models.
+
+    `test.sari_piran.test_if_model.py` :
+        Unit tests for this class.
     """
     def __init__(
             self,
@@ -80,9 +81,10 @@ class IntegratedFluxModel(FluxModel):
         super().__init__(pf, cf, sf, p, units)
         self.lower = lower
         self.upper = upper
-        self.segment = self.get_segment()
+        self._segment = self.segment
 
-    def get_segment(self) -> str:
+    @property
+    def segment(self) -> str:
         """
         Returns the Sari Piran spectral segment.
 
@@ -138,7 +140,7 @@ class IntegratedFluxModel(FluxModel):
         Returns
         -------
         IntegratedFluxValue or float
-            The modeled spectral flux.
+            The modeled integrated flux with units of erg / s / cm2.
         """
         return getattr(self, f"get_segment_{self.segment.lower()}_flux")(obj)
 
@@ -161,7 +163,8 @@ class IntegratedFluxModel(FluxModel):
 
         Returns
         -------
-            The integrated flux value in the fast cooling regime (B).
+            The integrated flux value in the fast cooling regime (B) with
+            units of erg / s / cm2.
         """
         if self.cf == 0.0:
             return np.nan
@@ -173,7 +176,7 @@ class IntegratedFluxModel(FluxModel):
         eq2 = (1 / self.cf) ** (1 / 3)
         eq3 = (upper ** (4 / 3)) - (lower ** (4 / 3))
 
-        return self._return(eq1 * eq2 * eq3, obj)
+        return self._return(eq1 * eq2 * eq3, self.units, obj)
 
     def get_segment_c_flux(self, lower: float = None, upper: float = None, obj: bool = False):
         """
@@ -193,7 +196,8 @@ class IntegratedFluxModel(FluxModel):
 
         Returns
         -------
-            The integrated flux value in the fast cooling regime (C).
+            The integrated flux value in the fast cooling regime (C) with
+            units of erg / s / cm2.
         """
         if self.cf == 0.0:
             return np.nan
@@ -204,7 +208,7 @@ class IntegratedFluxModel(FluxModel):
         eq1 = 2 * self.pf * (1 / self.cf) ** -0.5
         eq2 = (upper ** 0.5) - (lower ** 0.5)
 
-        return eq1 * eq2
+        return self._return(eq1 * eq2, self.units, obj)
 
     def get_segment_d_flux(self, lower: float = None, upper: float = None, obj: bool = False):
         """
@@ -224,7 +228,8 @@ class IntegratedFluxModel(FluxModel):
 
         Returns
         -------
-            The integrated flux value in the fast cooling regime (D).
+            The integrated flux value in the fast cooling regime (D) with
+            units of erg / s / cm2.
         """
         if self.cf == 0.0 or self.sf == 0.0:
             return np.nan
@@ -237,7 +242,7 @@ class IntegratedFluxModel(FluxModel):
         eq3 = (1 / self.sf) ** (-self.p / 2)
         eq4 = (upper ** ((2 - self.p) / 2)) - (lower ** ((2 - self.p) / 2))
 
-        return self._return(eq1 * eq2 * eq3 * eq4, obj)
+        return self._return(eq1 * eq2 * eq3 * eq4, self.units, obj)
 
     def get_segment_bc_flux(self, lower: float = None, upper: float = None, obj: bool = False):
         """
@@ -259,14 +264,17 @@ class IntegratedFluxModel(FluxModel):
         -------
         float
             The integrated flux value for the Sari & Piran a fast cooling
-            segments BC.
+            segments BC with units of erg / s / cm2.
         """
         lower = lower if lower else self.lower
         upper = upper if upper else self.upper
 
         return self._return(
             self.get_segment_b_flux(lower, self.cf) +
-            self.get_segment_c_flux(self.cf, upper), obj)
+            self.get_segment_c_flux(self.cf, upper),
+            FluxUnits.CGS,
+            obj
+        )
 
     def get_segment_bcd_flux(self, lower: float = None, upper: float = None, obj: bool = False):
         """
@@ -288,14 +296,17 @@ class IntegratedFluxModel(FluxModel):
         -------
         float
             The integrated flux value for the Sari & Piran a fast cooling
-            segments BCD.
+            segments BCD with units of erg / s / cm2.
         """
         lower = lower if lower else self.lower
         upper = upper if upper else self.upper
 
         return self._return(
             self.get_segment_bc_flux(lower, self.sf) +
-            self.get_segment_d_flux(self.sf, upper), obj)
+            self.get_segment_d_flux(self.sf, upper),
+            FluxUnits.CGS,
+            obj
+        )
 
     def get_segment_cd_flux(self, lower: float = None, upper: float = None, obj: bool = False):
         """
@@ -317,14 +328,17 @@ class IntegratedFluxModel(FluxModel):
         -------
         float
             The integrated flux value for the Sari & Piran a fast cooling
-            segments CD.
+            segments CD with units of erg / s / cm2.
         """
         lower = lower if lower else self.lower
         upper = upper if upper else self.upper
 
         return self._return(
             self.get_segment_c_flux(lower, self.sf) +
-            self.get_segment_d_flux(self.sf, upper), obj)
+            self.get_segment_d_flux(self.sf, upper),
+            FluxUnits.CGS,
+            obj
+        )
     # </editor-fold>
 
     # <editor-fold desc="Slow Cooling">
@@ -348,7 +362,7 @@ class IntegratedFluxModel(FluxModel):
         -------
         float
             The integrated flux value for the Sari & Piran a slow cooling
-            segment F.
+            segment F with units of erg / s / cm2.
         """
         if self.sf == 0.0:
             return np.nan
@@ -360,7 +374,7 @@ class IntegratedFluxModel(FluxModel):
         eq2 = (1 / self.sf) ** (1 / 3)
         eq3 = (upper ** (4 / 3)) - (lower ** (4 / 3))
 
-        return self._return(eq1 * eq2 * eq3, obj)
+        return self._return(eq1 * eq2 * eq3, self.units, obj)
 
     def get_segment_g_flux(self, lower: float = None, upper: float = None, obj: bool = False):
         """
@@ -382,7 +396,7 @@ class IntegratedFluxModel(FluxModel):
         -------
         float
             The integrated flux value for the Sari & Piran a slow cooling
-            segment G.
+            segment G with units of erg / s / cm2.
         """
         if self.sf == 0.0:
             return np.nan
@@ -394,7 +408,7 @@ class IntegratedFluxModel(FluxModel):
         eq2 = (1 / self.sf) ** (-(self.p - 1) / 2)
         eq3 = (upper ** ((3 - self.p) / 2)) - (lower ** ((3 - self.p) / 2))
 
-        return self._return(eq1 * eq2 * eq3, obj)
+        return self._return(eq1 * eq2 * eq3, self.units, obj)
 
     def get_segment_h_flux(self, lower: float = None, upper: float = None, obj: bool = False):
         """
@@ -416,7 +430,7 @@ class IntegratedFluxModel(FluxModel):
         -------
         float
             The integrated flux value for the Sari & Piran a slow cooling
-            segment H.
+            segment H with units of erg / s / cm2.
         """
         if self.cf == 0.0 or self.sf == 0.0:
             return np.nan
@@ -429,7 +443,7 @@ class IntegratedFluxModel(FluxModel):
         eq3 = (1 / self.cf) ** (-self.p / 2)
         eq4 = (upper ** ((2 - self.p) / 2)) - (lower ** ((2 - self.p) / 2))
 
-        return self._return(eq1 * eq2 * eq3 * eq4, obj)
+        return self._return(eq1 * eq2 * eq3 * eq4, self.units, obj)
 
     def get_segment_fg_flux(self, lower: float = None, upper: float = None, obj: bool = False):
         """
@@ -451,14 +465,17 @@ class IntegratedFluxModel(FluxModel):
         -------
         float
             The integrated flux value for the Sari & Piran a slow cooling
-            segments FG.
+            segments FG with units of erg / s / cm2.
         """
         lower = lower if lower else self.lower
         upper = upper if upper else self.upper
 
         return self._return(
             self.get_segment_f_flux(lower, self.sf) +
-            self.get_segment_g_flux(self.sf, upper), obj)
+            self.get_segment_g_flux(self.sf, upper),
+            FluxUnits.CGS,
+            obj
+        )
 
     def get_segment_fgh_flux(self, lower: float = None, upper: float = None, obj: bool = False):
         """
@@ -480,14 +497,17 @@ class IntegratedFluxModel(FluxModel):
         -------
         float
             The integrated flux value for the Sari & Piran a slow cooling
-            segments FGH.
+            segments FGH with units of erg / s / cm2.
         """
         lower = lower if lower else self.lower
         upper = upper if upper else self.upper
 
         return self._return(
             self.get_segment_fg_flux(lower, self.cf) +
-            self.get_segment_h_flux(self.cf, upper), obj)
+            self.get_segment_h_flux(self.cf, upper),
+            FluxUnits.CGS,
+            obj
+        )
 
     def get_segment_gh_flux(self, lower: float = None, upper: float = None, obj: bool = False):
         """
@@ -509,17 +529,20 @@ class IntegratedFluxModel(FluxModel):
         -------
         float
             The integrated flux value for the Sari & Piran a slow cooling
-            segments GH.
+            segments GH with units of erg / s / cm2.
         """
         lower = lower if lower else self.lower
         upper = upper if upper else self.upper
 
         return self._return(
             self.get_segment_g_flux(lower, self.cf) +
-            self.get_segment_h_flux(self.cf, upper), obj)
+            self.get_segment_h_flux(self.cf, upper),
+            FluxUnits.CGS,
+            obj
+        )
     # </editor-fold>
 
-    def _return(self, val: float, obj: bool) -> IntegratedFluxValue | float:
+    def _return(self, val: float, units: FluxUnits, obj: bool) -> IntegratedFluxValue | float:
         """
         Returns the modeled flux in the desired format.
 
@@ -528,6 +551,10 @@ class IntegratedFluxModel(FluxModel):
         val : float
             The flux value.
 
+        units : FluxUnits
+            The units of `val`. We don't want to use `self.units` because
+            the integrate-by-parts methods will double convert the results.
+
         obj : bool
             If ``True``, returns a ``IntegratedFluxValue`` object. If
             ``False``, returns a float.
@@ -535,9 +562,9 @@ class IntegratedFluxModel(FluxModel):
         Returns
         -------
         IntegratedFluxValue or float
-            The modeled flux with units of erg / s / cm2
+            The modeled flux with units of erg / s / cm2.
         """
-        if self.units == FluxUnits.MJY:
+        if units == FluxUnits.MJY:
             val *= 1.0e-26
 
         if obj:
@@ -552,4 +579,4 @@ class IntegratedFluxModel(FluxModel):
                 units=FluxUnits.CGS
             )
 
-        return  val
+        return val

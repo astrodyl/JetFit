@@ -19,7 +19,8 @@ class BoostedFireball:
     def evaluate(
             self,
             evidence: Evidence,
-            params: BFModelParams
+            params: BFModelParams,
+            obj : bool = False
     ) -> np.ndarray:
         """
         Evaluates the Boosted Fireball model for a set of parameters, theta.
@@ -36,11 +37,9 @@ class BoostedFireball:
         params : BFModelParams
             The model parameter values.
 
-        Notes
-        -----
-        This method is intended for use with the MCMC sampling routine. Thus,
-        the model parameters are taken as a `np.ndarray` rather than as named
-        variables.
+        obj : bool, optional, default=False
+            If ``True``, returns a ``SpectralFluxValue`` object. If
+            ``False``, returns a float.
 
         Returns
         -------
@@ -67,5 +66,6 @@ class BoostedFireball:
             params.p,
             FluxUnits.MJY,
             params.ebv_milky_way,
-            params.ebv_source_frame
-        ).evaluate(evidence.values)
+            params.ebv_source_frame,
+            params.redshift,
+        ).evaluate(evidence.values, obj)

@@ -35,6 +35,11 @@ class SpectralFluxModel(FluxModel):
         The source frame E(B - V) strength. Defaults to zero which does not
         affect the flux strength.
 
+    redshift : float
+        The redshift of the event. The redshift is used to transform the
+        observed frequency into the source frame for the extinction
+        calculation.
+
     References
     ----------
     .. [1] Sari & Piran (1998)
@@ -61,23 +66,21 @@ class SpectralFluxModel(FluxModel):
             frequency: float,
             units: str | FluxUnits,
             ebv_milky_way: float = 0.0,
-            ebv_source_frame: float = 0.0
+            ebv_source_frame: float = 0.0,
+            redshift: float = 0.0
     ):
         super().__init__(pf, cf, sf, p, units)
 
         self.frequency = frequency
-        self.segment = self.get_segment()
-
         self.ebv_milky_way = ebv_milky_way
         self.ebv_source_frame = ebv_source_frame
+        self.redshift = redshift
+        self._segment = self.segment
 
-    def get_segment(self) -> str:
+    @property
+    def segment(self) -> str:
         """
         Determines the Sari & Piran spectral segment.
-
-        If ``lower`` and ``upper`` span multiple segments, they are
-        concatenated together. For example, 'CD' spans segments 'C',
-        and 'D'.
 
         Returns
         -------
@@ -100,6 +103,14 @@ class SpectralFluxModel(FluxModel):
 
         if self.frequency >= f2:
             return c3
+
+    @segment.setter
+    def segment(self, s: str) -> None:
+        """"""
+        raise NotImplemented(
+            'Setting the segment is not allowed since it is determined by the'
+            'observed frequency, cooling frequency, and synchrotron frequency.'
+        )
 
     def evaluate(self, obj: bool = False) -> SpectralFluxValue | float:
         """
@@ -266,19 +277,27 @@ class SpectralFluxModel(FluxModel):
         Returns
         -------
         SpectralFluxValue or float
-            The modeled spectral flux.
+            The modeled spectral flux with units of `units`.
         """
-        ext_val = val * CCMExtinction(
-            self.ebv_milky_way, self.ebv_source_frame
-        ).evaluate(self.frequency)
+        ext_mw, ext_sf = 1.0, 1.0
+
+        if self.ebv_milky_way != 0.0:
+            ext_mw = CCMExtinction().evaluate(
+                self.frequency, ebv=self.ebv_milky_way
+            )
+
+        if self.ebv_source_frame != 0.0:
+            ext_sf = CCMExtinction().evaluate(
+                self.frequency, self.redshift, self.ebv_source_frame
+            )
 
         if obj:
             return SpectralFluxValue(
-                value=ext_val,
+                value=val * ext_mw * ext_sf,
                 lower=0.0,
                 upper=0.0,
                 units=self.units,
                 frequency=self.frequency
             )
 
-        return ext_val
+        return val

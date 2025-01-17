@@ -1,5 +1,6 @@
 .idea/
 
+/__pycahce__/
 jetfit/**/__pycache__/
 jetfit/results/
 jetfit/sandbox/

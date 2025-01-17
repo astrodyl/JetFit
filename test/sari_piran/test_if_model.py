@@ -3,11 +3,12 @@ import unittest
 from jetfit.models.data.flux.integrated.spif_model import IntegratedFluxModel
 
 
-class MyTestCase(unittest.TestCase):
+class TestSP98IModel(unittest.TestCase):
     def test_get_fast_single_segment(self) -> None:
         """
-        Tests that the class is able to determine the segment of a given
-        regime.
+        Tests that the class is able to determine the segment in the fast
+        cooling regime for a frequency range that spans only a single
+        segment.
         """
         bounds = (
             (1.0e13, 1.0e14),  # B
@@ -24,12 +25,12 @@ class MyTestCase(unittest.TestCase):
                 lower=b[0],
                 upper=b[1]
             )
-            self.assertEqual(model.get_segment(), ['B', 'C', 'D'][i])
+            self.assertEqual(model.segment, ['B', 'C', 'D'][i])
 
     def test_get_fast_joined_segment(self) -> None:
         """
-        Tests that the class is able to determine the segment of a given
-        regime.
+        Tests that the class is able to determine the segment in the fast
+        cooling regime for a frequency range that spans multiple segments.
         """
         bounds = (
             (1.0e13, 1.0e16),  # BC
@@ -46,12 +47,13 @@ class MyTestCase(unittest.TestCase):
                 lower=b[0],
                 upper=b[1]
             )
-            self.assertEqual(model.get_segment(), ['BC', 'BCD', 'CD'][i])
+            self.assertEqual(model.segment, ['BC', 'BCD', 'CD'][i])
 
     def test_get_slow_single_segment(self) -> None:
         """
-        Tests that the class is able to determine the segment of a given
-        regime.
+        Tests that the class is able to determine the segment in the slow
+        cooling regime for a frequency range that spans only a single
+        segment.
         """
         bounds = (
             (1.0e13, 1.0e14),  # F
@@ -68,12 +70,12 @@ class MyTestCase(unittest.TestCase):
                 lower=b[0],
                 upper=b[1]
             )
-            self.assertEqual(model.get_segment(), ['F', 'G', 'H'][i])
+            self.assertEqual(model.segment, ['F', 'G', 'H'][i])
 
     def test_get_slow_joined_segment(self) -> None:
         """
-        Tests that the class is able to determine the segment of a given
-        regime.
+        Tests that the class is able to determine the segment in the slow
+        cooling regime for a frequency range that spans multiple segments.
         """
         bounds = (
             (1.0e13, 1.0e16),  # FG
@@ -90,9 +92,10 @@ class MyTestCase(unittest.TestCase):
                 lower=b[0],
                 upper=b[1]
             )
-            self.assertEqual(model.get_segment(), ['FG', 'FGH', 'GH'][i])
+            self.assertEqual(model.segment, ['FG', 'FGH', 'GH'][i])
 
-    # <editor-fold desc="Fast Cooling Tests">
+
+class TestSP98IFastCoolingFlux(unittest.TestCase):
     def test_segment_b_flux(self) -> None:
         """
         Tests that the flux calculation for the fast cooling regime on
@@ -199,7 +202,7 @@ class MyTestCase(unittest.TestCase):
         segment BCD is correct. Additionally, tests that the ``evaluate``
         method returns the correct flux.
 
-        Fast Cooling, Segment BCD is defined as:  f_lo < cf < sf < f_hi.
+        Fast Cooling, Segment BCD is defined as: f_lo < cf < sf < f_hi.
         """
         model = IntegratedFluxModel(
             1.0e-7,
@@ -212,9 +215,9 @@ class MyTestCase(unittest.TestCase):
 
         self.assertEqual(model.get_segment_bcd_flux(), 3978476191.9463687)
         self.assertEqual(model.get_segment_bcd_flux(), model.evaluate())
-    # </editor-fold>
 
-    # <editor-fold desc="Slow Cooling Tests">
+
+class TestSP98ISlowCoolingFlux(unittest.TestCase):
     def test_segment_f_flux(self) -> None:
         """
         Tests that the flux calculation for the slow cooling regime on
@@ -323,18 +326,21 @@ class MyTestCase(unittest.TestCase):
 
         Slow Cooling, Segment FGH is defined as:  f_lo < sf < cf < f_hi.
         """
-        model = IntegratedFluxModel(
-            1.0e-7,
-            1.1e17,
-            1.2e15,
-            2.5,
-            1.0e15,
-            1.0e18
+        p = 2.5
+        pf, cf, sf = 1.0e-7, 1.1e17, 1.2e15
+        lower, upper = 1.0e15, 1.0e18
+
+        model = IntegratedFluxModel(pf, cf, sf, p, lower, upper)
+
+        fgh_flux = (
+            model.get_segment_f_flux(lower=lower, upper=sf) +
+            model.get_segment_g_flux(lower=sf, upper=cf) +
+            model.get_segment_h_flux(lower=cf, upper=upper)
         )
 
-        self.assertEqual(model.get_segment_fgh_flux(), 1654538059.9925501)
+        self.assertEqual(model.get_segment_fgh_flux(), fgh_flux)
         self.assertEqual(model.get_segment_fgh_flux(), model.evaluate())
-    # </editor-fold>
+        self.assertEqual(model.get_segment_fgh_flux(), 1654538059.9925501)
 
 
 if __name__ == '__main__':

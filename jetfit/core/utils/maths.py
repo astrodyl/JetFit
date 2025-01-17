@@ -6,40 +6,6 @@ from jetfit.core.defns.enums import ScaleType
 
 
 # <editor-fold desc="Calculations">
-def sigma_to_fraction(sigma: float) -> float:
-    """ Converts a sigma level to a two-tailed fraction.
-
-    Parameters
-    ----------
-    sigma : float
-        The sigma level. E.g., 1, 2, etc.
-    """
-    return 2.0 * stats.norm.cdf(sigma) - 1.0
-
-
-def gaussian(x: float, mu: float, sigma: float) -> float:
-    """
-    Evaluates a gaussian function.
-
-    Parameters
-    ----------
-    x : float
-        Value to evaluate.
-
-    mu : float
-        The mean of the distribution.
-
-    sigma : float
-        The standard deviation.
-
-    Returns
-    -------
-    float
-        The value of the evaluated gaussian function.
-    """
-    return (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
-
-
 def chi_squared(
         f: np.ndarray,
         y: np.ndarray,

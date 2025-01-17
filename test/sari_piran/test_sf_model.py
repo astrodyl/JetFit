@@ -4,13 +4,10 @@ from jetfit.core.values.flux import SpectralFluxValue
 from jetfit.models.data.flux.spectral.spsf_model import SpectralFluxModel
 
 
-class MyTestCase(unittest.TestCase):
-    """
-
-    """
-    def test_to_object(self) -> None:
+class TestSP98SModel(unittest.TestCase):
+    def test_return_type(self) -> None:
         """
-        Tests that the ``_to_object`` method returns the expected flux value.
+        Tests that the class returns the correct type.
         """
         model = SpectralFluxModel(
             pf=1.0e-7,
@@ -21,27 +18,25 @@ class MyTestCase(unittest.TestCase):
             units='mjy'
         )
 
-        # Return flux float value
+        # Return flux as a float value
         self.assertIsInstance(
             model.evaluate(obj=False),
             float,
-            msg="`_to_object` did not return a float."
+            msg="`evaluate` did not return a float."
         )
 
-        # Return flux object
+        # Return flux as an object
         flux_obj = model.evaluate(obj=True)
 
-        self.assertIsInstance(
-            flux_obj,
-            SpectralFluxValue,
-            msg="`_to_object` did not return a `SpectralFluxValue`."
+        self.assertIsInstance(flux_obj, SpectralFluxValue,
+            msg="`evaluate` did not return a `SpectralFluxValue`."
         )
         self.assertIsInstance(flux_obj.value, float)
 
     def test_get_fast_segment(self) -> None:
         """
-        Tests that the class is able to determine the segment of a given
-        regime.
+        Tests that the class is able to determine the segment in the fast
+        cooling regime.
         """
         for i, f in enumerate([1.0e14, 1.0e16, 1.0e19]):
             model = SpectralFluxModel(
@@ -52,33 +47,51 @@ class MyTestCase(unittest.TestCase):
                 frequency=f,
                 units='mjy'
             )
-            self.assertEqual(model.get_segment(), ['B', 'C', 'D'][i])
+            self.assertEqual(model.segment, ['B', 'C', 'D'][i])
 
     def test_get_slow_segment(self) -> None:
-        """ """
-        for i, f in enumerate([1.0e14, 1.0e16, 1.0e19]):
+        """
+        Tests that the class is able to determine the segment in the slow
+        cooling regime.
+        """
+        frequencies = (1.0e14, 1.0e16, 1.0e19)
+
+        # Test for different models
+        for i, f in enumerate(frequencies):
             model = SpectralFluxModel(
-                pf=1.0e-7,
-                cf=1.0e18,
-                sf=1.0e15,
-                p=2.5,
-                frequency=f,
-                units='mjy'
+                pf=1.0e-7, cf=1.0e18, sf=1.0e15,
+                p=2.5, frequency=f, units='mjy'
             )
-            self.assertEqual(model.get_segment(), ['F', 'G', 'H'][i])
+            self.assertEqual(model.segment, ['F', 'G', 'H'][i])
+
+        # Test for same model with new frequency
+        model = SpectralFluxModel(
+            pf=1.0e-7, cf=1.0e18, sf=1.0e15,
+            p=2.5, frequency=99, units='mjy'
+        )
+
+        for i, f in enumerate(frequencies):
+            model.frequency = f
+            self.assertEqual(model.segment, ['F', 'G', 'H'][i])
 
     def test_get_regime(self) -> None:
-        """ """
-        model = SpectralFluxModel(
-            1.0e-7,
-            1.0e18,
-            1.0e15,
-            2.5,
-            2.42e+17
-        )
-        self.assertEqual(model.get_regime(), 'slow')
+        """
+        Tests that the class is able to determine the correct regime.
+        """
+        p, f = 2.5, 2.42e+17
+        pf, cf, sf = 1.0e-7, 1.0e18, 1.0e15
 
-    # <editor-fold desc="Fast Cooling Tests">
+        model = SpectralFluxModel(pf, cf, sf, p, f, 'mjy')
+        self.assertEqual(model.regime, 'slow')
+
+        model.cf, model.sf = model.sf, model.cf
+        self.assertEqual(model.regime, 'fast')
+
+
+class TestUnExtinguishedFlux(unittest.TestCase):
+    """
+
+    """
     def test_segment_b_flux(self) -> None:
         """
         Tests that the flux calculation for the fast cooling regime on
@@ -202,6 +215,7 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(model.get_segment_h_flux(), 1.047685160387475e-11)
         self.assertEqual(model.get_segment_h_flux(), model.evaluate())
     # </editor-fold>
+
 
 if __name__ == '__main__':
     unittest.main()

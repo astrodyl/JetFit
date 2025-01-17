@@ -4,7 +4,7 @@ from typing_extensions import override
 
 from jetfit.core.defns.enums import Prior
 from jetfit.core.defns.mixins import BoundedMixin
-from jetfit.core.utils import maths, paths
+from jetfit.core.utils import paths
 
 
 def prior_factory(d: dict):
@@ -53,6 +53,10 @@ class GaussianPrior:
     def __init__(self, mu: float, sigma: float):
         self.mu = mu
         self.sigma = sigma
+
+    def __repr__(self) -> str:
+        class_name = self.__class__.__name__
+        return f"{class_name}(mu={self.mu}, sigma={self.sigma})"
 
     @classmethod
     def from_dict(cls, d: dict):
@@ -109,13 +113,13 @@ class GaussianPrior:
         """
         return np.random.normal(self.mu, self.sigma, size=n)
 
-    def evaluate(self, x: float) -> float:
+    def evaluate(self, x) -> float | np.ndarray:
         """
         Evaluates the prior at the sampled value ``x``.
 
         Parameters
         ----------
-        x : float
+        x : float or array_like
             The sampled value.
 
         Returns
@@ -130,7 +134,7 @@ class GaussianPrior:
         >>> prior = GaussianPrior(mu=0.3, sigma=0.1)
         >>> p = prior.evaluate(x)
         """
-        return maths.gaussian(x, self.mu, self.sigma)
+        return stats.norm.pdf(x, loc=self.mu, scale=self.sigma)
 
 
 class TruncatedGaussianPrior(GaussianPrior, BoundedMixin):
@@ -140,9 +144,18 @@ class TruncatedGaussianPrior(GaussianPrior, BoundedMixin):
     The ``TruncatedGaussianPrior`` is bounded such that the probability is
     evaluated as a ``GaussianPrior`` within the bounds and `-infinity` outside.
     """
+    type = Prior.TGAUSSIAN
+
     def __init__(self, mu: float, sigma: float, lower: float, upper: float):
         BoundedMixin.__init__(self, lower, upper)
         super().__init__(mu, sigma)
+
+    def __repr__(self) -> str:
+        class_name = self.__class__.__name__
+        return (
+            f"{class_name}(mu={self.mu}, sigma={self.sigma}, "
+            f"lower={self.lower}, upper={self.upper})"
+        )
 
     @classmethod
     def from_dict(cls, d: dict):
@@ -162,16 +175,16 @@ class TruncatedGaussianPrior(GaussianPrior, BoundedMixin):
         TruncatedGaussianPrior
             Instantiated from dictionary
         """
-        if not paths.is_expected_type(mu := d.get('mu'), float):
+        if not paths.is_expected_type(mu := d.get('mu'), (int, float)):
             raise TypeError('TGaussian mu must be of type float.')
 
-        if not paths.is_expected_type(sigma := d.get('sigma'), float):
+        if not paths.is_expected_type(sigma := d.get('sigma'), (int, float)):
             raise TypeError('TGaussian sigma must be of type float.')
 
-        if not paths.is_expected_type(lower := d.get('lower'), float):
+        if not paths.is_expected_type(lower := d.get('lower'), (int, float)):
             raise TypeError('TGaussian lower must be of type float.')
 
-        if not paths.is_expected_type(upper := d.get('upper'), float):
+        if not paths.is_expected_type(upper := d.get('upper'), (int, float)):
             raise TypeError('TGaussian upper must be of type float.')
 
         return cls(mu, sigma, lower, upper)
@@ -198,17 +211,17 @@ class TruncatedGaussianPrior(GaussianPrior, BoundedMixin):
         >>> s = p.draw(n=100)
         """
         lower = (self.lower - self.mu) / self.sigma
-        upper = (self.upper + self.mu) / self.sigma
+        upper = (self.upper - self.mu) / self.sigma
 
-        return stats.truncnorm.rvs(lower, upper, loc=self.mu, scale=self.sigma, size=n)
+        return stats.truncnorm(lower, upper, loc=self.mu, scale=self.sigma).rvs(size=n)
 
-    def evaluate(self, x: float) -> float:
+    def evaluate(self, x) -> float | np.ndarray:
         """
         Evaluates the truncated Gaussian prior at the value ``x``.
 
         Parameters
         ----------
-        x : float
+        x : float or array_like
             The value to be evaluated.
 
         Returns
@@ -229,7 +242,11 @@ class TruncatedGaussianPrior(GaussianPrior, BoundedMixin):
         >>> prior.evaluate(100)
         -np.inf
         """
-        return super().evaluate(x) if self.encompasses(x) else -np.inf
+        lower = (self.lower - self.mu) / self.sigma
+        upper = (self.upper - self.mu) / self.sigma
+
+        return stats.truncnorm.pdf(x, lower, upper, loc=self.mu, scale=self.sigma) \
+            if self.encompasses(x) else -np.inf
 
 
 class UniformPrior(BoundedMixin):
@@ -257,6 +274,10 @@ class UniformPrior(BoundedMixin):
         self.initial_guess = initial_guess
         self.initial_sigma = initial_sigma
 
+    def __repr__(self) -> str:
+        class_name = self.__class__.__name__
+        return f"{class_name}(lower={self.lower}, upper={self.upper}, initial={self.initial_guess}+/-{self.initial_sigma})"
+
     @classmethod
     def from_dict(cls, d: dict):
         """
@@ -272,21 +293,21 @@ class UniformPrior(BoundedMixin):
         UniformPrior
             Instantiated from dictionary.
         """
-        if not paths.is_expected_type(lower := d.get('lower'), float):
+        if not paths.is_expected_type(lower := d.get('lower'), (int, float)):
             raise TypeError('Uniform lower must be of type float.')
 
-        if not paths.is_expected_type(upper := d.get('upper'), float):
+        if not paths.is_expected_type(upper := d.get('upper'), (int, float)):
             raise TypeError('Uniform upper must be of type float.')
 
-        if not paths.is_expected_type(initial := d.get('initial', None), float, True):
+        if not paths.is_expected_type(initial := d.get('initial_guess', None), (int, float), True):
             raise TypeError('Initial guess must be of type float.')
 
-        if not paths.is_expected_type(sigma := d.get('sigma', None), float, True):
+        if not paths.is_expected_type(sigma := d.get('initial_sigma', None), (int, float), True):
             raise TypeError('Initial sigma must be of type float.')
 
         return cls(lower, upper, initial, sigma)
 
-    def draw(self, n: int) -> float | np.ndarray:
+    def draw(self, n: int, initial: bool = True) -> float | np.ndarray:
         """
         Draws ``n`` samples from the uniform distribution.
 
@@ -298,17 +319,22 @@ class UniformPrior(BoundedMixin):
         n : float
             The number of samples to draw.
 
+        initial : bool
+            If ``True`` only samples from the initial region (if defined).
+            Else, draws from between ``lower`` and ``upper``.
+
         Returns
         -------
         np.ndarray or float
             Drawn sample(s) from the uniform distribution.
         """
-        if self.initial_guess is not None and self.initial_sigma is not None:
-            return np.random.uniform(
-                max(self.initial_guess - self.initial_sigma, self.lower),
-                min(self.initial_guess + self.initial_sigma, self.upper),
-                size=n
-            )
+        if initial:
+            if self.initial_guess is not None and self.initial_sigma is not None:
+                return np.random.uniform(
+                    max(self.initial_guess - self.initial_sigma, self.lower),
+                    min(self.initial_guess + self.initial_sigma, self.upper),
+                    size=n
+                )
         return np.random.uniform(self.lower, self.upper, size=n)
 
     def evaluate(self, x: float) -> float:
@@ -348,6 +374,8 @@ class SinePrior(UniformPrior):
     initial_sigma : float
         The expected one-sided sigma of the initial position.
     """
+    type = Prior.SINE
+
     def __init__(
             self,
             lower: float,

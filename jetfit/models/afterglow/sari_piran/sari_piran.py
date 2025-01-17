@@ -38,6 +38,11 @@ class SariPiran:
     ebv_source_frame : float
         The source frame E(B - V) strength.
 
+    redshift : float
+        The redshift of the event. The redshift is used to transform the
+        observed frequency into the source frame for the extinction
+        calculation.
+
     References
     ----------
     .. [1] Sari & Piran (1998)
@@ -59,7 +64,8 @@ class SariPiran:
             p: float,
             units: FluxUnits,
             ebv_milky_way: float = 0.0,
-            ebv_source_frame: float = 0.0
+            ebv_source_frame: float = 0.0,
+            redshift: float = 0.0,
     ):
         if isinstance(pfs, np.ndarray):
             if len(pfs) != len(cfs) != len(sfs):
@@ -73,8 +79,9 @@ class SariPiran:
         self.units = units
         self.ebv_milky_way = ebv_milky_way
         self.ebv_source_frame = ebv_source_frame
+        self.redshift = redshift
 
-    def evaluate(self, data: list) -> np.ndarray:
+    def evaluate(self, data: list, obj: bool = False) -> np.ndarray:
         """
         Evaluates the Sari & Piran models for the corresponding data types.
 
@@ -87,6 +94,10 @@ class SariPiran:
         Parameters
         ----------
         data : list of Measurement
+
+        obj : bool, optional
+            If ``True``, returns a ``SpectralFluxValue`` object. If
+            ``False``, returns a float.
 
         Returns
         -------
@@ -102,10 +113,10 @@ class SariPiran:
         for i, ev in enumerate(data):
 
             if ev.y.type == FluxType.SPECTRAL:
-                res[i] = self.spectral_flux(ev.y.frequency, i + o)
+                res[i] = self.spectral_flux(ev.y.frequency, i + o, obj)
 
             elif ev.y.type == FluxType.INTEGRATED:
-                res[i] = self.integrated_flux(ev.y.frequency_range, i + o)
+                res[i] = self.integrated_flux(ev.y.frequency_range, i + o, obj)
 
             elif ev.y.type == IndexType.SPECTRAL:
                 res[i] = self.spectral_index(ev.y.frequency_range, i + o)
@@ -151,7 +162,8 @@ class SariPiran:
             frequency,
             self.units,
             self.ebv_milky_way,
-            self.ebv_source_frame
+            self.ebv_source_frame,
+            self.redshift
         ).evaluate(obj)
 
     def integrated_flux(
@@ -203,11 +215,11 @@ class SariPiran:
             The modeled spectral index.
         """
         y2 = IntegratedFluxModel(
-            self.pfs[i + 1], self.cfs[i + 1], self.sfs[i + 1], self.p, int_range[0], int_range[1]
+            self.pfs[i + 1], self.cfs[i + 1], self.sfs[i + 1], self.p, int_range[0], int_range[1], self.units
         ).evaluate()
 
         y1 = IntegratedFluxModel(
-            self.pfs[i], self.cfs[i], self.sfs[i], self.p, int_range[0], int_range[1]
+            self.pfs[i], self.cfs[i], self.sfs[i], self.p, int_range[0], int_range[1], self.units
         ).evaluate()
 
         return np.log(y2 / y1) / np.log(int_range[1] / int_range[0])

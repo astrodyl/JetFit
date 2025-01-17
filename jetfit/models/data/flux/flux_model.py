@@ -23,6 +23,12 @@ class FluxModel:
     units : FluxUnits
         The units of the peak flux.
 
+    _regime : str
+        The cooling regime (fast or slow).
+
+    _segment : str
+        The spectral segment.
+
     See Also
     --------
     jetfit.models.data.flux.spectral.spsf_model.SpectralFluxModel :
@@ -45,7 +51,7 @@ class FluxModel:
         self.p = p
 
         self._units = units
-        self.regime = 'fast' if self.sf > self.cf else 'slow'
+        self._regime = self.regime
 
     @property
     def units(self) -> FluxUnits:
@@ -64,6 +70,14 @@ class FluxModel:
             converted to a ``FluxUnits`` enum before setting.
         """
         self._units = units if isinstance(units, FluxUnits) else FluxUnits(units)
+
+    @property
+    def regime(self) -> str:
+        """
+        Defining the regime as a  property allows the user to modify the
+        spectral frequencies.
+        """
+        return 'fast' if self.sf > self.cf else 'slow'
 
     def update_peak_flux(self, pf: float | FluxValue, units: str | FluxUnits = None) -> None:
         """

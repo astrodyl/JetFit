@@ -147,7 +147,7 @@ def is_expected_type(value, expected, allow_none: bool = False) -> bool:
     value : any
         The value to check.
 
-    expected : type
+    expected : type or tuple of type
         The expected type.
 
     allow_none : bool, optional, default: False
