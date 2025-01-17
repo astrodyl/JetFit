@@ -19,8 +19,7 @@ class BoostedFireball:
     def evaluate(
             self,
             evidence: Evidence,
-            params: BFModelParams,
-            obj : bool = False
+            params: BFModelParams
     ) -> np.ndarray:
         """
         Evaluates the Boosted Fireball model for a set of parameters, theta.
@@ -36,10 +35,6 @@ class BoostedFireball:
 
         params : BFModelParams
             The model parameter values.
-
-        obj : bool, optional, default=False
-            If ``True``, returns a ``SpectralFluxValue`` object. If
-            ``False``, returns a float.
 
         Returns
         -------
@@ -68,4 +63,4 @@ class BoostedFireball:
             params.ebv_milky_way,
             params.ebv_source_frame,
             params.redshift,
-        ).evaluate(evidence.values, obj)
+        ).evaluate(evidence.values)

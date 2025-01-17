@@ -279,21 +279,19 @@ class SpectralFluxModel(FluxModel):
         SpectralFluxValue or float
             The modeled spectral flux with units of `units`.
         """
-        ext_mw, ext_sf = 1.0, 1.0
-
         if self.ebv_milky_way != 0.0:
-            ext_mw = CCMExtinction().evaluate(
+            val *= CCMExtinction().evaluate(
                 self.frequency, ebv=self.ebv_milky_way
             )
 
         if self.ebv_source_frame != 0.0:
-            ext_sf = CCMExtinction().evaluate(
+            val *= CCMExtinction().evaluate(
                 self.frequency, self.redshift, self.ebv_source_frame
             )
 
         if obj:
             return SpectralFluxValue(
-                value=val * ext_mw * ext_sf,
+                value=val,
                 lower=0.0,
                 upper=0.0,
                 units=self.units,

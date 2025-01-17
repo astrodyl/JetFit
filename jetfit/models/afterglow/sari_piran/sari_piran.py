@@ -81,7 +81,7 @@ class SariPiran:
         self.ebv_source_frame = ebv_source_frame
         self.redshift = redshift
 
-    def evaluate(self, data: list, obj: bool = False) -> np.ndarray:
+    def evaluate(self, data: list) -> np.ndarray:
         """
         Evaluates the Sari & Piran models for the corresponding data types.
 
@@ -95,28 +95,20 @@ class SariPiran:
         ----------
         data : list of Measurement
 
-        obj : bool, optional
-            If ``True``, returns a ``SpectralFluxValue`` object. If
-            ``False``, returns a float.
-
         Returns
         -------
         np.ndarray of float
             The modeled flux values.
-
-        See Also
-        --------
-        definition of data (to see schema of measurements)
         """
         res, o = np.full(len(data), np.nan), 0
 
         for i, ev in enumerate(data):
 
             if ev.y.type == FluxType.SPECTRAL:
-                res[i] = self.spectral_flux(ev.y.frequency, i + o, obj)
+                res[i] = self.spectral_flux(ev.y.frequency, i + o)
 
             elif ev.y.type == FluxType.INTEGRATED:
-                res[i] = self.integrated_flux(ev.y.frequency_range, i + o, obj)
+                res[i] = self.integrated_flux(ev.y.frequency_range, i + o)
 
             elif ev.y.type == IndexType.SPECTRAL:
                 res[i] = self.spectral_index(ev.y.frequency_range, i + o)

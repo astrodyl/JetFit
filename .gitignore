@@ -4,3 +4,5 @@
 jetfit/**/__pycache__/
 jetfit/results/
 jetfit/sandbox/
+
+jetfit/models/afterglow/boosted_fireball/hydro_sim/*.h5

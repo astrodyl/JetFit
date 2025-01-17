@@ -85,13 +85,12 @@ class CCMExtinction:
             The extinction curve, A(x) / A(V).
         """
         x = (1 + z) / wavelength
-        y = x - 1.82
 
         # Infrared
         if x < 0.3:
             raise ValueError(
-                f'The wave number is above the CCM valid limit: '
-                f'{x} > {self.valid_x_range.upper}.'
+                f'The wave number is below the CCM valid limit: '
+                f'{x} > {self.valid_x_range.lower}.'
             )
 
         elif x <= 1.1:
@@ -100,6 +99,8 @@ class CCMExtinction:
 
         # Optical/NIR
         elif x <= 3.3:
+            y = x - 1.82
+
             a = (1 + 0.17699 * y - 0.50447 * y ** 2 - 0.02427 * y ** 3 +
                  0.72085 * y ** 4 + 0.01979 * y ** 5 - 0.7753 * y ** 6 +
                  0.32999 * y ** 7)
@@ -126,8 +127,8 @@ class CCMExtinction:
 
         else:
             raise ValueError(
-                f'The wave number is below the CCM valid limit: '
-                f'{x} < {self.valid_x_range.lower}.'
+                f'The wave number is above the CCM valid limit: '
+                f'{x} < {self.valid_x_range.upper}.'
             )
 
         return a + b / self.r_v  # A(x)/A(V)
