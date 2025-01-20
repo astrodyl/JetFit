@@ -83,6 +83,28 @@ class MyTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             _ = CCMExtinction(self.R_v).evaluate(0.9 / valid.upper)
 
+    def test_frequency_wavelength(self):
+        """"""
+        rv = 3.1
+        frequency = 6e14
+        wavelength = (u.speed_of_light / u.micron) / frequency
+        model = CCMExtinction(rv)
+
+        self.assertEqual(model.evaluate(frequency), model.curve(wavelength))
+        self.assertEqual(model.evaluate(frequency, z=0.5), model.curve(wavelength, z=0.5))
+
+        ebv = 0.15
+
+        # Test that A(x) are equal
+        a_f = model.evaluate(frequency, ebv=ebv, linear=False)
+        a_l = ebv * rv * model.curve(wavelength)
+        self.assertAlmostEqual(a_f, a_l, 5)
+
+        # Test that 10 ^ -A(x)/2.5 are equal
+        a_l = 10 ** (-0.4 * a_l)
+        a_f = model.evaluate(frequency, ebv=ebv, linear=True)
+        self.assertAlmostEqual(a_f, a_l, 5)
+
     @unittest.skip("Test=Plot CCM Curve, Reason=For visual inspection only")
     def test_plot_curves(self):
         """
@@ -91,13 +113,17 @@ class MyTestCase(unittest.TestCase):
         _, ax = plt.subplots()
 
         xs = np.arange(0.5, 10.0, 0.1)
-        r_vs = (2.0, 3.0, 4.0, 5.0, 6.0)
+        r_vs = (2.0, 3.1, 4.0, 5.0, 6.0)
 
         # Plot my CCMExtinction model
         for r_v in r_vs:
             ccm = CCMExtinction(r_v)
             curve = [ccm.curve(1 / x) for x in xs]
             ax.plot(xs, curve, label='R(V) = ' + str(r_v))
+
+        ax.plot(2.78, 1.569, '+', color='black', label='U')
+        ax.plot(0.80, 0.282, '.', color='black', label='J')
+
 
         # Set labels
         ax.set_xlabel(r'$x$ [$\mu m^{-1}$]')
@@ -114,6 +140,7 @@ class MyTestCase(unittest.TestCase):
         tax.set_xticklabels(new_ticks_labels)
         tax.set_xlabel(r"$\lambda$ [$\mu$m]")
 
+        ax.set_title('CCM Extinction Curves')
         ax.legend(loc='best')
         plt.show()
 

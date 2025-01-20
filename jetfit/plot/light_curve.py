@@ -5,7 +5,6 @@ from matplotlib import pyplot as plt
 
 from jetfit.core.defns.enums import FluxType, TimeUnits, FluxUnits
 from jetfit.core.defns.evidence import Measurement, Evidence
-from jetfit.core.utils import paths
 from jetfit.core.utils.physics import TimeConversions, FluxConversions
 from jetfit.core.values.time import TimeValue
 
@@ -89,14 +88,14 @@ class LightCurve:
         show : bool, optional
             If ``True``, calls `plt.show()`.
         """
-        modeled_times = np.linspace(
-            min(self.observation.optimized_x),
-            max(self.observation.optimized_x) * 2.0,
-            num=200
+        modeled_times = np.logspace(
+            self.observation.optimized_x.min(),
+            self.observation.optimized_x.max() * 2.0,
+            num=500
         )
 
         for band in self.bands:
-            data = []
+            data, fluxes = [], []
 
             for t in modeled_times:
                 data.append(Measurement(
@@ -108,7 +107,6 @@ class LightCurve:
                 Evidence(data), self.model_params
             )
 
-            # Convert integrated flux to spectral flux if plotting in MJY
             if band.flux[0].type == FluxType.INTEGRATED:
                 if self.flux_units == FluxUnits.MJY:
                     frequency_range = band.flux[0].frequency_range[1] - band.flux[0].frequency_range[0]
@@ -146,12 +144,9 @@ class LightCurve:
                 fluxes.append(FluxConversions.convert_to(f.value, f.units, self.flux_units))
                 errors.append(FluxConversions.convert_to(f.avg_error, f.units, self.flux_units))
 
-            # Plot the values
-            self.ax.errorbar(
-                times, fluxes, yerr=errors, fmt='.', label=band.name, color=band.color
-            )
+            self.ax.errorbar(times, fluxes, yerr=errors, fmt='.', label=band.name, color=band.color)
 
-        plt.legend()
+        plt.legend(loc='best')
 
         if show:
             plt.show()

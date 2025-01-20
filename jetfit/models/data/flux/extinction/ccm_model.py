@@ -51,7 +51,7 @@ class CCMExtinction:
         -------
         float
             If ``ebv`` is `None`, returns A(x)/A(V).
-            Elif ``linear`` is `True`, returns 10^A(x).
+            Elif ``linear`` is `True`, returns 10^-A(x)/2.5.
             Elif ``linear`` is `False` and returns A(x).
         """
         curve = self.curve((u.speed_of_light / u.micron) / frequency, z)
@@ -62,7 +62,7 @@ class CCMExtinction:
         if linear:
             return 10 ** (-0.4 * self.r_v * ebv * curve)  # 10^-A(x)/2.5
 
-        return -0.4 * self.r_v * ebv * curve  # -A(x) / 2.5
+        return self.r_v * ebv * curve  # A(x)
 
     def curve(self, wavelength: float, z: float = 0.0) -> float:
         """
