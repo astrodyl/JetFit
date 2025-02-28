@@ -8,7 +8,7 @@
 
     [explosion_energy.prior]
         type  = "uniform"
-        lower = -10.0
+        lower = -6.0
         upper = 3.0
 
 [circumburst_density]
@@ -43,7 +43,7 @@
 
     [electron_energy_fraction.prior]
         type  = "uniform"
-        lower = -10.0
+        lower = -6.0
         upper = 0.0
 
 [magnetic_energy_fraction]
@@ -51,7 +51,7 @@
 
     [magnetic_energy_fraction.prior]
         type  = "uniform"
-        lower = -10.0
+        lower = -6.0
         upper = 0.0
 
 [electron_energy_index]

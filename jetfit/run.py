@@ -5,11 +5,14 @@ from pathlib import Path
 
 from matplotlib import pyplot as plt
 
-from jetfit.core.defns.evidence import Evidence
+from jetfit.core.input import Observation
 from jetfit.mcmc.mcmc import MCMC
-from jetfit.core.utils import paths
+from jetfit.core.utils import nav_utils
 from jetfit.mcmc.settings.reader import MCMCSettingsReader
+from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSimTable
 from jetfit.models.afterglow.boosted_fireball.parameters.reader import BFParamsReader
+from jetfit.models2.boosted import BoostedFireballModel
+from jetfit.models2.fireball import FireballModel
 from jetfit.plot.light_curve import LightCurve
 from jetfit.plot.posterior import PosteriorPlot
 
@@ -40,19 +43,26 @@ def main(
     results_dir : Path
         The directory where the results will be saved.
     """
+    # TEST FOR GENERIC FIREBALL MODEL
+    observation = Observation.from_csv(data_path)
+
     # -------- NEW COOLER WAY OF DOING THINGS --------
+
     mcmc_params = MCMCSettingsReader(mcmc_path)
     model_params = BFParamsReader(model_path)
-    evidence = Evidence.from_csv(data_path)
 
     mcmc = MCMC(
         burn_length=mcmc_params.burn_length,
         run_length=mcmc_params.run_length,
         num_walkers=mcmc_params.num_walkers,
-        model=mcmc_params.model,
-        evidence=evidence,
+        model=FireballModel,
+        observation=observation,
         fixed_params=model_params.fixed,
         fitting_params=model_params.fitting,
+        # meta={
+        #     'hydro_sim_table':
+        #           HydroSimTable(nav_utils.get_hydro_sim_table_path())
+        #       }
     )
 
     mcmc.run()
@@ -61,32 +71,38 @@ def main(
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
-    lc = LightCurve(mcmc.model, mcmc.get_best_params(), mcmc.evidence)
+    # Plot the light curves
+    lc = LightCurve(mcmc.model, mcmc.get_best_params(), mcmc.observation)
     lc.plot(out_dir=results_dir)
 
-    corner = PosteriorPlot(mcmc.sampler, mcmc.evidence, mcmc.fitting_params)
+    # Plot the corner plot
+    corner = PosteriorPlot(mcmc.sampler, mcmc.fitting_params)
     corner.plot(out_dir=results_dir)
 
     # -------- LOGGING ---------
     with open(results_dir / "best_fit.json", "w") as jf:
-        json.dump(vars(mcmc.get_best_params()), jf, indent=4)
+        json.dump(mcmc.get_best_params(), jf, indent=4)
 
     # -------- DIAGNOSTICS ---------
     import arviz as az
 
     az.style.use("arviz-darkgrid")
-
     idata = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.fitting_params])
+    idata_burnin = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.fitting_params])
+
+    # Save summary statistics to a csv
     az.summary(idata).to_csv(results_dir / "summary.csv")
 
-    # print(mcmc.sampler.acor)
-    # print(mcmc.sampler.acceptance_fraction)
-    # print(f"Effective Sample Size (ESS):\n{az.ess(idata)}\n")
-    # print(f"Gelman-Rubin Statistic (R Hat):\n{az.rhat(idata)}\n")
-    # print(f"Acceptance Fraction:\n{mcmc.sampler.acceptance_fraction}\n")
+    print(f"Autocorrelation........{mcmc.sampler.acor}\n")
+    print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
 
+    # Plot the trace plot
     az.plot_trace(idata)
     plt.savefig(results_dir / "trace.png")
+
+    # Plot the burn trace plot
+    az.plot_trace(idata_burnin)
+    plt.savefig(results_dir / "trace_burn.png")
 
 
 if __name__ == "__main__":
@@ -102,21 +118,22 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'final'
+    sub_dir = 'new'
 
     if args.event is None:
         # Specify the events to run
         events = [
+            # '050922C',
             # '080413B',
-            # '090424',
+            '090424',
             '090618',
-            # '111228A',
-            # '130612A',
-            # '160131A',
+            '111228A',
+            '130612A',
+            '160131A',
             # '171010A',
-            # '220101A',
-            # '221009A',
-            # '231118A',
+            '220101A',
+            '221009A',
+            '231118A',
         ]
     else:
         events = [args.event]
@@ -132,21 +149,21 @@ if __name__ == "__main__":
                 'mcmc_path':
                     Path(args.mcmc)
                     if args.mcmc is not None
-                    else paths.get_mcmc_settings_path(),
+                    else nav_utils.get_mcmc_settings_path(),
 
                 'model_path':
                     Path(args.model)
                     if args.model is not None
-                    else paths.get_event_path(sub_dir, event) / 'parameters.toml',
+                    else nav_utils.get_event_path(sub_dir, event) / 'parameters.toml',
 
                 'data_path':
                     Path(args.data)
                     if args.data is not None
-                    else paths.get_input_csv_path(sub_dir, event),
+                    else nav_utils.get_input_csv_path(sub_dir, event),
 
                 'results_dir':
                     Path(args.results)
                     if args.results is not None
-                    else paths.get_results_path() / event,
+                    else nav_utils.get_results_path() / event,
             }
         )

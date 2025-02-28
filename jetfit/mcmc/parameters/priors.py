@@ -4,7 +4,7 @@ from typing_extensions import override
 
 from jetfit.core.defns.enums import Prior
 from jetfit.core.defns.mixins import BoundedMixin
-from jetfit.core.utils import paths
+from jetfit.core.utils import nav_utils
 
 
 def prior_factory(d: dict):
@@ -74,10 +74,10 @@ class GaussianPrior:
         GaussianPrior
             Instantiated from dictionary
         """
-        if not paths.is_expected_type(mu := d.get('mu'), float):
+        if not nav_utils.is_expected_type(mu := d.get('mu'), float):
             raise TypeError('Gaussian mu must be of type float.')
 
-        if not paths.is_expected_type(sigma := d.get('sigma'), float):
+        if not nav_utils.is_expected_type(sigma := d.get('sigma'), float):
             raise TypeError('Gaussian sigma must be of type float.')
 
         return cls(mu, sigma)
@@ -175,16 +175,16 @@ class TruncatedGaussianPrior(GaussianPrior, BoundedMixin):
         TruncatedGaussianPrior
             Instantiated from dictionary
         """
-        if not paths.is_expected_type(mu := d.get('mu'), (int, float)):
+        if not nav_utils.is_expected_type(mu := d.get('mu'), (int, float)):
             raise TypeError('TGaussian mu must be of type float.')
 
-        if not paths.is_expected_type(sigma := d.get('sigma'), (int, float)):
+        if not nav_utils.is_expected_type(sigma := d.get('sigma'), (int, float)):
             raise TypeError('TGaussian sigma must be of type float.')
 
-        if not paths.is_expected_type(lower := d.get('lower'), (int, float)):
+        if not nav_utils.is_expected_type(lower := d.get('lower'), (int, float)):
             raise TypeError('TGaussian lower must be of type float.')
 
-        if not paths.is_expected_type(upper := d.get('upper'), (int, float)):
+        if not nav_utils.is_expected_type(upper := d.get('upper'), (int, float)):
             raise TypeError('TGaussian upper must be of type float.')
 
         return cls(mu, sigma, lower, upper)
@@ -276,6 +276,7 @@ class UniformPrior(BoundedMixin):
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
+        f"{class_name}(lower={self.lower}, upper={self.upper}"
         return f"{class_name}(lower={self.lower}, upper={self.upper}, initial={self.initial_guess}+/-{self.initial_sigma})"
 
     @classmethod
@@ -293,16 +294,16 @@ class UniformPrior(BoundedMixin):
         UniformPrior
             Instantiated from dictionary.
         """
-        if not paths.is_expected_type(lower := d.get('lower'), (int, float)):
+        if not nav_utils.is_expected_type(lower := d.get('lower'), (int, float)):
             raise TypeError('Uniform lower must be of type float.')
 
-        if not paths.is_expected_type(upper := d.get('upper'), (int, float)):
+        if not nav_utils.is_expected_type(upper := d.get('upper'), (int, float)):
             raise TypeError('Uniform upper must be of type float.')
 
-        if not paths.is_expected_type(initial := d.get('initial_guess', None), (int, float), True):
+        if not nav_utils.is_expected_type(initial := d.get('initial_guess', None), (int, float), True):
             raise TypeError('Initial guess must be of type float.')
 
-        if not paths.is_expected_type(sigma := d.get('initial_sigma', None), (int, float), True):
+        if not nav_utils.is_expected_type(sigma := d.get('initial_sigma', None), (int, float), True):
             raise TypeError('Initial sigma must be of type float.')
 
         return cls(lower, upper, initial, sigma)

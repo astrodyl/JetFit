@@ -1,40 +1,20 @@
 from pathlib import Path
 
+import astropy.units as u
 import numpy as np
 from matplotlib import pyplot as plt
 
-from jetfit.core.defns.enums import FluxType, TimeUnits, FluxUnits
-from jetfit.core.defns.evidence import Measurement, Evidence
-from jetfit.core.utils.physics import TimeConversions, FluxConversions
-from jetfit.core.values.time import TimeValue
+from jetfit.core.defns.enums import DataType
+from jetfit.core.input import Observation
 
 
 class LightCurve:
-    """
-
-    Attributes
-    ----------
-    observation : Evidence
-
-    model_params : ??
-
-    model : ??
-
-    ax : ??
-
-    flux_units : FluxUnits, optional, default=FluxUnits.MJY
-        The flux units to plot.
-
-    time_units : FluxUnits, optional, default=TimeUnits.SEC
-        The time units to plot.
-    """
+    """ """
     def __init__(
             self,
             model,
             model_params,
             obs,
-            flux_units: FluxUnits = FluxUnits.MJY,
-            time_units: FluxUnits = TimeUnits.SEC,
             x_scale: str = 'log',
             y_scale: str = 'log'
     ):
@@ -42,9 +22,6 @@ class LightCurve:
         self.model_params = model_params
         self.observation = obs
         self.bands = obs.get_bands()
-
-        self.flux_units = flux_units
-        self.time_units = time_units
 
         self.ax = None
         self.set_axes(x_scale, y_scale)
@@ -75,8 +52,8 @@ class LightCurve:
 
         ax.set_yscale(x_scale)
         ax.set_xscale(y_scale)
-        ax.set_ylabel(f'Flux ({self.flux_units.value})')
-        ax.set_xlabel(f'Time Since Trigger ({self.time_units.value})')
+        ax.set_ylabel('Flux (mJy)')
+        ax.set_xlabel(f'Time Since Trigger (s)')
 
         self.ax = ax
 
@@ -88,35 +65,33 @@ class LightCurve:
         show : bool, optional
             If ``True``, calls `plt.show()`.
         """
+        flux_times = self.observation.time_array[
+            self.observation.flux_types != DataType.SPECTRAL_INDEX]
+
         modeled_times = np.logspace(
-            self.observation.optimized_x.min(),
-            self.observation.optimized_x.max() * 2.0,
-            num=500
+            np.log10(flux_times.min()),
+            np.log10(flux_times.max() * 2.0),
+            num=2_500
         )
 
         for band in self.bands:
             data, fluxes = [], []
 
             for t in modeled_times:
-                data.append(Measurement(
-                    TimeValue(t, TimeUnits.SEC), band.flux[0])
-                )
+                datum = band.flux[0].copy()
+                datum.time = u.Quantity(t, u.s)
+                data.append(datum)
 
             # Model the data at the new times
-            modeled_fluxes = self.model.evaluate(
-                Evidence(data), self.model_params
-            )
+            modeled_fluxes = self.model(**self.model_params).model(Observation(data))
 
-            if band.flux[0].type == FluxType.INTEGRATED:
-                if self.flux_units == FluxUnits.MJY:
-                    frequency_range = band.flux[0].frequency_range[1] - band.flux[0].frequency_range[0]
-                    modeled_fluxes = modeled_fluxes / (frequency_range * FluxConversions.cgs_mjy)
+            # Convert integrated flux to a flux density in mJy
+            if band.flux[0].type == DataType.INTEGRATED_FLUX:
+                frequency_range = band.flux[0].int_range.upper - band.flux[0].int_range.lower
+                modeled_fluxes = modeled_fluxes / (frequency_range * 1.0e-26)
 
             # Plot the model
-            plt.loglog(
-                modeled_times, modeled_fluxes,
-                '--', linewidth=1.5, color=band.color
-            )
+            plt.loglog(modeled_times, modeled_fluxes, '--', linewidth=1.5, color=band.color)
 
         if show:
             plt.show()
@@ -134,15 +109,13 @@ class LightCurve:
             times, fluxes, errors = [], [], []
 
             for i, t in enumerate(band.times):
-                # Convert integrated flux to spectral flux if plotting in MJY
-                if (f := band.flux[i]).type == FluxType.INTEGRATED:
-                    if self.flux_units == FluxUnits.MJY:
-                        f = f.get_spectral()
+                # Convert integrated flux to a flux density in mJy
+                if (f := band.flux[i].copy()).type == DataType.INTEGRATED_FLUX:
+                        f = f.to_spectral()
 
-                # Convert the values to the desired units
-                times.append(TimeConversions.convert_to(t.value, t.units, self.time_units))
-                fluxes.append(FluxConversions.convert_to(f.value, f.units, self.flux_units))
-                errors.append(FluxConversions.convert_to(f.avg_error, f.units, self.flux_units))
+                times.append(t.to_value('s'))
+                fluxes.append(f.value.to_value('mJy'))
+                errors.append(f.uncertainty.center.to_value('mJy'))
 
             self.ax.errorbar(times, fluxes, yerr=errors, fmt='.', label=band.name, color=band.color)
 

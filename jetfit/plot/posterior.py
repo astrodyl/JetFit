@@ -9,9 +9,8 @@ class PosteriorPlot:
     """
 
     """
-    def __init__(self, sampler, obs, params: list):
+    def __init__(self, sampler, params: list):
         self.sampler = sampler
-        self.obs = obs
         self.params = params
 
     def plot(self, show: bool = False, out_dir: str | Path = None) -> None:
@@ -68,6 +67,7 @@ class PosteriorPlot:
         """
         try:
             return {
+                # Boosted Fireball Model
                 'explosion_energy': r'$log_{10}E_{j,50}$',
                 'circumburst_density': r'$log_{10}n_{0,0}$',
                 'asymptotic_lorentz_factor': r'$\eta_0$',
@@ -77,7 +77,12 @@ class PosteriorPlot:
                 'magnetic_energy_fraction': r'$log_{10}\epsilon_B$',
                 'electron_energy_index': r'$p$',
                 'ebv_source_frame': r'$ebv_{sf}$',
-                'slop': 'slop'
+                'slop': 'slop',
+
+                # Generic Fireball Model
+                'E': r'$log_{10}E_{52}$',
+                'eps_e': r'$log_{10}\epsilon_e$',
+                'eps_b': r'$log_{10}\epsilon_B$',
             }[key]
         except KeyError:
-            return None
+            return key

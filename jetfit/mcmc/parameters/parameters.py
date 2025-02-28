@@ -1,5 +1,5 @@
 from jetfit.core.defns.enums import ScaleType
-from jetfit.core.utils import maths, paths
+from jetfit.core.utils import math_utils, nav_utils
 from jetfit.mcmc.parameters import priors
 
 
@@ -60,11 +60,11 @@ class MCMCFixedParameter(MCMCParameter):
         MCMCFixedParameter
             Instantiated from `params`.
         """
-        if not paths.is_expected_type(params.get('value'), float):
+        if not nav_utils.is_expected_type(params.get('value'), float):
             raise ValueError(f'Received unexpected value information for'
                              f'{name}.')
 
-        if not paths.is_expected_type(params.get('scale'), str):
+        if not nav_utils.is_expected_type(params.get('scale'), str):
             raise ValueError(f'Received unexpected scale information for'
                              f'{name}.')
 
@@ -127,11 +127,11 @@ class MCMCFittingParameter(MCMCParameter):
         MCMCFittingParameter
             Instantiated from `params`.
         """
-        if not paths.is_expected_type(params.get('prior'), dict):
+        if not nav_utils.is_expected_type(params.get('prior'), dict):
             raise ValueError(f'Received unexpected prior information for'
                              f'{name}.')
 
-        if not paths.is_expected_type(params.get('scale'), str):
+        if not nav_utils.is_expected_type(params.get('scale'), str):
             raise ValueError(f'Received unexpected scale information for '
                              f'{name}.')
 

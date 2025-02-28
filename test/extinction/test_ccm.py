@@ -1,7 +1,8 @@
+import time
 import unittest
 
 import numpy as np
-import scipy.constants as u
+import astropy.units as u
 
 from dust_extinction.parameter_averages import CCM89
 from matplotlib import pyplot as plt
@@ -57,6 +58,30 @@ class MyTestCase(unittest.TestCase):
             curve_c = CCMExtinction(self.R_v).evaluate(x * c)
             self.assertAlmostEqual(curve_a, curve_b, 6)
             self.assertAlmostEqual(curve_b, curve_c, 6)
+
+    def test(self):
+        """"""
+
+
+        xs = np.linspace(0.5, 9.0, 10000) / u.micron
+
+        start1 = time.time()
+        ext_model = CCM89(Rv=self.R_v)
+        for x in xs:
+            curve_a = ext_model(x)
+        time1 = time.time() - start1
+        print(time1)
+
+        print()
+
+        start2 = time.time()
+        b = CCM89(Rv=self.R_v)(xs)
+        time2 = time.time() - start2
+        print(time2)
+
+        print()
+
+        print(time1 / time2)
 
     def test_setting_ebv_to_zero(self):
         """

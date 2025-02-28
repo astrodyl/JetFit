@@ -98,7 +98,7 @@
 
 [ebv_milky_way]
     scale = "linear"
-    value = 0.0
+    value = 0.0647
 
 [ebv_source_frame]
     scale = "linear"

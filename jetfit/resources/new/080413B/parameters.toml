@@ -1,0 +1,88 @@
+# MCMC Parameter Configuriation File
+
+# ==========================
+#  HYDRODYNAMIC PARAMETERS
+# ==========================
+[E]
+    group = "hydrodynamic"
+    scale = "log"
+
+    [E.prior]
+        type  = "uniform"
+        lower = -5.0
+        upper = 3.0
+
+[rho0]
+    group = "hydrodynamic"
+    scale = "log"
+
+    [rho0.prior]
+        type  = "uniform"
+        lower = -5.0
+        upper = 5.0
+
+[eps_e]
+    group = "radiation"
+    scale = "log"
+
+    [eps_e.prior]
+        type  = "uniform"
+        lower = -10.0
+        upper = 0.0
+
+[eps_b]
+    group = "radiation"
+    scale = "log"
+
+    [eps_b.prior]
+        type  = "uniform"
+        lower = -10.0
+        upper = 0.0
+
+[p]
+    group = "radiation"
+    scale = "linear"
+
+    [p.prior]
+        type  = "uniform"
+        lower = 2.0
+        upper = 5.0
+        initial_guess=2.5
+        initial_sigma=0.5
+
+[z]
+    group = "observational"
+    scale = "linear"
+    value = 1.1
+
+[dL]
+    group = "observational"
+    scale = "linear"
+    value = 2.36
+
+[k]
+    scale = "linear"
+
+    [k.prior]
+        type  = "uniform"
+        lower = -1.5
+        upper = 2.0
+        initial_guess=1.0
+        initial_sigma=1.0
+
+[X]
+    group = "observational"
+    scale = "linear"
+    value = 0.7
+
+[ebv_mw]
+    scale = "linear"
+    value = 0.0315
+
+[ebv_sf]
+    scale = "linear"
+
+    [ebv_sf.prior]
+        type  = "uniform"
+        lower = 0.0
+        upper = 1.0

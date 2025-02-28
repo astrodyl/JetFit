@@ -192,7 +192,7 @@ class HydroSimTable:
                 case ScaleType.LOG:
                     return np.power(10.0, func(position))
 
-        except:
+        except Exception as e:
             # When lorentz factor is low and observation time is early,
             # there is no detection, which is represented by nans.
             return np.array([np.nan for _ in range(len(position))])

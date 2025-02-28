@@ -1,4 +1,3 @@
-from enum import Enum
 
 
 class BoundedMixin:
@@ -11,34 +10,37 @@ class BoundedMixin:
 
     Attributes
     ----------
-    lower : float
+    lower : float or astropy.units.Quantity
         The lower bound of the value.
 
-    upper : float
+    upper : float or astropy.units.Quantity
         The upper bound of the value.
     """
-    def __init__(self, lower: float, upper: float):
+    def __init__(self, lower, upper):
         self.lower = lower
         self.upper = upper
 
-    def bounds(self) -> tuple[float, float]:
+    def __repr__(self) -> str:
+        return f"BoundedMixin(lower={self.lower}, upper={self.upper})"
+
+    def bounds(self) -> tuple:
         """
         Returns the lower and upper bounds as a tuple.
 
         Returns
         -------
-        tuple of float with length 2
+        tuple with length 2
             The lower and upper bound.
         """
         return self.lower, self.upper
 
-    def encompasses(self, value: float):
+    def encompasses(self, value):
         """
         Checks if the value is contained within the bounds.
 
         Parameters
         ----------
-        value : float
+        value : float or astropy.units.Quantity
             The value to check.
 
         Returns
@@ -47,63 +49,3 @@ class BoundedMixin:
             True if value is contained within the bounds else False.
         """
         return self.lower <= value <= self.upper
-
-
-class UnitsMixin:
-    """
-    Adds support for values that have units.
-
-    Notes
-    -----
-    All classes inheriting from this mixin must have a `_units_enum` class
-    attribute. It is required to convert the string representation of the
-    units to the enum representation.
-    """
-    _units_enum = None
-
-    @property
-    def units(self) -> Enum:
-        """ Returns the units Enum for the instance."""
-        return self._units
-
-    @units.setter
-    def units(self, units: Enum | str) -> None:
-        """
-        Sets the units.
-
-        Parameters
-        ----------
-        units : str or Enum
-            Must match the `_units_enum` attribute defined in the inheriting
-            classes' attributes.
-
-        Notes
-        -----
-        If a str is passed, converts it to its enum representation as defined
-        in the inheriting classes' variables.
-
-        Raises
-        ------
-        ValueError
-            If the provided units argument does not match, or is not convertable
-            to, the inheriting classes' `_units_enum` attribute.
-
-        TypeError
-            If provided `units` is not a str or Enum instance.
-        """
-        if isinstance(units, self._units_enum):
-            self._units = units
-
-        elif isinstance(units, Enum):
-            raise ValueError(f"{units} is not supported for {self.__class__}. "
-                             f"Units must be of type {self._units_enum}.")
-
-        elif isinstance(units, str):
-            try:
-                self._units = self._units_enum(units)
-            except ValueError:
-                raise ValueError(f"{units} is not supported. Supported units include "
-                                 f"{[u.value for u in self._units_enum]}")
-
-        else:
-            raise TypeError("Units must be a string or an Enum instance.")

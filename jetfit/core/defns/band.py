@@ -1,6 +1,5 @@
 import scipy.constants
 
-from jetfit.core.defns.enums import FluxType
 from jetfit.core.defns.mixins import BoundedMixin
 
 
@@ -9,7 +8,7 @@ BAND_MAP = {
 
     # Johnson Cousins Filters
     'U': {'range': BoundedMixin(lower=8.10E+14, upper=8.30E+14), 'color': 'cyan'},
-    'B': {'range': BoundedMixin(lower=6.64E+14, upper=6.84E+14), 'color': 'blue'},
+    'B': {'range': BoundedMixin(lower=6.64E+14, upper=6.86E+14), 'color': 'blue'},
     'V': {'range': BoundedMixin(lower=5.34E+14, upper=5.54E+14), 'color': 'green'},
     'R': {'range': BoundedMixin(lower=4.46E+14, upper=4.66E+14), 'color': 'red'},
     'I': {'range': BoundedMixin(lower=3.62E+14, upper=3.82E+14), 'color': 'purple'},
@@ -106,27 +105,12 @@ class Band(BoundedMixin):
         raise ValueError('Frequency does not have a defined band.')
 
     @classmethod
-    def from_measurement(cls, m):
-        """
-        Instantiates a ``Band`` from a ``FluxValue``.
-
-        Parameters
-        ----------
-        m : Measurement
-            The measurement.
-
-        Returns
-        -------
-        Band
-            The instantiated ``Band`` object.
-        """
-        if m.y.type.value in FluxType:
-            instance = cls.from_frequency(m.y.frequency)
-            instance.flux.append(m.y)
-            instance.times.append(m.x)
-            return instance
-
-        raise NotImplementedError(f'Unsupported flux type: {m.y.type}')
+    def from_data(cls, d):
+        """"""
+        instance = cls.from_frequency(d.frequency.value)
+        instance.flux.append(d)
+        instance.times.append(d.time)
+        return instance
 
     @classmethod
     def from_name(cls, n: str):

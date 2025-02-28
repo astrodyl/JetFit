@@ -1,18 +1,20 @@
-import math
+import time
 import unittest
 
 import numpy as np
 
 from jetfit.core.defns.evidence import Evidence
-from jetfit.core.utils import maths
+from jetfit.core.input import Observation
 from jetfit.models.afterglow.boosted_fireball.boosted_fireball import BoostedFireball
 from jetfit.models.afterglow.boosted_fireball.parameters.parameters import BFModelParams
+from jetfit.models2.boosted import BoostedFireballModel
 
 
 class MyTestCase(unittest.TestCase):
     def test_something(self):
         """"""
-        evidence = Evidence.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\gws\170817\170817_all.csv")
+        evidence = Evidence.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\gws\170817\170817.csv")
+        observation = Observation.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\gws\170817\170817_new.csv")
 
         # From old jetfit
         P = {'E': 0.15869069395227384, 'Eta0': 9.919507247518492, 'GammaB': 11.623593656572611, 'dL': 0.012188, 'epsb': 0.013323706571267526, 'epse': 0.04072783842837688, 'n': 0.0009871221028954489, 'p': 2.1333493591554804, 'theta_obs': 0.45459998935453005, 'xiN': 1.0, 'z': 0.00973}
@@ -40,15 +42,35 @@ class MyTestCase(unittest.TestCase):
 
         params = BFModelParams(**theta)
 
-        modeled = BoostedFireball().evaluate(evidence, params)
+        model = BoostedFireball()
 
-        chi_squared = -0.5 * maths.chi_squared(
-            modeled,
-            evidence.optimized_y,
-            evidence.optimized_err,
-            None
+        start1 = time.time()
+        for _ in range(1_000):
+            modeled = model.evaluate(evidence, params)
+        stop1 = time.time()
+
+        print(stop1 - start1, '\n')
+
+        new_model = BoostedFireballModel(
+            E=P['E'], n=P['n'], boost=P['GammaB'], eta=P['Eta0'], p=P['p'], zeta=P['xiN'],
+            eps_e=P['epse'], eps_b=P['epsb'], z=P['z'], obs_angle=P['theta_obs'], dL=P['dL'],
+            hydro_sim_table=model.scaler.hydro_sim_table
         )
 
+        start2 = time.time()
+        for _ in range(1_000):
+            new_modeled = new_model.model(observation)
+        stop2 = time.time()
+        print(stop2 - start2, '\n')
+
+
+        # chi_squared = -0.5 * maths.chi_squared(
+        #     modeled,
+        #     evidence.optimized_y,
+        #     evidence.optimized_err,
+        #     None
+        # )
+        #
         print()
 
 if __name__ == '__main__':

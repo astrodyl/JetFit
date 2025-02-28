@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from jetfit.core.utils import paths
+from jetfit.core.utils import nav_utils
 from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSimTable
 
 
@@ -13,7 +13,7 @@ class MyTestCase(unittest.TestCase):
         """
         """
         self.hydro_sim_table = HydroSimTable(
-            paths.get_hydro_sim_table_path()
+            nav_utils.get_hydro_sim_table_path()
         )
 
         # Create a position array using log(time), asymptotic lorentz factor,

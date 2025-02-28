@@ -2,6 +2,6 @@
 model = "boosted_fireball"
 
 [sampler]
-num_walkers = 60
-burn_length = 10000
-run_length  = 10000
+num_walkers = 20
+burn_length = 1000
+run_length  = 1000

@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from jetfit.core.utilities.io.toml import TOMLReader
-from jetfit.models.afterglow import models
+from jetfit.core.utils.toml_utils import TOMLReader
 
 
 class MCMCSettingsReader(TOMLReader):
@@ -18,9 +17,6 @@ class MCMCSettingsReader(TOMLReader):
 
     run_length : float
         The number of iterations to run.
-
-    model : str
-        The model to use for the MCMC routine.
     """
     def __init__(self, path: str | Path, live_dangerously: bool = False):
         """
@@ -38,7 +34,6 @@ class MCMCSettingsReader(TOMLReader):
         self.num_walkers = sampler.get('num_walkers')
         self.burn_length = sampler.get('burn_length')
         self.run_length = sampler.get('run_length')
-        self.model = models.get(self.data.get('model'))
 
     def validate(self) -> None:
         """ Validates that the MCMC settings file is valid. """
