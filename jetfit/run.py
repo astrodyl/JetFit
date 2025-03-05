@@ -93,9 +93,6 @@ def main(
     # Save summary statistics to a csv
     az.summary(idata).to_csv(results_dir / "summary.csv")
 
-    print(f"Autocorrelation........{mcmc.sampler.acor}\n")
-    print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
-
     # Plot the trace plot
     az.plot_trace(idata)
     plt.savefig(results_dir / "trace.png")
@@ -103,6 +100,9 @@ def main(
     # Plot the burn trace plot
     az.plot_trace(idata_burnin)
     plt.savefig(results_dir / "trace_burn.png")
+
+    print(f"Autocorrelation........{mcmc.sampler.acor}\n")
+    print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
 
 
 if __name__ == "__main__":
@@ -125,15 +125,15 @@ if __name__ == "__main__":
         events = [
             # '050922C',
             # '080413B',
-            '090424',
-            '090618',
-            '111228A',
+            # '090424',
+            # '090618',
+            # '111228A',
             '130612A',
-            '160131A',
+            # '160131A',
             # '171010A',
-            '220101A',
-            '221009A',
-            '231118A',
+            # '220101A',
+            # '221009A',
+            # '231118A',
         ]
     else:
         events = [args.event]

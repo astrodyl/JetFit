@@ -344,7 +344,7 @@ class SpectralFlux(FluxBase):
                 'value': u.Quantity(row.Value, row.ValueUnits),
                 'lower': u.Quantity(row.ValueLower, row.ValueUnits),
                 'upper': u.Quantity(row.ValueUpper, row.ValueUnits),
-                'time': u.Quantity(row.Time, row.TimeUnits),
+                'time': u.Quantity(row.Time, row.TimeUnits).to('d'),
             }
 
             wave = u.Quantity(row.Wave, row.WaveUnits)
@@ -587,7 +587,7 @@ class IntegratedFlux(FluxBase, Integrable):
                 'value': u.Quantity(row.Value, row.ValueUnits),
                 'lower': u.Quantity(row.ValueLower, row.ValueUnits),
                 'upper': u.Quantity(row.ValueUpper, row.ValueUnits),
-                'time': u.Quantity(row.Time, row.TimeUnits),
+                'time': u.Quantity(row.Time, row.TimeUnits).to('d'),
                 'int_lower': u.Quantity(row.WaveLower, row.WaveUnits),
                 'int_upper': u.Quantity(row.WaveUpper, row.WaveUnits),
             }
@@ -733,8 +733,8 @@ class SpectralIndex(Integrable):
                 'value': u.Quantity(row.Value),
                 'lower': u.Quantity(row.ValueLower),
                 'upper': u.Quantity(row.ValueUpper),
-                'start': u.Quantity(row.TimeLower, row.TimeUnits),
-                'stop': u.Quantity(row.TimeUpper, row.TimeUnits),
+                'start': u.Quantity(row.TimeLower, row.TimeUnits).to('d'),
+                'stop': u.Quantity(row.TimeUpper, row.TimeUnits).to('d'),
                 'int_lower': u.Quantity(row.WaveLower, row.WaveUnits),
                 'int_upper': u.Quantity(row.WaveUpper, row.WaveUnits),
             }

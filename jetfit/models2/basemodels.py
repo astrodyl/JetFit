@@ -1,16 +1,10 @@
 import math
 
 import astropy.units as u
-import astropy.constants as const
 
 from jetfit.core.defns.enums import DataType
 from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
 from jetfit.core.core import ipl, pl, two_point_approx
-
-# Define constants in useful units
-m_e = const.m_e.cgs # Mass of electron [g]
-m_p = const.m_p.cgs # Mass of proton [g]
-c   = const.c.cgs   # Speed of light [cm/s]
 
 
 class FluxSegment:
@@ -490,7 +484,6 @@ class BaseSpectralModel:
     z : float
         The redshift.
     """
-    _exponents = None
 
     # noinspection PyPep8Naming
     def __init__(self, E, eps_b, k, z):
@@ -504,9 +497,9 @@ class BaseSpectralModel:
         name = self.__class__.__name__
         return f"{name}(E={self.E}, z={self.z}, k={self.k})"
 
-    def __call__(self, t, evo: str = 'adiabatic'):
+    def __call__(self, t):
         """ Wrapper for the evaluate method. """
-        return self.evaluate(t, evo)
+        return self.evaluate(t)
 
     # noinspection PyPep8Naming
     @property
@@ -541,175 +534,9 @@ class BaseSpectralModel:
         """ Returns the spectral coefficient. """
         return 4 - self.k
 
-    def evaluate(self, t: u.Quantity, evo: str) -> float:
-        """
-        Evaluates the shared model parameters between all
-        spectral models at time `t` for a shock's movement
-        that is described by `evo`.
-
-        As this is a base class and a base method, the
-        returned value is not a complete calculation. All
-        child classes must implement an evaluate method and
-        either call this method, or reimplement the terms
-        that are evaluated within.
-
-        Parameters
-        ----------
-        t : u.Quantity['time']
-            The time to evaluate.
-
-        evo : str, {'adiabatic', 'radiative'}, default='adiabatic'
-            The evolution of the external shock.
-
-        Returns
-        -------
-        float
-            The evaluated terms that are shared amongst all
-            spectral models.
-        """
-        e = self._exponents(self.k, evo)
-
-        result = 1.0
-
-        # k-dependent unit-less factors
-        result *= math.pi ** e.pi
-        result *= self.alpha ** e.alpha
-        result *= self.beta ** e.beta
-
-        # shared model parameters
-        result *= self.eps_b ** e.eps_b
-        result *= (1 + self.z) ** e.z
-        result *= t.to_value('day') ** e.t
-        result *= self.E ** e.E
-
-        return result
-
-    def exponents(self, evo: str):
-        """
-        Returns the exponents for each model parameter.
-
-        Parameters
-        ----------
-        evo : str, {'adiabatic', 'radiative'}
-            The evolution type.
-
-        Returns
-        -------
-            The object containing the exponents for the calling
-            model's parameters.
-        """
-        return self._exponents(self.k, evo)
-
-
-class PeakFluxExponents:
-    """
-    The exponents for the PeakFluxModel's parameters.
-
-    Exponents for both adiabatic and radiative evolution
-    are available.
-
-    Attributes
-    ----------
-    k : float
-        The density power-law index.
-
-    evo : str, {'adiabatic', 'radiative'}
-            The evolution type.
-    """
-    def __init__(self, k: float, evo: str):
-        self.k = k
-        self.evo = evo
-
-    @property
-    def q_e(self) -> float:
-        """ Returns the electron charge exponent. """
-        return -3.0
-
-    @property
-    def m_e(self) -> float:
-        """ Returns the electron mass exponent. """
-        return -1.0
-
-    @property
-    def m_p(self) -> float:
-        """ Returns the proton mass exponent. """
-        return -1.0
-
-    # noinspection PyPep8Naming
-    @property
-    def dL(self) -> float:
-        """ Returns the luminosity distance exponent. """
-        return -2.0
-
-    @property
-    def eps_b(self) -> float:
-        """ Returns the magnetic field fraction exponent. """
-        return 0.5
-
-    @property
-    def pi(self) -> float:
-        """ Returns the pi exponent. """
-        return {
-            'adiabatic': -(2 - self.k) / (4 - self.k),
-            'radiative': -(9 - 4 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def c(self) -> float:
-        """ Returns the speed of light exponent. """
-        return {
-            'adiabatic': -0.5 * (24 - 7 * self.k) / (4 - self.k),
-            'radiative': -0.5 * (52 - 17 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def alpha(self) -> float:
-        """ Returns the temporal coefficient exponent. """
-        return {
-            'adiabatic': -0.5 * (8 - 3 * self.k) / (4 - self.k),
-            'radiative': -(8 - 3 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def beta(self) -> float:
-        """ Returns the spectral coefficient exponent. """
-        return {
-            'adiabatic': -0.5 * self.k / (4 - self.k),
-            'radiative': -0.5 * (6 - self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def t(self) -> float:
-        """ Returns the time contribution exponent. """
-        return {
-            'adiabatic': -0.5 * self.k / (4 - self.k),
-            'radiative': -0.5 * (6 - self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    # noinspection PyPep8Naming
-    @property
-    def E(self) -> float:
-        """ Returns the energy exponent. """
-        return {
-            'adiabatic': 0.5 * (8 - 3 * self.k) / (4 - self.k),
-            'radiative': (8 - 3 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def rho0(self) -> float:
-        """ Returns the density normalization exponent. """
-        return {
-            'adiabatic': 2 / (4 - self.k),
-            'radiative': 2.5 / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def z(self) -> float:
-        """ Returns the redshift term exponent. """
-        return {
-            'adiabatic': 0.5 * (8 - self.k) / (4 - self.k),
-            'radiative': 2.5 * (4 - self.k) / (7 - 2 * self.k)
-        }[self.evo]
+    def evaluate(self, t):
+        """ Placeholder evaluate method. """
+        raise NotImplementedError(f'evaluate not implemented.')
 
 
 class PeakFluxModel(BaseSpectralModel):
@@ -719,7 +546,6 @@ class PeakFluxModel(BaseSpectralModel):
 
     Both radiative and adiabatic models are supported.
     """
-    _exponents = PeakFluxExponents
 
     # noinspection PyPep8Naming
     def __init__(self, E, rho0, eps_b, dL, z, k, X):
@@ -730,157 +556,71 @@ class PeakFluxModel(BaseSpectralModel):
 
     @property
     def n_p(self):
-        """ Returns the particle density. """
+        """ Returns the inverse particle density. """
         return 0.5 * (1 + self.X)
 
-    def evaluate(self, t, evo: str = 'adiabatic') -> float:
+    def evaluate(self, t: u.Quantity | float) -> float:
         """
         Calculates the peak flux at time `t` for a shock's
         movement that is described by `evo`.
 
         Parameters
         ----------
-        t : u.Quantity['time']
-            The time to evaluate.
-
-        evo : str, {'adiabatic', 'radiative'}, default='adiabatic'
-            The evolution of the external shock.
+        t : u.Quantity['time'] or float
+            The time to evaluate. If `t` is a float, must
+            be measured in days since trigger.
 
         Returns
         -------
         float
             The peak flux at time `t` measured in mJy.
         """
-        e = self.exponents(evo)
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
 
-        result = super().evaluate(t, evo)
+        # convenience variables
+        k, x = self.k, 4 - self.k
 
-        # k-independent unit-less factors
-        # 4/3 * sqrt(2) * q_em^-3 * m_em^-1 * m_pm^-1
-        result *= 13.71383
+        # evaluate exponents once
+        exp_z   = (0.5 * (8 - self.k) / x)
+        exp_c   = -0.5 * (24 - 7 * k) / x
+        exp_en  = 0.5 * (8 - 3 * k) / x
+        exp_t   = -0.5 * k / x
+        exp_rho = 2 / x
 
-        # k-dependent unit factors
-        result *= 2.9979 ** e.c
-        result *= 1.67262 ** e.rho0
-        result *= 8.64 ** e.t
-
-        # k-dependent powers-of-ten
-        kd_pot = 10 * e.c + 52 * e.E - 24 * e.rho0 + 4 * e.t
-
-        # k-independent powers-of-ten
-        # log(q_e * m_e * m_p * 1e28 * 1e26)
-        ki_pot = -8.0
-
-        # powers-of-ten
-        result *= pow(10, ki_pot + kd_pot)
-
-        # parameters
-        result *= self.n_p
-        result *= self.rho0 ** e.rho0
-        result *= self.dL ** e.dL
+        # exponents in log-space to prevent overflow
+        log_pot = (
+            (10 * exp_c) + (52 * exp_en) +
+            ((17 * k - 24) * exp_rho) + (4 * exp_t) - 8.0
+        )
 
         # return peak flux [mJy]
-        return result
+        return (
+            # k-independent mantissas
+            13.71383 *  # = 4/3 * sqrt(2) * m(q_e)^-3 * m(m_e)^-1 * m(m_p)^-1
 
+            # k-dependent mantissas
+            (2.9979 ** exp_c) *     # speed of light
+            (1.67262 ** exp_rho) *  # density normalization
+            (8.64 ** exp_t) *       # time conversion (d -> s)
 
-class CoolingFrequencyExponents:
-    """
-    The exponents for CoolingFrequencyModel parameters.
+            # k-dependent terms
+            (math.pi ** -((2 - k) / x)) *
+            (self.alpha ** -(0.5 * (8 - 3 * k) / x)) *
+            (self.beta ** -(0.5 * k / x)) *
 
-    Exponents for both adiabatic and radiative evolution
-    are implemented.
+            # model parameters
+            (self.eps_b ** 0.5) *       # magnetic field fraction
+            ((1 + self.z) ** exp_z) *   # redshift
+            (self.E ** exp_en) *        # explosion energy / 1e52 erg
+            self.n_p *                  # particle density
+            (self.rho0 ** exp_rho) *    # number density / m_p / R_*
+            (self.dL ** -2) *           # luminosity distance / 1e28 cm
+            (t ** exp_t) *              # time in days
 
-    Attributes
-    ----------
-    k : float
-        The density power-law index.
-
-    evo : str, {'adiabatic', 'radiative'}
-            The evolution type.
-    """
-    def __init__(self, k: float, evo: str):
-        self.k = k
-        self.evo = evo
-
-    @property
-    def q_e(self) -> float:
-        """ Returns the electron charge exponent. """
-        return -7.0
-
-    @property
-    def m_e(self) -> float:
-        """ Returns the electron mass exponent. """
-        return 5.0
-
-    @property
-    def eps_b(self) -> float:
-        """ Returns the magnetic field fraction exponent. """
-        return -1.5
-
-    @property
-    def pi(self) -> float:
-        """ Returns the pi contribution [unit-less]. """
-        return {
-            'adiabatic': -(8 - self.k) / (4 - self.k),
-            'radiative': -(27 - 4 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def c(self) -> float:
-        """ Returns the speed of light exponent. """
-        return {
-            'adiabatic': 0.5 * (68 - 19 * self.k) / (4 - self.k),
-            'radiative': 0.5 * (124 - 41 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def alpha(self) -> float:
-        """ Returns the temporal coefficient exponent. """
-        return {
-            'adiabatic': 0.5 * (4 - 3 * self.k) / (4 - self.k),
-            'radiative': (4 - 3 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def beta(self) -> float:
-        """ Returns the spectral coefficient exponent. """
-        return {
-            'adiabatic': 0.5 * (12 - self.k) / (4 - self.k),
-            'radiative': 0.5 * (24 - 5 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def t(self) -> float:
-        """ Returns the time exponent. """
-        return {
-            'adiabatic': -0.5 * (4 - 3 * self.k) / (4 - self.k),
-            'radiative': -0.5 * (4 - 3 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    # noinspection PyPep8Naming
-    @property
-    def E(self) -> float:
-        """ Returns the energy exponent. """
-        return {
-            'adiabatic': -0.5 * (4 - 3 * self.k) / (4 - self.k),
-            'radiative': -(4 - 3 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def rho0(self) -> float:
-        """ Returns the density normalization exponent. """
-        return {
-            'adiabatic': -4 / (4 - self.k),
-            'radiative': -6.5 / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def z(self) -> float:
-        """ Returns the redshift term exponent. """
-        return {
-            'adiabatic': -0.5 * (4 + self.k) / (4 - self.k),
-            'radiative': -0.5 * (10 - 3 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
+            # exponents in linear-space
+            (10 ** log_pot)
+        )
 
 
 class CoolingFrequencyModel(BaseSpectralModel):
@@ -891,173 +631,72 @@ class CoolingFrequencyModel(BaseSpectralModel):
 
     Both radiative and adiabatic models are supported.
     """
-    _exponents = CoolingFrequencyExponents
 
     # noinspection PyPep8Naming
     def __init__(self, E, rho0, eps_b, k, z):
         super().__init__(E, eps_b, k, z)
         self.rho0 = rho0
 
-    def evaluate(self, t, evo: str = 'adiabatic') -> float:
+    def evaluate(self, t: u.Quantity | float) -> float:
         """
         Calculates the cooling frequency at time `t`
         for a shock's movement that is described by `evo`.
 
         Parameters
         ----------
-        t : u.Quantity['time']
-            The time to evaluate.
-
-        evo : str, {'adiabatic', 'radiative'}, default='adiabatic'
-            The evolution of the external shock.
+        t : u.Quantity['time'] or float
+            The time to evaluate. If `t` is a float, must
+            be measured in days since trigger.
 
         Returns
         -------
         float
             The cooling frequency at time `t` measured in Hz.
         """
-        e = self.exponents(evo)
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
 
-        result = super().evaluate(t, evo)
+        # convenience variables
+        k, x = self.k, 4 - self.k
 
-        # k-independent unit-less factors
-        # 81/8192 * sqrt(2) * q_em^-7 * m_em^5
-        result *= 0.014871
+        # evaluate exponents once
+        exp_c   = 0.5 * (68 - 19 * k) / x
+        exp_en  = -0.5 * (4 - 3 * k) / x
+        exp_t   = -0.5 * (4 - 3 * k) / x
+        exp_z   = -0.5 * (4 + k) / x
+        exp_rho = -4 / x
 
-        # k-dependent unit factors
-        result *= 2.9979 ** e.c
-        result *= 1.67262 ** e.rho0
-        result *= 8.64 ** e.t
-
-        # k-dependent powers-of-ten
-        kd_pot = 10 * e.c + 52 * e.E - 24 * e.rho0 + 4 * e.t
-
-        # log(q_e^-7 * m_e^5) = 70 - 140 = -70
-        ki_pot = -70.0
-
-        # powers-of-ten
-        result *= pow(10, ki_pot + kd_pot)
-
-        # unshared parameters
-        result *= self.rho0 ** e.rho0
+        # exponents in log-space to prevent overflow
+        log_pot = (
+            (10 * exp_c) + (52 * exp_en) - 70 +
+            (4 * exp_t) + ((17 * k - 24) * exp_rho)
+        )
 
         # return cooling frequency [Hz]
-        return result
+        return (
+            # k-independent mantissas
+            0.014871 *  # 81/8192 * sqrt(2) * q_em^-7 * m_em^5
 
+            # k-dependent mantissas
+            (2.9979 ** exp_c) *     # speed of light
+            (1.67262 ** exp_rho) *  # density normalization
+            (8.64 ** exp_t) *       # time conversion (d -> s)
 
-class SynchrotronFrequencyExponents:
-    """
-    The exponents for SynchrotronFrequencyModel parameters.
+            # k-dependent terms
+            (math.pi ** -((8 - k) / x)) *
+            (self.alpha ** (0.5 * (4 - 3 * k) / x)) *
+            (self.beta ** (0.5 * (12 - k) / x)) *
 
-    Exponents for both adiabatic and radiative evolution
-    are implemented.
+            # model parameters
+            ((1 + self.z) ** exp_z) *   # redshift
+            (self.eps_b ** -1.5) *      # magnetic field fraction
+            (self.E ** exp_en) *        # explosion energy
+            (self.rho0 ** exp_rho) *    # density normalization
+            (t ** exp_t) *              # time in days
 
-    Attributes
-    ----------
-    k : float
-        The density power-law index.
-
-    evo : str, {'adiabatic', 'radiative'}
-            The evolution type.
-    """
-    def __init__(self, k: float, evo: str):
-        self.k = k
-        self.evo = evo
-
-    @property
-    def q_e(self) -> float:
-        """ Returns the electron charge exponent. """
-        return 1.0
-
-    @property
-    def m_e(self) -> float:
-        """ Returns the electron mass exponent. """
-        return -3.0
-
-    @property
-    def m_p(self) -> float:
-        """ Returns the proton mass exponent. """
-        return 2.0
-
-    @property
-    def n_p(self) -> float:
-        """ Returns the particle density exponent. """
-        return -2.0
-
-    @property
-    def eps_b(self) -> float:
-        """ Returns the magnetic field fraction exponent. """
-        return 0.5
-
-    @property
-    def eps_e(self) -> float:
-        """ Returns the electric field fraction exponent. """
-        return 2.0
-
-    @property
-    def pi(self) -> float:
-        """ Returns the pi exponent. """
-        return {
-            'adiabatic': -1,
-            'radiative': -0.5 * (15 - 4 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def c(self) -> float:
-        """ Returns the speed of light exponent. """
-        return {
-            'adiabatic': -2.5,
-            'radiative': -0.5 * (40 - 11 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def alpha(self) -> float:
-        """ Returns the temporal coefficient exponent. """
-        return {
-            'adiabatic': -0.5,
-            'radiative': -(4 - self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def beta(self) -> float:
-        """ Returns the spectral coefficient exponent. """
-        return {
-            'adiabatic': -1.5,
-            'radiative': -0.5 * (24 - 7 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def t(self) -> float:
-        """ Returns the time exponent. """
-        return {
-            'adiabatic': -1.5,
-            'radiative': -0.5 * (24 - 7 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    # noinspection PyPep8Naming
-    @property
-    def E(self) -> float:
-        """ Returns the energy exponent. """
-        return {
-            'adiabatic': 0.5,
-            'radiative': (4 - self.k) / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def rho0(self) -> float:
-        """ Returns the density normalization exponent. """
-        return {
-            'adiabatic': 0.0,
-            'radiative': -0.5 / (7 - 2 * self.k)
-        }[self.evo]
-
-    @property
-    def z(self) -> float:
-        """ Returns the redshift term exponent. """
-        return {
-            'adiabatic': 0.5,
-            'radiative': 0.5 * (10 - 3 * self.k) / (7 - 2 * self.k)
-        }[self.evo]
+            # exponents in linear-space
+            (10 ** log_pot)
+        )
 
 
 class SynchrotronFrequencyModel(BaseSpectralModel):
@@ -1070,10 +709,6 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
 
     Attributes
     ----------
-    rho0 : float
-        The density normalization, normalized to the proton mass,
-        unit=cm(k-3).
-
     eps_e : float
         The fraction of thermal energy carried by relativistic
         electrons, unit=None.
@@ -1084,12 +719,10 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
     p : float
         The electron energy power-law index, unit=None.
     """
-    _exponents = SynchrotronFrequencyExponents
 
     # noinspection PyPep8Naming
-    def __init__(self, E, rho0, eps_e, eps_b, k, z, X, p):
+    def __init__(self, E, eps_e, eps_b, k, z, X, p):
         super().__init__(E, eps_b, k, z)
-        self.rho0 = rho0
         self.eps_e = eps_e
         self.X = X
         self.p = p
@@ -1099,7 +732,7 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
         """ Returns the particle density. """
         return 0.5 * (1 + self.X)
 
-    def evaluate(self, t, evo: str = 'adiabatic') -> float:
+    def evaluate(self, t: u.Quantity | float) -> float:
         """
         Calculates the synchrotron frequency at time `t`
         for a shock's movement that is described by `evo`.
@@ -1114,46 +747,360 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
 
         Parameters
         ----------
-        t : u.Quantity['time']
-            The time to evaluate.
-
-        evo : str, {'adiabatic', 'radiative'}, default='adiabatic'
-            The evolution of the external shock.
+        t : u.Quantity['time'] or float
+            The time to evaluate. If `t` is a float, must
+            be measured in days since trigger.
 
         Returns
         -------
         float
             The cooling frequency at time `t` measured in Hz.
         """
-        e = self.exponents(evo)
-
-        result = super().evaluate(t, evo)
-
-        # k-independent mantissas
-        # = 2 * sqrt(2) * mantissa(q_e * m_e^-3 * m_p^2)
-        result *= 0.050281
-
-        # k-dependent mantissas
-        result *= 2.9979 ** e.c
-        result *= 1.67262 ** e.rho0
-        result *= 8.64 ** e.t
-
-        # k-dependent powers-of-ten [cgs]
-        # = log(c^f(k) * E^g(k) * rho^h(k))
-        log_kd_exp = 10 * e.c + 52 * e.E - 24 * e.rho0 + 4 * e.t
-
-        # k-independent powers-of-ten [cgs]
-        # = log(q_e * m_e^-3 * m_p^2) = -10 + 84 - 48 = 26
-        log_ki_exp = 26.0
-
-        # undo the log of the exponents
-        result *= pow(10, log_ki_exp + log_kd_exp)
-
-        # unshared parameters
-        result *= self.n_p ** e.n_p
-        result *= self.rho0 ** e.rho0
-        result *= self.eps_e ** e.eps_e
-        result *= ((self.p - 2) ** 2) * ((self.p - 1) ** -2)
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
 
         # return synchrotron frequency [Hz]
-        return result
+        return (
+            # all constants evaluated
+            4.049782158231e+16 *
+
+            # k-dependent factors
+            (self.alpha ** -0.5) *
+            (self.beta ** -1.5) *
+
+            # model parameters
+            (self.n_p ** -2) *      # particle density
+            (self.eps_e ** 2) *     # electric field fraction
+            (self.eps_b ** 0.5) *   # magnetic field fraction
+            ((1 + self.z) ** 0.5) * # redshift
+            (self.E ** 0.5) *       # explosion energy
+            ((self.p - 2) ** 2) *   # electron energy index
+            ((self.p - 1) ** -2) *  # electron energy index
+            (t ** -1.5)             # time in days
+        )
+
+
+# class SynchrotronFrequencyExponents:
+#     """
+#     The exponents for SynchrotronFrequencyModel parameters.
+#
+#     Exponents for both adiabatic and radiative evolution
+#     are implemented.
+#
+#     Attributes
+#     ----------
+#     k : float
+#         The density power-law index.
+#
+#     evo : str, {'adiabatic', 'radiative'}
+#             The evolution type.
+#     """
+#     def __init__(self, k: float, evo: str):
+#         self.k = k
+#         self.evo = evo
+#
+#     @property
+#     def q_e(self) -> float:
+#         """ Returns the electron charge exponent. """
+#         return 1.0
+#
+#     @property
+#     def m_e(self) -> float:
+#         """ Returns the electron mass exponent. """
+#         return -3.0
+#
+#     @property
+#     def m_p(self) -> float:
+#         """ Returns the proton mass exponent. """
+#         return 2.0
+#
+#     @property
+#     def n_p(self) -> float:
+#         """ Returns the particle density exponent. """
+#         return -2.0
+#
+#     @property
+#     def eps_b(self) -> float:
+#         """ Returns the magnetic field fraction exponent. """
+#         return 0.5
+#
+#     @property
+#     def eps_e(self) -> float:
+#         """ Returns the electric field fraction exponent. """
+#         return 2.0
+#
+#     @property
+#     def pi(self) -> float:
+#         """ Returns the pi exponent. """
+#         return {
+#             'adiabatic': -1,
+#             'radiative': -0.5 * (15 - 4 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def c(self) -> float:
+#         """ Returns the speed of light exponent. """
+#         return {
+#             'adiabatic': -2.5,
+#             'radiative': -0.5 * (40 - 11 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def alpha(self) -> float:
+#         """ Returns the temporal coefficient exponent. """
+#         return {
+#             'adiabatic': -0.5,
+#             'radiative': -(4 - self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def beta(self) -> float:
+#         """ Returns the spectral coefficient exponent. """
+#         return {
+#             'adiabatic': -1.5,
+#             'radiative': -0.5 * (24 - 7 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def t(self) -> float:
+#         """ Returns the time exponent. """
+#         return {
+#             'adiabatic': -1.5,
+#             'radiative': -0.5 * (24 - 7 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     # noinspection PyPep8Naming
+#     @property
+#     def E(self) -> float:
+#         """ Returns the energy exponent. """
+#         return {
+#             'adiabatic': 0.5,
+#             'radiative': (4 - self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def rho0(self) -> float:
+#         """ Returns the density normalization exponent. """
+#         return {
+#             'adiabatic': 0.0,
+#             'radiative': -0.5 / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def z(self) -> float:
+#         """ Returns the redshift term exponent. """
+#         return {
+#             'adiabatic': 0.5,
+#             'radiative': 0.5 * (10 - 3 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+
+
+# class PeakFluxExponents:
+#     """
+#     The exponents for the PeakFluxModel's parameters.
+#
+#     Exponents for both adiabatic and radiative evolution
+#     are available.
+#
+#     Attributes
+#     ----------
+#     k : float
+#         The density power-law index.
+#
+#     evo : str, {'adiabatic', 'radiative'}
+#             The evolution type.
+#     """
+#     def __init__(self, k: float, evo: str):
+#         self.k = k
+#         self.evo = evo
+#
+#     @property
+#     def q_e(self) -> float:
+#         """ Returns the electron charge exponent. """
+#         return -3.0
+#
+#     @property
+#     def m_e(self) -> float:
+#         """ Returns the electron mass exponent. """
+#         return -1.0
+#
+#     @property
+#     def m_p(self) -> float:
+#         """ Returns the proton mass exponent. """
+#         return -1.0
+#
+#     # noinspection PyPep8Naming
+#     @property
+#     def dL(self) -> float:
+#         """ Returns the luminosity distance exponent. """
+#         return -2.0
+#
+#     @property
+#     def eps_b(self) -> float:
+#         """ Returns the magnetic field fraction exponent. """
+#         return 0.5
+#
+#     @property
+#     def pi(self) -> float:
+#         """ Returns the pi exponent. """
+#         return {
+#             'adiabatic': -(2 - self.k) / (4 - self.k),
+#             'radiative': -(9 - 4 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def c(self) -> float:
+#         """ Returns the speed of light exponent. """
+#         return {
+#             'adiabatic': -0.5 * (24 - 7 * self.k) / (4 - self.k),
+#             'radiative': -0.5 * (52 - 17 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def alpha(self) -> float:
+#         """ Returns the temporal coefficient exponent. """
+#         return {
+#             'adiabatic': -0.5 * (8 - 3 * self.k) / (4 - self.k),
+#             'radiative': -(8 - 3 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def beta(self) -> float:
+#         """ Returns the spectral coefficient exponent. """
+#         return {
+#             'adiabatic': -0.5 * self.k / (4 - self.k),
+#             'radiative': -0.5 * (6 - self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def t(self) -> float:
+#         """ Returns the time contribution exponent. """
+#         return {
+#             'adiabatic': -0.5 * self.k / (4 - self.k),
+#             'radiative': -0.5 * (6 - self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     # noinspection PyPep8Naming
+#     @property
+#     def E(self) -> float:
+#         """ Returns the energy exponent. """
+#         return {
+#             'adiabatic': 0.5 * (8 - 3 * self.k) / (4 - self.k),
+#             'radiative': (8 - 3 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def rho0(self) -> float:
+#         """ Returns the density normalization exponent. """
+#         return {
+#             'adiabatic': 2 / (4 - self.k),
+#             'radiative': 2.5 / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def z(self) -> float:
+#         """ Returns the redshift term exponent. """
+#         return {
+#             'adiabatic': 0.5 * (8 - self.k) / (4 - self.k),
+#             'radiative': 2.5 * (4 - self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+
+
+# class CoolingFrequencyExponents:
+#     """
+#     The exponents for CoolingFrequencyModel parameters.
+#
+#     Exponents for both adiabatic and radiative evolution
+#     are implemented.
+#
+#     Attributes
+#     ----------
+#     k : float
+#         The density power-law index.
+#
+#     evo : str, {'adiabatic', 'radiative'}
+#             The evolution type.
+#     """
+#     def __init__(self, k: float, evo: str):
+#         self.k = k
+#         self.evo = evo
+#
+#     @property
+#     def q_e(self) -> float:
+#         """ Returns the electron charge exponent. """
+#         return -7.0
+#
+#     @property
+#     def m_e(self) -> float:
+#         """ Returns the electron mass exponent. """
+#         return 5.0
+#
+#     @property
+#     def eps_b(self) -> float:
+#         """ Returns the magnetic field fraction exponent. """
+#         return -1.5
+#
+#     @property
+#     def pi(self) -> float:
+#         """ Returns the pi contribution [unit-less]. """
+#         return {
+#             'adiabatic': -(8 - self.k) / (4 - self.k),
+#             'radiative': -(27 - 4 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def c(self) -> float:
+#         """ Returns the speed of light exponent. """
+#         return {
+#             'adiabatic': 0.5 * (68 - 19 * self.k) / (4 - self.k),
+#             'radiative': 0.5 * (124 - 41 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def alpha(self) -> float:
+#         """ Returns the temporal coefficient exponent. """
+#         return {
+#             'adiabatic': 0.5 * (4 - 3 * self.k) / (4 - self.k),
+#             'radiative': (4 - 3 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def beta(self) -> float:
+#         """ Returns the spectral coefficient exponent. """
+#         return {
+#             'adiabatic': 0.5 * (12 - self.k) / (4 - self.k),
+#             'radiative': 0.5 * (24 - 5 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def t(self) -> float:
+#         """ Returns the time exponent. """
+#         return {
+#             'adiabatic': -0.5 * (4 - 3 * self.k) / (4 - self.k),
+#             'radiative': -0.5 * (4 - 3 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     # noinspection PyPep8Naming
+#     @property
+#     def E(self) -> float:
+#         """ Returns the energy exponent. """
+#         return {
+#             'adiabatic': -0.5 * (4 - 3 * self.k) / (4 - self.k),
+#             'radiative': -(4 - 3 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def rho0(self) -> float:
+#         """ Returns the density normalization exponent. """
+#         return {
+#             'adiabatic': -4 / (4 - self.k),
+#             'radiative': -6.5 / (7 - 2 * self.k)
+#         }[self.evo]
+#
+#     @property
+#     def z(self) -> float:
+#         """ Returns the redshift term exponent. """
+#         return {
+#             'adiabatic': -0.5 * (4 + self.k) / (4 - self.k),
+#             'radiative': -0.5 * (10 - 3 * self.k) / (7 - 2 * self.k)
+#         }[self.evo]

@@ -9,8 +9,8 @@
 
     [E.prior]
         type  = "uniform"
-        lower = -10.0
-        upper = 3.0
+        lower = -5.0
+        upper = 5.0
 
 [rho0]
     group = "hydrodynamic"
@@ -19,7 +19,7 @@
     [rho0.prior]
         type  = "uniform"
         lower = -5.0
-        upper = 5.0
+        upper = 8.0
 
 [eps_e]
     group = "radiation"
@@ -45,8 +45,10 @@
 
     [p.prior]
         type  = "uniform"
-        lower = 2.0
-        upper = 5.0
+        lower = 1.5
+        upper = 3.0
+        initial_guess = 2.25
+        initial_sigma = 0.25
 
 [z]
     group = "observational"
@@ -63,8 +65,10 @@
 
     [k.prior]
         type  = "uniform"
-        lower = 0.0
+        lower = -1.0
         upper = 2.0
+        initial_guess = 1.0
+        initial_sigma = 1.0
 
 [X]
     group = "observational"
@@ -81,4 +85,4 @@
     [ebv_sf.prior]
         type  = "uniform"
         lower = 0.0
-        upper = 1.0
+        upper = 0.5

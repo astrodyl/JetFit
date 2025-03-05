@@ -31,7 +31,7 @@ class Observation:
 
         for i, f in enumerate(data):
             if f.type != DataType.SPECTRAL_INDEX:
-                self.time_array[i] = f.time.value
+                self.time_array[i] = f.time.to_value('s')
 
             if f.type == DataType.SPECTRAL_FLUX:
                 self.wave_number_array[i] = 1 / f.wavelength.to_value('um')

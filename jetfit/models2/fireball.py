@@ -13,9 +13,6 @@ from jetfit.core.core import two_point_approx
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 
-# Define constants in useful units
-m_p = const.m_p.cgs # Mass of proton [g]
-
 
 class FireballModel:
     """
@@ -117,29 +114,27 @@ class FireballModel:
     @rho0.setter
     def rho0(self, rho0) -> None:
         """
-        Sets the density normalization as an astropy Quantity
-        with units of g * cm^k-3. If a float or unit-less
-        quantity is provided, assumes that the value is
-        normalized to m_p [g / cm^3-k].
+        Sets the density normalization as a simple float.
 
-        Define rho0 as:
+        Define rho as:
 
-        rho0 = rho_x * r_x ^ k-3
+        rho = rho_x * R^-k = rho_0 * (R/R_0)^-k
 
-        where rho_x is the reference density at the characteristic
-        radius, r_x. We choose r_x = 1 cm such that:
+        such that:
 
-        rho0 = n_x * m_p * 1cm ^ k-3
+        rho_x = rho_0 * R_0^k
 
-        where n_x is the reference number density at r_x = 1cm and
-        m_p is the mass of a proton.
+        where R_0 is the characteristic radius which we take to
+        be 1e17 cm. Then `rho0` is the reference density at 1e17
+        cm with units of g/cm^3. However, I normalize to the proton
+        mass such that rho0 is a number density with units of cm^-3.
 
         Parameters
         ----------
         rho0 : float or astropy.units.Quantity
             The density normalization. If a float or unit-less
             quantity is provided, assumes that the value is
-            normalized to the mass of the proton (g) * cm^3-k.
+            ??.
         """
         if isinstance(rho0, u.Quantity):
             rho0 = rho0.cgs.value
@@ -180,7 +175,7 @@ class FireballModel:
 
         Returns
         -------
-        np.ndarray
+        np.ndarray of ??
             The modeled observational data.
         """
         res = np.full(len(observation.data), np.nan)
@@ -220,7 +215,7 @@ class FireballModel:
 
         Returns
         -------
-        u.Quantity
+        ??
             The modeled flux.
         """
         f_peak, nu_c, nu_m = (
@@ -246,7 +241,7 @@ class FireballModel:
 
         Returns
         -------
-        u.Quantity
+        ??
             The modeled flux.
         """
         f_peak, nu_c, nu_m = (
@@ -274,7 +269,7 @@ class FireballModel:
             f_stop, f_start, val.int_range.lower.value, val.int_range.upper.value, log=True
         )
 
-    def f_peak(self, t: u.Quantity, evo: str = 'adiabatic'):
+    def f_peak(self, t: u.Quantity | float, evo: str = 'adiabatic'):
         """
         Calculates the peak flux in the case of an ultra-
         relativistic shock moving into an external medium
@@ -282,20 +277,22 @@ class FireballModel:
 
         Parameters
         ----------
-        t : astropy.units.Quantity
-            The time to evaluate.
+        t : astropy.units.Quantity ot float
+            The time to evaluate. If `t` is a float, must
+            be measured in days since trigger.
 
         evo : str, {'adiabatic', 'radiative'}, default='adiabatic'
             The evolution type.
 
         Returns
         -------
-        astropy.units.Quantity
+        ??
             The peak flux in mJy at time `t`.
         """
-        return PeakFluxModel(self.E, self.rho0, self.eps_b, self.dL,self.z, self.k, self.X)(t, evo)
+        return PeakFluxModel(
+            self.E, self.rho0, self.eps_b, self.dL,self.z, self.k, self.X)(t)
 
-    def nu_c(self, t, evo: str = 'adiabatic'):
+    def nu_c(self, t: u.Quantity | float, evo: str = 'adiabatic'):
         """
         Calculates the cooling frequency in the case of an ultra-
         relativistic shock moving into an external medium with
@@ -303,20 +300,22 @@ class FireballModel:
 
         Parameters
         ----------
-        t : astropy.units.Quantity
-            The time to evaluate.
+        t : astropy.units.Quantity or float
+            The time to evaluate. If `t` is a float, must
+            be measured in days since trigger.
 
         evo : str, {'adiabatic', 'radiative'}, default='adiabatic'
             The evolution type.
 
         Returns
         -------
-        astropy.units.Quantity
+        ??
             The cooling frequency in Hz at time `t`.
         """
-        return CoolingFrequencyModel(self.E, self.rho0, self.eps_b, self.k, self.z)(t, evo)
+        return CoolingFrequencyModel(
+            self.E, self.rho0, self.eps_b, self.k, self.z)(t)
 
-    def nu_m(self, t: u.Quantity, evo: str = 'adiabatic'):
+    def nu_m(self, t: u.Quantity | float, evo: str = 'adiabatic'):
         """
         Calculates the synchrotron frequency in the case of an
         ultra-relativistic shock moving into an external medium
@@ -324,18 +323,20 @@ class FireballModel:
 
         Parameters
         ----------
-        t : astropy.units.Quantity
-            The time to evaluate.
+        t : astropy.units.Quantity or float
+            The time to evaluate. If `t` is a float, must
+            be measured in days since trigger.
 
         evo : str, {'adiabatic', 'radiative'}, default='adiabatic'
             The evolution type.
 
         Returns
         -------
-        astropy.units.Quantity
+        ??
             The synchrotron frequency in Hz at time `t`.
         """
-        return SynchrotronFrequencyModel(self.E, self.rho0, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p)(t, evo)
+        return SynchrotronFrequencyModel(
+            self.E, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p)(t)
 
 
 class ISMModel(FireballModel):
@@ -349,6 +350,8 @@ class WindModel(FireballModel):
 
 
 if __name__ == '__main__':
+    m_p = const.m_p.cgs  # Mass of proton [g]
+
     rhoC = 1
     rhoW = 5e11 / m_p.cgs.value
 
