@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 
 from jetfit.core.defns.enums import DataType
 from jetfit.core.input import Observation
+from jetfit.core.values import SpectralFlux, IntegratedFlux
 
 
 class LightCurve:
@@ -16,7 +17,8 @@ class LightCurve:
             model_params,
             obs,
             x_scale: str = 'log',
-            y_scale: str = 'log'
+            y_scale: str = 'log',
+            title: str = 'Light Curve',
     ):
         self.model = model
         self.model_params = model_params
@@ -24,7 +26,7 @@ class LightCurve:
         self.bands = obs.get_bands()
 
         self.ax = None
-        self.set_axes(x_scale, y_scale)
+        self.set_axes(x_scale, y_scale, title)
 
     def plot(self, show: bool = False, out_dir: str | Path = None) -> None:
         """
@@ -46,10 +48,11 @@ class LightCurve:
         if out_dir is not None:
             plt.savefig(out_dir / 'light_curve.png')
 
-    def set_axes(self, x_scale: str, y_scale: str) -> None:
+    def set_axes(self, x_scale: str, y_scale: str, title: str) -> None:
         """"""
         _, ax = plt.subplots(figsize=(8, 8))
 
+        ax.set_title(title)
         ax.set_yscale(x_scale)
         ax.set_xscale(y_scale)
         ax.set_ylabel('Flux (mJy)')
@@ -65,13 +68,15 @@ class LightCurve:
         show : bool, optional
             If ``True``, calls `plt.show()`.
         """
+        model = self.model(**self.model_params)
+
         flux_times = self.observation.time_array[
             self.observation.flux_types != DataType.SPECTRAL_INDEX]
 
         modeled_times = np.logspace(
             np.log10(flux_times.min()),
             np.log10(flux_times.max() * 2.0),
-            num=2_500
+            num=500
         )
 
         for band in self.bands:
@@ -83,11 +88,11 @@ class LightCurve:
                 data.append(datum)
 
             # Model the data at the new times
-            modeled_fluxes = self.model(**self.model_params).model(Observation(data))
+            modeled_fluxes = model.model(Observation(data))
 
             # Convert integrated flux to a flux density in mJy
             if band.flux[0].type == DataType.INTEGRATED_FLUX:
-                frequency_range = band.flux[0].int_range.upper - band.flux[0].int_range.lower
+                frequency_range = band.flux[0].int_range.upper.value - band.flux[0].int_range.lower.value
                 modeled_fluxes = modeled_fluxes / (frequency_range * 1.0e-26)
 
             # Plot the model

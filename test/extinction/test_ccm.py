@@ -7,8 +7,6 @@ import astropy.units as u
 from dust_extinction.parameter_averages import CCM89
 from matplotlib import pyplot as plt
 
-from jetfit.models.data.flux.extinction.ccm_model import CCMExtinction
-
 
 class MyTestCase(unittest.TestCase):
     """
@@ -61,8 +59,6 @@ class MyTestCase(unittest.TestCase):
 
     def test(self):
         """"""
-
-
         xs = np.linspace(0.5, 9.0, 10000) / u.micron
 
         start1 = time.time()
@@ -130,7 +126,7 @@ class MyTestCase(unittest.TestCase):
         a_f = model.evaluate(frequency, ebv=ebv, linear=True)
         self.assertAlmostEqual(a_f, a_l, 5)
 
-    @unittest.skip("Test=Plot CCM Curve, Reason=For visual inspection only")
+    # @unittest.skip("Test=Plot CCM Curve, Reason=For visual inspection only")
     def test_plot_curves(self):
         """
         Plots the extinction curves for visual inspection.
@@ -142,13 +138,12 @@ class MyTestCase(unittest.TestCase):
 
         # Plot my CCMExtinction model
         for r_v in r_vs:
-            ccm = CCMExtinction(r_v)
-            curve = [ccm.curve(1 / x) for x in xs]
+            curve = CCM89(Rv=r_v)(xs)
+            # curve = [ccm.curve(1 / x) for x in xs]
             ax.plot(xs, curve, label='R(V) = ' + str(r_v))
 
         ax.plot(2.78, 1.569, '+', color='black', label='U')
         ax.plot(0.80, 0.282, '.', color='black', label='J')
-
 
         # Set labels
         ax.set_xlabel(r'$x$ [$\mu m^{-1}$]')

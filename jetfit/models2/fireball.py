@@ -1,3 +1,5 @@
+import math
+
 import astropy.units as u
 import astropy.constants as const
 import numpy as np
@@ -164,6 +166,28 @@ class FireballModel:
 
         self._dL = d
 
+    def evaluate(self, times, frequency):
+        """"""
+        res = np.full(len(times), np.nan)
+        f_peaks, nu_cs, nu_ms = [], [], []
+
+        for t in times:
+            f_peaks.append(self.f_peak(t))
+            nu_cs.append(self.nu_c(t))
+            nu_ms.append(self.nu_m(t))
+
+        if isinstance(frequency, tuple):
+            for i, t in enumerate(times):
+                res[i] = IntegratedFluxModel(
+                    nu_ms[i], nu_cs[i], f_peaks[i], self.p).evaluate(frequency[0], frequency[1])
+
+        elif isinstance(frequency, float):
+            for i, t in enumerate(times):
+                res[i] = SpectralFluxModel(
+                    nu_ms[i], nu_cs[i], f_peaks[i], self.p).evaluate(frequency)
+
+        return res
+
     def model(self, observation: Observation) -> np.ndarray:
         """
         Models the observational data.
@@ -290,7 +314,7 @@ class FireballModel:
             The peak flux in mJy at time `t`.
         """
         return PeakFluxModel(
-            self.E, self.rho0, self.eps_b, self.dL,self.z, self.k, self.X)(t)
+            self.E, self.rho0, self.eps_b, self.dL, self.z, self.k, self.X)(t)
 
     def nu_c(self, t: u.Quantity | float, evo: str = 'adiabatic'):
         """
@@ -352,13 +376,41 @@ class WindModel(FireballModel):
 if __name__ == '__main__':
     m_p = const.m_p.cgs  # Mass of proton [g]
 
-    rhoC = 1
     rhoW = 5e11 / m_p.cgs.value
 
-    v = FireballModel(1,2.2,.1,.1,0.0,1., rhoC,0.0, 0.7)
+    # <editor-fold desc="TEST VDH">
+    # Test VDH values for k = 0
+    vdh = FireballModel(1,2.2,.1,.1,0.0,1., 1.,0.0, 0.7)
 
-    test_f_peak = v.f_peak(1 * u.d)
-    test_nu_c = v.nu_c(1 * u.d)
-    test_nu_m = v.nu_m(1 * u.d)
+    if not math.isclose(vdh.f_peak(1 * u.d) / 0.5, 21.3, abs_tol=0.1):
+        raise ValueError('Peak Flux does not match Van Der Horst value.')
+
+    if not math.isclose(vdh.nu_c(1 * u.d) / (0.5**-0.5), 5.98e13, abs_tol=1e12):
+        raise ValueError('Cooling Frequency does not match Van Der Horst value.')
+
+    if not math.isclose(vdh.nu_m(1 * u.d) / (0.5**0.5), 8.98e11, abs_tol=1e10):
+        raise ValueError('Synchrotron Frequency does not match Van Der Horst value.')
+    # </editor-fold>
+
+    # Test SP values for k = 0
+    ism = FireballModel(1.,2.5,1,1,0.0,1., 10.,0.0, 1.0)
+
+    if not math.isclose(ism.nu_c(1 * u.d), 2.7e12, abs_tol=1e11):
+        raise ValueError(
+            f'Cooling Frequency does not match Sari piran value: '
+            f'{round(ism.nu_c(1 * u.d) / 1e12, 3)}e12 Hz != 2.7e12 Hz'
+        )
+
+    if not math.isclose(ism.nu_m(1 * u.d), 5.7e14, abs_tol=1e13):
+        raise ValueError(
+            'Synchrotron Frequency does not match Sari piran value: '
+            f'{ism.nu_m(1 * u.d)} Hz != 5.7e14 Hz'
+        )
+
+    if not math.isclose(ism.f_peak(1 * u.d), 110, abs_tol=15):
+        raise ValueError(
+            'Peak Flux does not match Sari piran value: '
+            f'{ism.f_peak(1 * u.d)} mJy != 110 mJy'
+        )
 
     print()

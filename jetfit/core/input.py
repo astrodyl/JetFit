@@ -79,6 +79,16 @@ class Observation:
         return np.where(self.flux_types != DataType.SPECTRAL_INDEX)[0]
 
     @property
+    def spectral_flux_loc(self) -> np.ndarray:
+        """ Returns an array of spectral flux indices. """
+        return np.where(self.flux_types == DataType.SPECTRAL_FLUX)[0]
+
+    @property
+    def integrated_flux_loc(self) -> np.ndarray:
+        """ Returns an array of integrated flux indices. """
+        return np.where(self.flux_types == DataType.INTEGRATED_FLUX)[0]
+
+    @property
     def spectral_index_loc(self) -> np.ndarray:
         """ Returns an array of spectral index indices. """
         return np.where(self.flux_types == DataType.SPECTRAL_INDEX)[0]

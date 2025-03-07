@@ -224,7 +224,7 @@ class SpectralFluxModel(BaseFluxModel):
             f1, f2 = f2, f1
 
         if f <= f1:  # f is below the critical frequencies
-            return self.seg_b if r == 'fast' else self.seg_d
+            return self.seg_b if r == 'fast' else self.seg_f
 
         if f < f2:  # f is between the critical frequencies
             return self.seg_c if r == 'fast' else self.seg_g
@@ -590,18 +590,22 @@ class PeakFluxModel(BaseSpectralModel):
 
         # exponents in log-space to prevent overflow
         log_pot = (
-            (10 * exp_c) + (52 * exp_en) +
-            ((17 * k - 24) * exp_rho) + (4 * exp_t) - 8.0
+            (10 * exp_c) +              # speed of light [cm]
+            (52 * exp_en) +             # 1e52 erg normalization
+            ((17 * k - 24) * exp_rho) + # proton mass [g] and radius normalization
+            (4 * exp_t) -               # time conversion (d -> s)
+            8.0                         # e(q_e)^3 * e(m_e)^-1 * e(m_p)^-1 - e(dL)^2 + e(cgs->mJy)
+                                        # = -30 + 28 + 24 -56 + 26 = -8
         )
 
         # return peak flux [mJy]
         return (
             # k-independent mantissas
-            13.71383 *  # = 4/3 * sqrt(2) * m(q_e)^-3 * m(m_e)^-1 * m(m_p)^-1
+            13.71383 *  # = 4/3 * sqrt(2) * m(q_e)^3 * m(m_e)^-1 * m(m_p)^-1
 
             # k-dependent mantissas
-            (2.9979 ** exp_c) *     # speed of light
-            (1.67262 ** exp_rho) *  # density normalization
+            (2.9979 ** exp_c) *     # speed of light [cm]
+            (1.67262 ** exp_rho) *  # density normalization [g]
             (8.64 ** exp_t) *       # time conversion (d -> s)
 
             # k-dependent terms
@@ -675,7 +679,7 @@ class CoolingFrequencyModel(BaseSpectralModel):
         # return cooling frequency [Hz]
         return (
             # k-independent mantissas
-            0.014871 *  # 81/8192 * sqrt(2) * q_em^-7 * m_em^5
+            0.014871 *  # 81/8192 * sqrt(2) * m(q_e)^-7 * m(m_e)^5
 
             # k-dependent mantissas
             (2.9979 ** exp_c) *     # speed of light
