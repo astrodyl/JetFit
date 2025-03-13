@@ -58,6 +58,16 @@ class GaussianPrior:
         class_name = self.__class__.__name__
         return f"{class_name}(mu={self.mu}, sigma={self.sigma})"
 
+    @property
+    def lower(self) -> float:
+        """ Returns the lower 3-sigma bound of the prior. """
+        return self.mu - 3.0 * self.sigma
+
+    @property
+    def upper(self) -> float:
+        """ Returns the upper 3-sigma bound of the prior. """
+        return self.mu + 3.0 * self.sigma
+
     @classmethod
     def from_dict(cls, d: dict):
         """

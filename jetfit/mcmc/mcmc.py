@@ -68,6 +68,12 @@ class MCMC:
         self.set_start_positions()
         self.set_param_position()
 
+        # Store the calibration offsets for quick access
+        self.cal_offset_pos = {}
+        for i, p in enumerate(fitting_params):
+            if p.name in self.observation.cal_offsets:
+                self.cal_offset_pos[p.name] = i
+
         self.meta = meta if meta else {}
 
     @property
@@ -147,6 +153,36 @@ class MCMC:
             progress=True
         )
 
+    def samples_to_dict(self, theta) -> dict:
+        """
+        Maps an array of values to a dictionary.
+
+        Parameters
+        ----------
+        theta : np.ndarray of float
+            The parameters values.
+
+        Returns
+        -------
+        dict
+            key, value pairs of name : value.
+        """
+        params = {}
+
+        for i, p in enumerate(self.fitting_params):
+            if 'offset' not in p.name:
+                params[p.name] = math_utils.to_scale(
+                    theta[i], p.scale, 'linear'
+                )
+
+        for i, p in enumerate(self.fixed_params):
+            if 'offset' not in p.name:
+                params[p.name] = math_utils.to_scale(
+                    p.value, p.scale, 'linear'
+                )
+
+        return params
+
     def log_prior(self, theta: np.ndarray[float]) -> float:
         """
         Evaluates the natural log of the priors.
@@ -172,34 +208,6 @@ class MCMC:
 
         return log_prior
 
-    def samples_to_dict(self, theta) -> dict:
-        """
-        Maps an array of values to a dictionary.
-
-        Parameters
-        ----------
-        theta : np.ndarray of float
-            The parameters values.
-
-        Returns
-        -------
-        dict
-            key, value pairs of name : value.
-        """
-        params = {}
-
-        for i, p in enumerate(self.fitting_params):
-            params[p.name] = math_utils.to_scale(
-                theta[i], p.scale, 'linear'
-            )
-
-        for i, p in enumerate(self.fixed_params):
-            params[p.name] = math_utils.to_scale(
-                p.value, p.scale, 'linear'
-            )
-
-        return params
-
     def log_likelihood(self, theta: np.ndarray[float]) -> float:
         """
         Calculates the natural log of the likelihood.
@@ -215,8 +223,15 @@ class MCMC:
             The log of the likelihood if the parameters were valid.
             Else, -np.inf.
         """
+
+        # Model the observational data
         model = self.model(**self.samples_to_dict(theta), **self.meta)
         modeled = model.model(self.observation)
+
+        # Apply calibration offsets
+        if self.cal_offset_pos:
+            for name, index in self.cal_offset_pos.items():
+                modeled[self.observation.cal_offsets[name]] *= 10.0 ** (-0.4 * theta[index])
 
         # Skip chi squared calculation since a nan will
         # always result in -inf anyway
@@ -236,7 +251,7 @@ class MCMC:
         Calculates the natural log of the posterior probability.
 
         The posterior probability is the probability of the parameters,
-        ``theta``, given the evidence X denoted by p(theta | X).
+        `theta`, given the evidence X denoted by p(theta | X).
 
         Parameters
         ----------

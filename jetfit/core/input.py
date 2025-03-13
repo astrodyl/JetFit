@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -14,13 +15,16 @@ class Observation:
 
     Attributes
     ----------
-    data : list
+    data : np.ndarray
 
     value_array : np.ndarray
         The measurement values.
     """
-    def __init__(self, data):
+    def __init__(self, data, offsets: defaultdict = None):
         self._data = data
+
+        # Map fitting offset from MCMC to data groups
+        self.cal_offsets = offsets
 
         # Create arrays that can be efficiently accessed.
         self.value_array = np.full(len(data), np.nan, dtype=np.float64)
@@ -44,29 +48,33 @@ class Observation:
 
     @classmethod
     def from_csv(cls, path: str | Path):
-        """   """
+        """  """
         csv = CSVReader(path, live_dangerously=True)
         data = np.empty(len(csv.df), dtype=object)
+        offsets = defaultdict(list)
 
         for row in csv.rows():
+            data_type = row.ValueType.lower()
 
-            match row.ValueType.lower():
-                case DataType.INTEGRATED_FLUX.value:
-                    data[row.Index] = IntegratedFlux.from_csv_row(row)
+            if data_type == DataType.INTEGRATED_FLUX.value:
+                data[row.Index] = IntegratedFlux.from_csv_row(row)
 
-                case DataType.SPECTRAL_FLUX.value:
-                    data[row.Index] = SpectralFlux.from_csv_row(row)
+            elif data_type == DataType.SPECTRAL_FLUX.value:
+                data[row.Index] = SpectralFlux.from_csv_row(row)
 
-                case DataType.SPECTRAL_INDEX.value:
-                    data[row.Index] = SpectralIndex.from_csv_row(row)
+            elif data_type == DataType.SPECTRAL_INDEX.value:
+                data[row.Index] = SpectralIndex.from_csv_row(row)
 
-                case _:
-                    raise IOError(
-                        f'Row {row.Index} has an invalid data type: '
-                        f'{row.ValueType}.'
-                    )
+            else:
+                raise IOError(
+                    f'Row {row.Index} has an invalid data type: '
+                    f'{row.ValueType}.'
+                )
 
-        return cls(data)
+            if hasattr(row, 'CalGroup') and isinstance(row.CalGroup, str):
+                offsets[row.CalGroup].append(row.Index)
+
+        return cls(data, offsets)
 
     @property
     def data(self):

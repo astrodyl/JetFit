@@ -1,10 +1,6 @@
 # MCMC Parameter Configuriation File
 
-# ==========================
-#  HYDRODYNAMIC PARAMETERS
-# ==========================
 [E]
-    group = "hydrodynamic"
     scale = "log"
 
     [E.prior]
@@ -13,16 +9,14 @@
         upper = 5.0
 
 [rho0]
-    group = "hydrodynamic"
     scale = "log"
 
     [rho0.prior]
         type  = "uniform"
         lower = -5.0
-        upper = 8.0
+        upper = 12.0
 
 [eps_e]
-    group = "radiation"
     scale = "log"
 
     [eps_e.prior]
@@ -31,7 +25,6 @@
         upper = 0.0
 
 [eps_b]
-    group = "radiation"
     scale = "log"
 
     [eps_b.prior]
@@ -46,19 +39,9 @@
     [p.prior]
         type  = "uniform"
         lower = 1.5
-        upper = 3.0
+        upper = 3.5
         initial_guess = 2.25
         initial_sigma = 0.25
-
-[z]
-    group = "observational"
-    scale = "linear"
-    value = 2.006
-
-[dL]
-    group = "observational"
-    scale = "linear"
-    value = 4.94
 
 [k]
     scale = "linear"
@@ -70,15 +53,6 @@
         initial_guess = 1.0
         initial_sigma = 1.0
 
-[X]
-    group = "observational"
-    scale = "linear"
-    value = 0.7
-
-[ebv_mw]
-    scale = "linear"
-    value = 0.0647
-
 [ebv_sf]
     scale = "linear"
 
@@ -86,3 +60,43 @@
         type  = "uniform"
         lower = 0.0
         upper = 0.5
+
+[V_offset]
+    scale = "linear"
+
+    [V_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.3
+
+[R_offset]
+    scale = "linear"
+
+    [R_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.3
+
+[I_offset]
+    scale = "linear"
+
+    [I_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.3
+
+[X]
+    scale = "linear"
+    value = 0.7
+
+[z]
+    scale = "linear"
+    value = 2.006
+
+[dL]
+    scale = "linear"
+    value = 4.94
+
+[ebv_mw]
+    scale = "linear"
+    value = 0.0647

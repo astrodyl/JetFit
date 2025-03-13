@@ -299,7 +299,7 @@ class SpectralFlux(FluxBase):
         if frequency is not None:
             if wavelength is not None:
                 raise ValueError(
-                    'frequency and wavelength may not be '
+                    'Frequency and wavelength may not be '
                     'specified simultaneously.'
                 )
             self.frequency = frequency

@@ -8,7 +8,7 @@ BAND_MAP = {
 
     # Johnson Cousins Filters
     'U': {'range': BoundedMixin(lower=8.10E+14, upper=8.30E+14), 'color': 'cyan'},
-    'B': {'range': BoundedMixin(lower=6.64E+14, upper=6.86E+14), 'color': 'blue'},
+    'B': {'range': BoundedMixin(lower=6.64E+14, upper=6.87E+14), 'color': 'blue'},
     'V': {'range': BoundedMixin(lower=5.34E+14, upper=5.54E+14), 'color': 'green'},
     'R': {'range': BoundedMixin(lower=4.46E+14, upper=4.66E+14), 'color': 'red'},
     'I': {'range': BoundedMixin(lower=3.62E+14, upper=3.82E+14), 'color': 'purple'},

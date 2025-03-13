@@ -6,7 +6,6 @@ from matplotlib import pyplot as plt
 
 from jetfit.core.defns.enums import DataType
 from jetfit.core.input import Observation
-from jetfit.core.values import SpectralFlux, IntegratedFlux
 
 
 class LightCurve:
