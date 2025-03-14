@@ -6,32 +6,27 @@ from jetfit.core.defns.enums import ScaleType
 
 # <editor-fold desc="Calculations">
 def chi_squared(
-        f: np.ndarray,
-        y: np.ndarray,
-        e: np.ndarray,
+        f: np.ndarray[float],
+        y: np.ndarray[float],
+        e: np.ndarray[float],
         s: float = None,
-        const: bool = False
-):
+) -> float:
     """
     Calculates the chi-squared value.
 
     Parameters
     ----------
-    f : np.ndarray
+    f : np.ndarray of float
         The predicted values.
 
-    y : np.ndarray
+    y : np.ndarray of float
         The observed values.
 
-    e : np.ndarray
+    e : np.ndarray of float
         The uncertainty in the observed values.
 
     s : float, optional, default=None
         The slop parameter.
-
-    const : bool, optional, default=False
-        If ``True``, calculates the constant. When maximizing the likelihood,
-        the constant is not relevant and should be skipped for efficient.
 
     Returns
     -------
@@ -41,96 +36,54 @@ def chi_squared(
     if s is None:
         return np.sum(((y - f) / e) ** 2)
 
-    return chi_squared_eff(f, y, e, s, const)
+    return chi_squared_eff(f, y, e, s)
 
 
 def chi_squared_eff(
-        f: np.ndarray,
-        y: np.ndarray,
-        e: np.ndarray,
+        f: np.ndarray[float],
+        y: np.ndarray[float],
+        e: np.ndarray[float],
         s: float,
-        const: bool = False
 ) -> float:
     """
-    TODO: Transforms slop basis to linear. Needs to be configurable.
-
-    When the slop parameter, ``s``, is provided, the chi-squared calculation
-    accounts for additional unknown variances. When ``s > 0``, the effective
-    uncertainties increase, decreasing the penalty for model-data mismatches
-    but adding a penalty for increasing ``s`` through the normalization term.
-    When ``s = 0``, the calculation reduces to the standard chi-squared.
+    When the slop parameter, `s`, is provided, the chi-squared
+    calculation accounts for additional unknown variances. When
+    `s > 0`, the effective uncertainties increase, decreasing the
+    penalty for model-data mismatches but adding a penalty for
+    increasing `s` through the normalization term. When `s = 0`,
+    the calculation reduces to the standard chi-squared.
 
     Parameters
     ----------
-    f : np.ndarray
-        The predicted values.
+    f : np.ndarray of float
+        The modeled values.
 
-    y : np.ndarray
+    y : np.ndarray of float
         The observed values.
 
-    e : np.ndarray
+    e : np.ndarray of float
         The uncertainty in the observed values.
 
     s : float
         The slop parameter.
 
-    const : bool, optional, default=False
-        If ``True``, calculates the constant. When maximizing the likelihood,
-        the constant is not relevant and should be skipped for efficient.
-
     Returns
     -------
     float
-        The chi-squared value.
+        The effective chi-squared value.
     """
-    res = np.zeros_like(f)
+    # Convert slop to linear space
+    s_lin_hi = 10 ** (np.log10(f) + s) - f
+    s_lin_lo = f - 10 ** (np.log10(f) - s)
 
-    def peak() -> np.ndarray[float]:
-        """
-        Calculates the maximum of the transformed log-normal in linear space.
+    # Force slop to be symmetric
+    s_lin_avg = (s_lin_hi + s_lin_lo) / 2
 
-        Returns
-        -------
-        np.ndarray of float
-            The peak of the transformed log-normal model distribution.
-        """
-        return 10 ** (np.log10(f) - (s ** 2) * np.log(10))
+    # Combine the slop and data uncertainties
+    sig = np.sqrt(s_lin_avg ** 2 + e ** 2)
 
-    def sig_lo() -> np.ndarray[float]:
-        """
-        Calculates the empirical 1-sig widths of the asymmetric Gaussian.
-
-        This calculation is only valid for s ~< 0.1 and for f < f_max.
-
-        Returns
-        -------
-        np.ndarray of float
-            The combined error for f < f_max.
-        """
-        return np.sqrt(
-            (f_max * (2.3029 * s + 2.6293 * s ** 2 - 3.6945 * s ** 3)) ** 2 + e ** 2
-        )
-
-    def sig_hi() -> np.ndarray[float]:
-        """
-        Calculates the empirical 1-sig widths of the asymmetric Gaussian.
-
-        This calculation is only valid for s ~< 0.1 and for f >= f_max.
-
-        Returns
-        -------
-        np.ndarray of float
-            The combined error for f >= f_max.
-        """
-        return np.sqrt(
-            (f_max * (2.3027 * s - 2.6544 * s ** 2 - 4.0699 * s ** 3)) ** 2 + e ** 2
-        )
-
-    plus = f >= (f_max := peak())
-    res[plus] = ((y - f_max) / sig_hi()) ** 2
-    res[~plus] = ((y - f_max) / sig_lo()) ** 2
-
-    return np.sum(res)
+    # return chi-squared effective
+    return np.sum(2 * np.log(sig) + ((y - f) / sig) ** 2)
 # </editor-fold>
 
 

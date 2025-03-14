@@ -170,16 +170,17 @@ class MCMC:
         params = {}
 
         for i, p in enumerate(self.fitting_params):
-            if 'offset' not in p.name:
+            if 'offset' not in p.name and p.name != 'slop':
                 params[p.name] = math_utils.to_scale(
                     theta[i], p.scale, 'linear'
                 )
 
         for i, p in enumerate(self.fixed_params):
-            if 'offset' not in p.name:
+            if 'offset' not in p.name and p.name != 'slop':
                 params[p.name] = math_utils.to_scale(
                     p.value, p.scale, 'linear'
                 )
+
 
         return params
 
@@ -238,13 +239,27 @@ class MCMC:
         if np.isnan(modeled.min()):
             return -np.inf
 
-        # return log likelihood = -0.5 x chi squared
-        return -0.5 * math_utils.chi_squared(
-            modeled,
-            self.observation.value_array,
-            self.observation.error_array,
-            # get slop!
+        # Chi-squared for flux
+        flux_mask = self.observation.flux_loc
+
+        cs_flux = math_utils.chi_squared(
+            modeled[flux_mask],
+            self.observation.value_array[flux_mask],
+            self.observation.error_array[flux_mask],
+            self.get_slop(theta)
         )
+
+        # Chi-squared for spectral indices
+        index_mask = self.observation.spectral_index_loc
+
+        cs_indices = math_utils.chi_squared(
+            modeled[index_mask],
+            self.observation.value_array[index_mask],
+            self.observation.error_array[index_mask],
+        )
+
+        # return combined chi-squared
+        return -0.5 * (cs_flux + cs_indices)
 
     def log_posterior(self, theta: np.ndarray[float]) -> float:
         """

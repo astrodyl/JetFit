@@ -8,6 +8,16 @@ from jetfit.core.defns.enums import DataType
 from jetfit.core.input import Observation
 
 
+def sec_to_days(x):
+    """ Used for plotting axes. """
+    return x / 86400
+
+
+def days_to_sec(x):
+    """ Used for plotting axes. """
+    return x * 86400
+
+
 class LightCurve:
     """ """
     def __init__(
@@ -95,7 +105,7 @@ class LightCurve:
                 modeled_fluxes = modeled_fluxes / (frequency_range * 1.0e-26)
 
             # Plot the model
-            plt.loglog(modeled_times, modeled_fluxes, '--', linewidth=1.5, color=band.color)
+            self.ax.loglog(modeled_times, modeled_fluxes, '--', linewidth=1.5, color=band.color)
 
         if show:
             plt.show()
@@ -123,7 +133,10 @@ class LightCurve:
 
             self.ax.errorbar(times, fluxes, yerr=errors, fmt='.', label=band.name, color=band.color)
 
-        plt.legend(loc='best')
+        self.ax.legend(loc='best')
+        self.ax.grid(alpha=0.5)
+        ax2 = self.ax.secondary_xaxis('top', functions=(sec_to_days, days_to_sec))
+        ax2.set_xlabel("Time Since Trigger (days)")
 
         if show:
             plt.show()

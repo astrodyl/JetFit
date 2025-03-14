@@ -77,12 +77,16 @@ class PosteriorPlot:
                 'magnetic_energy_fraction': r'$log_{10}\epsilon_B$',
                 'electron_energy_index': r'$p$',
                 'ebv_source_frame': r'$ebv_{sf}$',
-                'slop': 'slop',
 
                 # Generic Fireball Model
                 'E': r'$log_{10}E_{52}$',
                 'eps_e': r'$log_{10}\epsilon_e$',
                 'eps_b': r'$log_{10}\epsilon_B$',
+                'ebv_sf': r'$Ebv_{sf}$',
+                'rho0': r'$log_{10}n$',
+                'V_offset': r'$\delta_V$',
+                'R_offset': r'$\delta_R$',
+                'I_offset': r'$\delta_I$',
             }[key]
         except KeyError:
             return key

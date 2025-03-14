@@ -4,6 +4,11 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 325.9999872,,,s,0.444692691,0.059,0.059,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset,,,0.4,1.111731727
 386.0000352,,,s,0.494720619,0.061,0.061,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset,,,0.445,1.111731727
 445.9999968,,,s,0.332407786,0.059,0.059,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset,,,0.299,1.111731727
+505.9999584,,,s,0.432463642,0.063,0.063,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset,,,0.389,1.111731727
+566.0000064,,,s,0.436910569,0.063,0.063,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset,,,0.393,1.111731727
+625.999968,,,s,0.400223422,0.061,0.061,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset,,,0.36,1.111731727
+686.000016,,,s,0.351307226,0.062,0.062,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset,,,0.316,1.111731727
+745.9999776,,,s,0.246804443,0.062,0.062,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset,,,0.222,1.111731727
 205.9999776,,,s,0.316637718,0.019,0.019,mJy,Spectral Flux,4.56E+14,,,Hz,R,R_offset,,,0.273,1.159845121
 266.0000256,,,s,0.211091812,0.046,0.046,mJy,Spectral Flux,4.56E+14,,,Hz,R,R_offset,,,0.182,1.159845121
 325.9999872,,,s,0.226169799,0.02,0.02,mJy,Spectral Flux,4.56E+14,,,Hz,R,R_offset,,,0.195,1.159845121

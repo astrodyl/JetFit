@@ -5,23 +5,23 @@
 
     [E.prior]
         type  = "uniform"
-        lower = -3.0
-        upper = 8.0
+        lower = -2.0
+        upper = 3.0
 
 [rho0]
     scale = "log"
 
     [rho0.prior]
         type  = "uniform"
-        lower = -5.0
-        upper = 12.0
+        lower = -6.0
+        upper = 9.0
 
 [eps_e]
     scale = "log"
 
     [eps_e.prior]
         type  = "uniform"
-        lower = -8.0
+        lower = -4.0
         upper = 0.0
 
 [eps_b]
@@ -29,7 +29,7 @@
 
     [eps_b.prior]
         type  = "uniform"
-        lower = -10.0
+        lower = -6.0
         upper = 0.0
 
 [p]
@@ -37,8 +37,8 @@
 
     [p.prior]
         type  = "uniform"
-        lower = 1.8
-        upper = 2.5
+        lower = 1.5
+        upper = 3.5
         initial_guess = 2.25
         initial_sigma = 0.25
 
@@ -48,9 +48,7 @@
     [k.prior]
         type  = "uniform"
         lower = -1.0
-        upper = 2.0
-        initial_guess = 1.0
-        initial_sigma = 1.0
+        upper = 3.0
 
 [ebv_sf]
     scale = "linear"
@@ -58,7 +56,7 @@
     [ebv_sf.prior]
         type  = "uniform"
         lower = 0.0
-        upper = 0.4
+        upper = 1.0
 
 [V_offset]
     scale = "linear"
@@ -83,6 +81,14 @@
         type  = "gaussian"
         mu = 0.0
         sigma = 0.3
+
+[slop]
+    scale = "linear"
+
+    [slop.prior]
+        type  = "uniform"
+        lower = 0.0
+        upper = 0.3
 
 [X]
     scale = "linear"
