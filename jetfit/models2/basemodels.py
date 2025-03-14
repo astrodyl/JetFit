@@ -1,6 +1,7 @@
 import math
 
 import astropy.units as u
+import numpy as np
 
 from jetfit.core.defns.enums import DataType
 from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
@@ -134,12 +135,15 @@ class BaseFluxModel:
     p : float
         The electron energy power-law index.
 
+    k : float
+        The circumburst density power-law index.
     """
-    def __init__(self, nu_m, nu_c, f_peak, p):
+    def __init__(self, nu_m, nu_c, f_peak, p, k):
         self.f_peak = f_peak
         self.nu_m = nu_m
         self.nu_c = nu_c
         self.p = p
+        self.k = k
 
     @property
     def f_peak(self):
@@ -199,8 +203,12 @@ class SpectralFluxModel(BaseFluxModel):
     Provides methods for calculating spectral fluxes
     using the spectrum for the GRB fireball model.
     """
-    def __init__(self, nu_m, nu_c, f_peak, p):
-        super().__init__(nu_m, nu_c, f_peak, p)
+    def __init__(self, nu_m, nu_c, f_peak, p, k):
+        super().__init__(nu_m, nu_c, f_peak, p, k)
+
+    def __call__(self, nu):
+        """ Calls the `evaluate_smooth` method. """
+        return self.evaluate_smooth(nu)
 
     def segment(self, f) -> FluxSegment:
         """
@@ -231,6 +239,47 @@ class SpectralFluxModel(BaseFluxModel):
 
         # f is above the largest critical frequency
         return self.seg_d if r == 'fast' else self.seg_h
+
+    def model_smooth(self, val: SpectralFlux):
+        """"""
+        return self.evaluate_smooth(val.frequency.value)
+
+    def evaluate_smooth(self, nu: float) -> float:
+        """
+        Calculates the smoothed flux at a given frequency, `nu`.
+
+        Parameters
+        ----------
+        nu : float
+            The frequency to evaluate.
+
+        Returns
+        -------
+        float
+            The modeled flux with units of `f_peak`.
+        """
+        # Critical frequencies
+        nu12, nu23 = self.nu_m, self.nu_c
+
+        # Segment spectral indices
+        b1, b2, b3 = 1 / 3, (1 - self.p) / 2, -self.p / 2
+
+        # Smoothing factors
+        s12 = 1.84 - (0.040 * self.k) - (0.40 - 0.010 * self.k) * self.p
+        s23 = 1.15 - (0.125 * self.k) - (0.06 - 0.015 * self.k) * self.p
+
+        if self.regime == 'fast':
+            nu12, nu23 = self.nu_c, self.nu_m
+            b2  = -0.5
+            s12 = 0.597
+            s23 = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
+
+        # return smoothed flux density
+        return self.f_peak * (
+            (((nu / nu12) ** -(s12 * (b1 - b2)) + 1) ** (s23 / s12)) *
+            ((nu / nu12) ** -(s23 * b2)) +
+            (((nu23 / nu12) ** -(s23 * b2)) * ((nu/nu23) ** -(s23 * b3)))
+        ) ** -(1 / s23)
 
     def model(self, val: SpectralFlux):
         """
@@ -273,14 +322,52 @@ class IntegratedFluxModel(BaseFluxModel):
     Provides methods for calculating integrated fluxes
     using the spectrum for the GRB fireball model.
     """
-    def __init__(self, nu_m, nu_c, f_peak, p):
-        super().__init__(nu_m, nu_c, f_peak, p)
+    def __init__(self, nu_m, nu_c, f_peak, p, k):
+        super().__init__(nu_m, nu_c, f_peak, p, k)
 
-    def __call__(self, lower, upper) -> u.Quantity:
+    def __call__(self, lower, upper):
         """ Calls the `evaluate` method. """
-        return self.evaluate(lower, upper)
+        return self.evaluate_smooth(lower, upper)
 
-    def model(self, val: IntegratedFlux) -> u.Quantity:
+    def model_smooth(self, val: IntegratedFlux):
+        """"""
+        return self.evaluate_smooth(
+            lower=val.int_range.lower.value,
+            upper=val.int_range.upper.value
+        )
+
+    def evaluate_smooth(self, lower: float, upper: float):
+        """
+        Evaluates the integrated flux model using the
+        `lower` and `upper` integration limits.
+
+        Parameters
+        ----------
+        lower : float
+            The lower integration limit measured in Hz.
+
+        upper : float
+            The upper integration limit measured in Hz.
+
+        Returns
+        -------
+        float
+            The integrated flux with units of erg cm-2 s-1.
+        """
+        beta = SpectralIndexModel(
+            self.nu_m, self.nu_c, self.f_peak, self.p, self.k
+        ).evaluate(lower, upper)
+
+        flux = SpectralFluxModel(
+            self.nu_m, self.nu_c, self.f_peak, self.p, self.k
+        ).evaluate_smooth(lower)
+
+        return 1e-26 * (
+            (flux * lower / (beta + 1)) *
+            (((upper / lower) ** (beta + 1)) - 1)
+        )
+
+    def model(self, val: IntegratedFlux):
         """
         Models the flux `val` using its integration range.
 
@@ -291,7 +378,7 @@ class IntegratedFluxModel(BaseFluxModel):
 
         Returns
         -------
-        u.Quantity['energy flux']
+        ??
             The modeled flux for `val`'s integration range.
         """
         return self.evaluate(val.int_range.lower.value, val.int_range.upper.value)
@@ -401,32 +488,22 @@ class IntegratedFluxModel(BaseFluxModel):
         return c3
 
 
-class SpectralIndexModel:
+class SpectralIndexModel(BaseFluxModel):
     """
     Spectral Index Model
     """
-    def __init__(self, f1, f2):
-        self.f1 = f1
-        self.f2 = f2
+    def __init__(self, nu_m, nu_c, f_peak, p, k):
+        super().__init__(nu_m, nu_c, f_peak, p, k)
 
-    def model(self, index: SpectralIndex):
-        """
-        Models the spectral index `index` using a two
-        point approximation.
+    def __call__(self, lower, upper):
+        """ Calls the `evaluate` method. """
+        return self.evaluate(lower, upper)
 
-        Parameters
-        ----------
-        index : SpectralIndex
-            The spectral index to model.
-
-        Returns
-        -------
-        float
-            The approximated spectral index.
-        """
+    def model(self, val: SpectralIndex):
+        """"""
         return self.evaluate(
-            lower=index.int_range.lower.value,
-            upper=index.int_range.upper.value
+            lower=val.int_range.lower.value,
+            upper=val.int_range.upper.value,
         )
 
     def evaluate(self, lower, upper):
@@ -437,16 +514,23 @@ class SpectralIndexModel:
         Parameters
         ----------
         lower : ??
-            The start integration time.
+            The lower integration limit.
 
         upper : ??
-            The stop integration time.
+            The upper integration limit.
 
         Returns
         -------
-
+        float
+            The modeled spectral index.
         """
-        return two_point_approx(self.f2, self.f1, lower, upper, log=True)
+        model = SpectralFluxModel(
+            self.nu_m, self.nu_c, self.f_peak, self.p, self.k)
+
+        return (
+            np.log(model(upper) / model(lower)) /
+            np.log(upper / lower)
+        )
 
 
 class BaseSpectralModel:

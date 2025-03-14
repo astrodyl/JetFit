@@ -55,8 +55,10 @@
 
     [k.prior]
         type  = "uniform"
-        lower = 1.0
+        lower = -1.0
         upper = 2.0
+        initial_guess=1.0
+        initial_sigma=0.5
 
 [X]
     scale = "linear"

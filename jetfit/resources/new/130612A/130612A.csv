@@ -43,5 +43,5 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 12382.482,,,s,5.66E-13,1.15E-13,1.15E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,,,,,,
 18181.369,,,s,4.67E-13,1.11E-13,1.11E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,,,,,,
 44245.521,,,s,1.30E-13,3.09E-14,3.09E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,,,,,,
-132,98.479,583.507,s,-7.00E-01,4.00E-01,6.00E-01,erg cm-2 s-1,Spectral Index,,7.25E+16,2.42E+18,Hz,,,,,,
-8649,583.507,44245.521,s,-1.10E+00,2.60E-01,2.70E-01,erg cm-2 s-1,Spectral Index,,7.25E+16,2.42E+18,Hz,,,,,,
+267.20643,,,s,-7.00E-01,4.00E-01,6.00E-01,erg cm-2 s-1,Spectral Index,,7.25E+16,2.42E+18,Hz,,,,,,
+8595.773,,,s,-1.10E+00,2.60E-01,2.70E-01,erg cm-2 s-1,Spectral Index,,7.25E+16,2.42E+18,Hz,,,,,,

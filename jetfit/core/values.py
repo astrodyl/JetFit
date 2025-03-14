@@ -665,12 +665,6 @@ class SpectralIndex(Integrable):
     upper : float
         The upper uncertainty of the spectral index.
 
-    start : u.Quantity['time']
-        The start time of the measurement.
-
-    stop : u.Quantity['time']
-        The stop time of the measurement.
-
     int_lower : astropy.units.Quantity
         The lower bound of the integration range.
 
@@ -682,8 +676,6 @@ class SpectralIndex(Integrable):
     int_range : Bound
         The lower and upper bounds of the integration range.
 
-    time_range : astropy.units.Quantity
-        The time range of the measurement.
     """
     type = DataType.SPECTRAL_INDEX
     _int_type = u.Hz.physical_type
@@ -693,16 +685,22 @@ class SpectralIndex(Integrable):
             value: float,
             lower: float,
             upper: float,
-            start: u.Quantity,
-            stop: u.Quantity,
+            time: u.Quantity,
             int_lower: u.Quantity,
             int_upper: u.Quantity
     ):
         super().__init__(int_lower, int_upper)
 
         self.value = value
+        self.time = time
         self.uncertainty = Bound(lower, upper)
-        self.time_range = Bound(start, stop)
+
+    def __repr__(self) -> str:
+        """ Returns a printable representation. """
+        return (
+            f"SpectralIndex(value={self.value}, "
+            f"time={self.time}, int_range={self.int_range})"
+        )
 
     @classmethod
     def from_csv_row(cls, row):
@@ -710,12 +708,12 @@ class SpectralIndex(Integrable):
         Returns instance parsed from a row of a CSV row.
 
         row : NamedTuple
-            `Value`: The value of the flux measurement,
-            `ValueUnits`: Units of the flux measurement,
-            `ValueLower`: The lower flux uncertainty,
-            `ValueUpper`: The upper flux uncertainty,
-            `Time`: The time of the flux measurement,
-            `TimeUnits`: Units of the time.
+            `Value`: The value of the index measurement,
+            `ValueLower`: The lower index uncertainty,
+            `ValueUpper`: The upper index uncertainty,
+            `Time`: The effective time of the index measurement,
+            `TimeUnits`: Units of the time,
+            ...
 
         Raises
         ------
@@ -733,8 +731,7 @@ class SpectralIndex(Integrable):
                 'value': u.Quantity(row.Value),
                 'lower': u.Quantity(row.ValueLower),
                 'upper': u.Quantity(row.ValueUpper),
-                'start': u.Quantity(row.TimeLower, row.TimeUnits).to('d'),
-                'stop': u.Quantity(row.TimeUpper, row.TimeUnits).to('d'),
+                'time': u.Quantity(row.Time, row.TimeUnits).to('d'),
                 'int_lower': u.Quantity(row.WaveLower, row.WaveUnits),
                 'int_upper': u.Quantity(row.WaveUpper, row.WaveUnits),
             }

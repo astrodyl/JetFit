@@ -4,11 +4,13 @@ import astropy.units as u
 import astropy.constants as const
 import numpy as np
 from dust_extinction.parameter_averages import CCM89
+from matplotlib import pyplot as plt
 
 from jetfit.core.defns.enums import DataType
 from jetfit.core.input import Observation
 from jetfit.core.values import IntegratedFlux, SpectralFlux, SpectralIndex
-from jetfit.models2.basemodels import SynchrotronFrequencyModel, SpectralFluxModel, IntegratedFluxModel
+from jetfit.models2.basemodels import SynchrotronFrequencyModel, SpectralFluxModel, IntegratedFluxModel, \
+    SpectralIndexModel
 from jetfit.models2.basemodels import CoolingFrequencyModel, PeakFluxModel
 from jetfit.core.core import two_point_approx
 
@@ -166,28 +168,6 @@ class FireballModel:
 
         self._dL = d
 
-    def evaluate(self, times, frequency):
-        """"""
-        res = np.full(len(times), np.nan)
-        f_peaks, nu_cs, nu_ms = [], [], []
-
-        for t in times:
-            f_peaks.append(self.f_peak(t))
-            nu_cs.append(self.nu_c(t))
-            nu_ms.append(self.nu_m(t))
-
-        if isinstance(frequency, tuple):
-            for i, t in enumerate(times):
-                res[i] = IntegratedFluxModel(
-                    nu_ms[i], nu_cs[i], f_peaks[i], self.p).evaluate(frequency[0], frequency[1])
-
-        elif isinstance(frequency, float):
-            for i, t in enumerate(times):
-                res[i] = SpectralFluxModel(
-                    nu_ms[i], nu_cs[i], f_peaks[i], self.p).evaluate(frequency)
-
-        return res
-
     def model(self, observation: Observation) -> np.ndarray:
         """
         Models the observational data.
@@ -206,11 +186,25 @@ class FireballModel:
 
         for i, data in enumerate(observation.data):
 
-            if data.type != DataType.SPECTRAL_INDEX:
-                res[i] = self.model_flux(data)
+            # Critical spectral values
+            f_peak = self.f_peak(data.time)
+            nu_m = self.nu_m(data.time)
+            nu_c = self.nu_c(data.time)
+
+            if data.type == DataType.SPECTRAL_FLUX:
+                res[i] = SpectralFluxModel(
+                    nu_m, nu_c, f_peak, self.p, self.k
+                ).model_smooth(data)
+
+            elif data.type == DataType.INTEGRATED_FLUX:
+                res[i] = IntegratedFluxModel(
+                    nu_m, nu_c, f_peak, self.p, self.k
+                ).model_smooth(data)
 
             elif data.type == DataType.SPECTRAL_INDEX:
-                res[i] = self.model_index(data)
+                res[i] = SpectralIndexModel(
+                    nu_m, nu_c, f_peak, self.p, self.k
+                ).model(data)
 
             if res[i] == np.nan:
                 return res
@@ -228,70 +222,70 @@ class FireballModel:
 
         return res
 
-    def model_flux(self, data):
-        """
-        Models an observational flux value.
+    # def model_flux(self, data):
+    #     """
+    #     Models an observational flux value.
+    #
+    #     Parameters
+    #     ----------
+    #     data : SpectralFlux or IntegratedFlux
+    #         The value to model.
+    #
+    #     Returns
+    #     -------
+    #     ??
+    #         The modeled flux.
+    #     """
+    #     f_peak, nu_c, nu_m = (
+    #         self.f_peak(data.time),
+    #         self.nu_c(data.time),
+    #         self.nu_m(data.time)
+    #     )
+    #
+    #     if data.type == DataType.SPECTRAL_FLUX:
+    #         return SpectralFluxModel(nu_m, nu_c, f_peak, self.p).model_smooth(data)
+    #
+    #     return IntegratedFluxModel(nu_m, nu_c, f_peak, self.p).model(data)
 
-        Parameters
-        ----------
-        data : SpectralFlux or IntegratedFlux
-            The value to model.
-
-        Returns
-        -------
-        ??
-            The modeled flux.
-        """
-        f_peak, nu_c, nu_m = (
-            self.f_peak(data.time),
-            self.nu_c(data.time),
-            self.nu_m(data.time)
-        )
-
-        if data.type == DataType.SPECTRAL_FLUX:
-            return SpectralFluxModel(nu_m, nu_c, f_peak, self.p).model(data)
-
-        return IntegratedFluxModel(nu_m, nu_c, f_peak, self.p).model(data)
-
-    def model_index(self, val):
-        """
-        Approximates the spectral index measurement using
-        `val`'s integration range and time range.
-
-        Parameters
-        ----------
-        val : SpectralIndex
-            The value to model.
-
-        Returns
-        -------
-        ??
-            The modeled flux.
-        """
-        f_peak, nu_c, nu_m = (
-            self.f_peak(val.time_range.lower),
-            self.nu_c(val.time_range.lower),
-            self.nu_m(val.time_range.lower)
-        )
-
-        f_peak2, nu_c2, nu_m2 = (
-            self.f_peak(val.time_range.upper),
-            self.nu_c(val.time_range.upper),
-            self.nu_m(val.time_range.upper)
-        )
-
-        # Use the critical values to initialize the models
-        f_start_model = IntegratedFluxModel(nu_m, nu_c, f_peak, self.p)
-        f_stop_model = IntegratedFluxModel(nu_m2, nu_c2, f_peak2, self.p)
-
-        # Evaluate the models
-        f_start = f_start_model(val.int_range.lower.value, val.int_range.upper.value)
-        f_stop = f_stop_model(val.int_range.lower.value, val.int_range.upper.value)
-
-        # Return the approximated spectral index
-        return two_point_approx(
-            f_stop, f_start, val.int_range.lower.value, val.int_range.upper.value, log=True
-        )
+    # def model_index(self, val):
+    #     """
+    #     Approximates the spectral index measurement using
+    #     `val`'s integration range and time range.
+    #
+    #     Parameters
+    #     ----------
+    #     val : SpectralIndex
+    #         The value to model.
+    #
+    #     Returns
+    #     -------
+    #     ??
+    #         The modeled flux.
+    #     """
+    #     f_peak, nu_c, nu_m = (
+    #         self.f_peak(val.time_range.lower),
+    #         self.nu_c(val.time_range.lower),
+    #         self.nu_m(val.time_range.lower)
+    #     )
+    #
+    #     f_peak2, nu_c2, nu_m2 = (
+    #         self.f_peak(val.time_range.upper),
+    #         self.nu_c(val.time_range.upper),
+    #         self.nu_m(val.time_range.upper)
+    #     )
+    #
+    #     # Use the critical values to initialize the models
+    #     f_start_model = IntegratedFluxModel(nu_m, nu_c, f_peak, self.p)
+    #     f_stop_model = IntegratedFluxModel(nu_m2, nu_c2, f_peak2, self.p)
+    #
+    #     # Evaluate the models
+    #     f_start = f_start_model(val.int_range.lower.value, val.int_range.upper.value)
+    #     f_stop = f_stop_model(val.int_range.lower.value, val.int_range.upper.value)
+    #
+    #     # Return the approximated spectral index
+    #     return two_point_approx(
+    #         f_stop, f_start, val.int_range.lower.value, val.int_range.upper.value, log=True
+    #     )
 
     def f_peak(self, t: u.Quantity | float, evo: str = 'adiabatic'):
         """
@@ -374,7 +368,27 @@ class WindModel(FireballModel):
 
 
 if __name__ == '__main__':
-    m_p = const.m_p.cgs  # Mass of proton [g]
+    m_p = const.m_p.cgs  # Proton mass [g]
+    m_e = const.m_e.cgs  # Election mass [g]
+    q_e = u.Quantity(4.8032e-10 * u.g**0.5 * u.cm**1.5 / u.s)  # Electron charge [g1/2 cm3/2 s-1]
+    c = const.c.cgs  # Speed of light [cm / s]
+
+    # Check derivation
+    A = (4/3) * np.sqrt(2*math.pi) * (q_e**3) * (m_e**-1) * 17 * ((4*math.pi)**-.75) * ((1024*math.pi)**-0.25)
+
+    def vdh_flux(X, n, dL, E, eps_b):
+        F = A
+        F *= (1 + X) / 2
+        F *= m_p ** -0.5
+        F *= c ** -3
+        F *= n ** 0.5
+        F *= eps_b ** 0.5
+        F *= dL ** -2
+        F *= E
+        return F
+
+    # F_vdh_mjy = vdh_flux(0.7, 1 / (u.cm ** 3), 1e28 * u.cm, 1e52 * u.erg, 0.1).to('mJy')
+    F_sp_mjy = vdh_flux(1.0, 1 / (u.cm ** 3), 1e28 * u.cm, 1e52 * u.erg, 1.0).to('mJy')
 
     rhoW = 5e11 / m_p.cgs.value
 
@@ -394,6 +408,27 @@ if __name__ == '__main__':
 
     # Test SP values for k = 0
     ism = FireballModel(1.,2.5,1,1,0.0,1., 10.,0.0, 1.0)
+
+    nus = np.logspace(12, 18, 100)
+    density_model = SpectralFluxModel(nu_m=10**13, nu_c=10**15, f_peak=10**4.5, p=2.5, k=2.0)
+
+    fluxes, fluxes2 = [], []
+    for nu in nus:
+        fluxes.append(density_model.evaluate_smooth(nu))
+        fluxes2.append(density_model.evaluate(nu))
+    fluxes = np.array(fluxes)
+    fluxes2 = np.array(fluxes2)
+
+    plt.loglog(nus, fluxes)
+    plt.loglog(nus, fluxes2, color='black')
+
+    # plt.axvline(x=10**11.1, color='black', linestyle=':', alpha=0.3)
+    # plt.axvline(x=10**12.5, color='black', linestyle=':', alpha=0.3)
+    plt.axhline(y=10**4.5, color='black', linestyle=':', alpha=0.3)
+    plt.show()
+
+    # plt.loglog(nus, np.abs(fluxes - fluxes2), color='red')
+    # plt.show()
 
     if not math.isclose(ism.nu_c(1 * u.d), 2.7e12, abs_tol=1e11):
         raise ValueError(
