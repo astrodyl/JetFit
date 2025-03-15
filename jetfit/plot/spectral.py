@@ -41,8 +41,20 @@ def plot_critical_frequencies(nu_ms, nu_cs, times) -> None:
     """
     _, ax = plt.subplots()
 
-    ax.loglog(times, nu_ms, color='blue', label=r'$\nu_{m}$')
-    ax.loglog(times, nu_cs, color='orange', label=r'$\nu_{c}$')
+    # Calculate the temporal indices
+    slope_nu_m, _ = np.polyfit(np.log10(times), np.log10(nu_ms), 1)
+    slope_nu_c, _ = np.polyfit(np.log10(times), np.log10(nu_cs), 1)
+
+    ax.loglog(times, nu_ms, color='blue',
+              label=r'$\nu_{m},  \alpha = $' + f'{round(slope_nu_m, 3)}')
+    ax.loglog(times, nu_cs, color='orange',
+              label=r'$\nu_{c},  \alpha = $' + f'{round(slope_nu_c, 3)}')
+
+    # Plot horizontal lines corresponding to filter frequencies
+    plt.axhline(y=5.44e14, color='green',  linestyle='--', alpha=0.3)  # V
+    plt.axhline(y=4.56e14, color='red',    linestyle='--', alpha=0.3)  # R
+    plt.axhline(y=3.74e14, color='indigo', linestyle='--', alpha=0.3)  # I
+
     ax.set_title('Critical Frequencies')
     ax.set_xlabel('Time Since Trigger (days)')
     ax.set_ylabel('Frequency (Hz)')
@@ -51,7 +63,6 @@ def plot_critical_frequencies(nu_ms, nu_cs, times) -> None:
 
     ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
     ax2.set_xlabel("Time Since Trigger (seconds)")
-
     plt.show()
 
 
@@ -150,7 +161,7 @@ def main(event, obs, model_params, time):
     # Evaluate the spectrum at all frequencies
     modeled_spectral_flux, modeled_spectral_segments = [], []
     for f in frequencies:
-        modeled_spectral_segments.append(SpectralFluxModel(nu_m, nu_c, f_peak, model.p, model.k).segment(f).name)
+        modeled_spectral_segments.append(spectral_model.segment(f).name)
         modeled_spectral_flux.append(spectral_model.evaluate_smooth(f))
     modeled_spectral_flux = np.array(modeled_spectral_flux)
 
@@ -243,11 +254,11 @@ def main(event, obs, model_params, time):
 
 if __name__ == "__main__":
 
-    event_name = '050922C'
+    event_name = '130612A'
 
     # Paths to input files
     observation_path = nav_utils.get_input_csv_path('new', event_name)
-    best_params_path = r"C:\skynet-server\PARI\jetfit_5\050922C\best_fit.json"
+    best_params_path = rf"C:\skynet-server\PARI\jetfit_6\{event_name}\best_fit.json"
 
     # Read in the model parameters
     with open(best_params_path, "r") as jf:

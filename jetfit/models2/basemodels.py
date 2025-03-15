@@ -270,7 +270,7 @@ class SpectralFluxModel(BaseFluxModel):
 
         if self.regime == 'fast':
             nu12, nu23 = self.nu_c, self.nu_m
-            b2  = -0.5
+            b2  = -0.50
             s12 = 0.597
             s23 = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
 

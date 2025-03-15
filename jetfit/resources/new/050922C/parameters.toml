@@ -56,7 +56,7 @@
     [k.prior]
         type  = "uniform"
         lower = -1.0
-        upper = 2.0
+        upper = 4.0
         initial_guess=1.0
         initial_sigma=0.5
 
@@ -99,3 +99,11 @@
         type  = "gaussian"
         mu = 0.0
         sigma = 0.03
+
+[slop]
+    scale = "linear"
+
+    [slop.prior]
+        type  = "uniform"
+        lower = 0.0
+        upper = 0.1
