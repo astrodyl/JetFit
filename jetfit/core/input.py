@@ -20,11 +20,12 @@ class Observation:
     value_array : np.ndarray
         The measurement values.
     """
-    def __init__(self, data, offsets: defaultdict = None):
+    def __init__(self, data, offsets: defaultdict = None, host=None):
         self._data = data
 
         # Map fitting offset from MCMC to data groups
         self.cal_offsets = offsets
+        self.host_corr = host
 
         # Create arrays that can be efficiently accessed.
         self.value_array = np.full(len(data), np.nan, dtype=np.float64)
@@ -34,8 +35,7 @@ class Observation:
         self.flux_types = np.full(len(data), np.nan, dtype=DataType)
 
         for i, f in enumerate(data):
-            if f.type != DataType.SPECTRAL_INDEX:
-                self.time_array[i] = f.time.to_value('s')
+            self.time_array[i] = f.time.to_value('s')
 
             if f.type == DataType.SPECTRAL_FLUX:
                 self.wave_number_array[i] = 1 / f.wavelength.to_value('um')
@@ -47,23 +47,24 @@ class Observation:
         self.length = len(data)
 
     @classmethod
-    def from_csv(cls, path: str | Path):
+    def from_csv(cls, path: str | Path, time_limit=None):
         """  """
         csv = CSVReader(path, live_dangerously=True)
-        data = np.empty(len(csv.df), dtype=object)
-        offsets = defaultdict(list)
+
+        data = []
+        offsets, host = defaultdict(list), defaultdict(list)
 
         for row in csv.rows():
             data_type = row.ValueType.lower()
 
             if data_type == DataType.INTEGRATED_FLUX.value:
-                data[row.Index] = IntegratedFlux.from_csv_row(row)
+                data.append(IntegratedFlux.from_csv_row(row))
 
             elif data_type == DataType.SPECTRAL_FLUX.value:
-                data[row.Index] = SpectralFlux.from_csv_row(row)
+                data.append(SpectralFlux.from_csv_row(row))
 
             elif data_type == DataType.SPECTRAL_INDEX.value:
-                data[row.Index] = SpectralIndex.from_csv_row(row)
+                data.append(SpectralIndex.from_csv_row(row))
 
             else:
                 raise IOError(
@@ -74,7 +75,10 @@ class Observation:
             if hasattr(row, 'CalGroup') and isinstance(row.CalGroup, str):
                 offsets[row.CalGroup].append(row.Index)
 
-        return cls(data, offsets)
+            if hasattr(row, 'HostGroup') and isinstance(row.HostGroup, str):
+                host[row.HostGroup].append(row.Index)
+
+        return cls(np.asarray(data), offsets, host)
 
     @property
     def data(self):

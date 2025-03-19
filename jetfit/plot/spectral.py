@@ -51,9 +51,8 @@ def plot_critical_frequencies(nu_ms, nu_cs, times) -> None:
               label=r'$\nu_{c},  \alpha = $' + f'{round(slope_nu_c, 3)}')
 
     # Plot horizontal lines corresponding to filter frequencies
-    plt.axhline(y=5.44e14, color='green',  linestyle='--', alpha=0.3)  # V
-    plt.axhline(y=4.56e14, color='red',    linestyle='--', alpha=0.3)  # R
-    plt.axhline(y=3.74e14, color='indigo', linestyle='--', alpha=0.3)  # I
+    plt.axhline(y=5e14, color='green', linewidth=10, alpha=0.2)
+    plt.axhline(y=1e18, color='black', linewidth=10, alpha=0.3)
 
     ax.set_title('Critical Frequencies')
     ax.set_xlabel('Time Since Trigger (days)')
@@ -144,9 +143,7 @@ def main(event, obs, model_params, time):
     model = FireballModel(**model_params)
 
     # Define the spectral characteristic values
-    f_peak, nu_c, nu_m = (
-        model.f_peak(time), model.nu_c(time), model.nu_m(time)
-    )
+    f_peak, nu_c, nu_m = (model.f_peak(time), model.nu_c(time), model.nu_m(time))
 
     # Define the flux models
     spectral_model = SpectralFluxModel(nu_m, nu_c, f_peak, model.p, model.k)
@@ -165,29 +162,6 @@ def main(event, obs, model_params, time):
         modeled_spectral_flux.append(spectral_model.evaluate_smooth(f))
     modeled_spectral_flux = np.array(modeled_spectral_flux)
 
-    # Print out useful information
-    print('[ SPECTRAL INFORMATION ]')
-    slope, _ = np.polyfit(np.log10(frequencies), np.log10(modeled_spectral_flux), 1)
-    print('Peak Flux...............', round(f_peak, 3), 'mJy')
-    print('Synchrotron Frequency...', round(nu_m, 3), 'Hz')
-    print('Cooling Frequency.......', round(nu_c, 3), 'Hz')
-    print('Spectral Index, b.......', round(slope, 3))
-    print('Electron Index, p.......', round(model.p, 3))
-    print('Regime..................', 'slow' if nu_m < nu_c else 'fast')
-
-    # Determine if there is a break in the spectral plot
-    spectral_break = False
-    for i in range(1, len(modeled_spectral_segments)):
-        pre = modeled_spectral_segments[i - 1]
-        post = modeled_spectral_segments[i]
-
-        if pre != post:
-            spectral_break = True
-            print('Break at index:', f'{i}.', f'{pre} -> {post}', '\n')
-
-    if not spectral_break:
-        print('Segment.................', modeled_spectral_segments[0], '\n')
-
     # Plot flux vs. frequency
     plot_spectrum(
         frequencies, modeled_spectral_flux, time,
@@ -195,7 +169,6 @@ def main(event, obs, model_params, time):
     )
 
     # Transition to Light Curve Analysis Beyond this Point
-    print('[ LIGHT CURVE INFORMATION ]')
     modeled_times = np.logspace(
         np.log10(obs.time_array[obs.flux_loc].min() / 86400.0),
         np.log10(obs.time_array[obs.flux_loc].max() / 86400.0),
@@ -217,19 +190,6 @@ def main(event, obs, model_params, time):
             model.nu_m(t), model.nu_c(t), model.f_peak(t), model.p, model.k
         ).segment(obs_frequencies[0].value).name
 
-    # Determine if there is a break in the light curve
-    spectral_break = False
-    for i in range(1, len(segments)):
-        pre = segments[i - 1]
-        post = segments[i]
-
-        if pre != post:
-            spectral_break = True
-            print('Break at index, time:', f'{i}, {int(modeled_times[i] * 86_400)}s.', f'{pre} -> {post}', '\n')
-    if not spectral_break:
-        print('Segment.................', segments[0])
-
-    # Plot light curve with extinction
     lc = LightCurve(FireballModel, model_params, obs, title='Light Curve')
     lc.plot(show=True)
 
@@ -254,11 +214,11 @@ def main(event, obs, model_params, time):
 
 if __name__ == "__main__":
 
-    event_name = '130612A'
+    event_name = '080413B'
 
     # Paths to input files
     observation_path = nav_utils.get_input_csv_path('new', event_name)
-    best_params_path = rf"C:\skynet-server\PARI\jetfit_6\{event_name}\best_fit.json"
+    best_params_path = rf"C:\skynet-server\PARI\jetfit_7\{event_name}\best_fit.json"
 
     # Read in the model parameters
     with open(best_params_path, "r") as jf:
@@ -269,7 +229,7 @@ if __name__ == "__main__":
         'event': event_name,
 
         # Observation object used for modeling
-        'obs': Observation.from_csv(observation_path),
+        'obs': Observation.from_csv(observation_path, 1000),
 
         # Model parameters to evaluate
         'model_params': best_params,

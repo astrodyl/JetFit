@@ -244,18 +244,18 @@ class SpectralFluxModel(BaseFluxModel):
         """"""
         return self.evaluate_smooth(val.frequency.value)
 
-    def evaluate_smooth(self, nu: float) -> float:
+    def evaluate_smooth(self, nu) -> float:
         """
         Calculates the smoothed flux at a given frequency, `nu`.
 
         Parameters
         ----------
-        nu : float
+        nu : float or np.ndarray of float
             The frequency to evaluate.
 
         Returns
         -------
-        float
+        float or np.ndarray of float
             The modeled flux with units of `f_peak`.
         """
         # Critical frequencies
@@ -274,12 +274,16 @@ class SpectralFluxModel(BaseFluxModel):
             s12 = 0.597
             s23 = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
 
-        # return smoothed flux density
+        # return flux density smoothed across segments
         return self.f_peak * (
             (((nu / nu12) ** -(s12 * (b1 - b2)) + 1) ** (s23 / s12)) *
             ((nu / nu12) ** -(s23 * b2)) +
             (((nu23 / nu12) ** -(s23 * b2)) * ((nu/nu23) ** -(s23 * b3)))
         ) ** -(1 / s23)
+
+    def evaluate_smooth_jet(self):
+        """"""
+        pass
 
     def model(self, val: SpectralFlux):
         """

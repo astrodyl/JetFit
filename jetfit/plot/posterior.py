@@ -82,7 +82,7 @@ class PosteriorPlot:
                 'E': r'$log_{10}E_{52}$',
                 'eps_e': r'$log_{10}\epsilon_e$',
                 'eps_b': r'$log_{10}\epsilon_B$',
-                'ebv_sf': r'$Ebv_{sf}$',
+                'ebv_sf': r'$E(B-v)_{sf}$',
                 'rho0': r'$log_{10}n$',
                 'V_offset': r'$\delta_V$',
                 'R_offset': r'$\delta_R$',

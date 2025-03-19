@@ -68,7 +68,7 @@ class FireballModel:
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, ebv_mw=None, ebv_sf=None):
+    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, ebv_mw=None, ebv_sf=None, tj=None, sj=None):
         # intrinsic properties
         self.E = E
         self.p = p
@@ -81,6 +81,10 @@ class FireballModel:
         # extrinsic properties
         self.dL = dL
         self.z = z
+
+        # Jet break props
+        self.tj = tj
+        self.sj = sj
 
         # temp
         self.ebv_mw = ebv_mw
@@ -182,6 +186,9 @@ class FireballModel:
         np.ndarray of ??
             The modeled observational data.
         """
+        if self.tj is not None:
+            return self.model_jet(observation)
+
         res = np.full(len(observation.data), np.nan)
 
         for i, data in enumerate(observation.data):
@@ -205,6 +212,48 @@ class FireballModel:
                 res[i] = SpectralIndexModel(
                     nu_m, nu_c, f_peak, self.p, self.k
                 ).model(data)
+
+            if res[i] == np.nan:
+                return res
+
+        # Apply extinction to spectral flux values
+        if self.ebv_mw or self.ebv_sf:
+            mask = observation.flux_types == DataType.SPECTRAL_FLUX
+            wn = observation.wave_number_array[mask]
+
+            if self.ebv_mw:  # milky way
+                res[mask] *= self.ext_model.extinguish(wn, Ebv=self.ebv_mw)
+
+            if self.ebv_sf:  # source frame
+                res[mask] *= self.ext_model.extinguish((1 + self.z) * wn, Ebv=self.ebv_sf)
+
+        return res
+
+    def model_jet(self, observation: Observation) -> np.ndarray:
+        """"""
+        res = np.full(len(observation.data), np.nan)
+
+        for i, data in enumerate(observation.data):
+            # Critical spectral values
+            f_peak, f_peak_j = self.f_peak(data.time), self.f_peak(self.tj)
+            nu_m, nu_m_j = self.nu_m(data.time), self.nu_m(self.tj)
+            nu_c, nu_c_j = self.nu_c(data.time), self.nu_c(self.tj)
+
+            # Model the fluxes
+            if data.type != DataType.SPECTRAL_INDEX:
+
+                if data.type == DataType.SPECTRAL_FLUX:
+                    x = SpectralFluxModel(nu_m, nu_c, f_peak, self.p, self.k).model_smooth(data)
+                    y = SpectralFluxModel(nu_m_j, nu_c_j, f_peak_j, self.p, self.k).model_smooth(data)
+
+                else:
+                    x = IntegratedFluxModel(nu_m, nu_c, f_peak, self.p, self.k).model_smooth(data)
+                    y = IntegratedFluxModel(nu_m_j, nu_c_j, f_peak_j, self.p, self.k).model_smooth(data)
+
+                res[i] = (x ** (-self.sj) + (y * (data.time.to_value('d') / self.tj) ** -self.p) ** -self.sj) ** -(1 / self.sj)
+
+            else:  # Model the spectral index
+                res[i] = SpectralIndexModel(nu_m, nu_c, f_peak, self.p, self.k).model(data)
 
             if res[i] == np.nan:
                 return res

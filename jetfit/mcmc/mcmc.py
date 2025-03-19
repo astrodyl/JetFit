@@ -70,9 +70,13 @@ class MCMC:
 
         # Store the calibration offsets for quick access
         self.cal_offset_pos = {}
+        self.host_corr_pos = {}
         for i, p in enumerate(fitting_params):
             if p.name in self.observation.cal_offsets:
                 self.cal_offset_pos[p.name] = i
+
+            if p.name in self.observation.host_corr:
+                self.host_corr_pos[p.name] = i
 
         self.meta = meta if meta else {}
 
@@ -170,17 +174,16 @@ class MCMC:
         params = {}
 
         for i, p in enumerate(self.fitting_params):
-            if 'offset' not in p.name and p.name != 'slop':
+            if 'offset' not in p.name and p.name != 'slop' and 'host' not in p.name:
                 params[p.name] = math_utils.to_scale(
                     theta[i], p.scale, 'linear'
                 )
 
         for i, p in enumerate(self.fixed_params):
-            if 'offset' not in p.name and p.name != 'slop':
+            if 'offset' not in p.name and p.name != 'slop' and 'host' not in p.name:
                 params[p.name] = math_utils.to_scale(
                     p.value, p.scale, 'linear'
                 )
-
 
         return params
 
@@ -233,6 +236,11 @@ class MCMC:
         if self.cal_offset_pos:
             for name, index in self.cal_offset_pos.items():
                 modeled[self.observation.cal_offsets[name]] *= 10.0 ** (-0.4 * theta[index])
+
+        # Apply Host Galaxy correction
+        if self.host_corr_pos:
+            for name, index in self.host_corr_pos.items():
+                modeled[self.observation.host_corr[name]] += theta[index]
 
         # Skip chi squared calculation since a nan will
         # always result in -inf anyway
