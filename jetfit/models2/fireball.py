@@ -218,7 +218,7 @@ class FireballModel:
 
         # Apply extinction to spectral flux values
         if self.ebv_mw or self.ebv_sf:
-            mask = observation.wave_number_array[observation.spectral_flux_loc]
+            mask = observation.spectral_flux_loc
             wn = observation.wave_number_array[mask]
 
             if self.ebv_mw:  # milky way
