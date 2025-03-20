@@ -85,7 +85,7 @@ class LightCurve:
         modeled_times = np.logspace(
             np.log10(flux_times.min()),
             np.log10(flux_times.max() * 2.0),
-            num=500
+            num=300
         )
 
         for band in self.bands:

@@ -1,5 +1,8 @@
 # MCMC Parameter Configuriation File
 
+# -----------------------------
+# ------- FREE PARAMS ---------
+#------------------------------
 [E]
     scale = "log"
 
@@ -58,6 +61,31 @@
         lower = 0.0
         upper = 1.0
 
+# -----------------------------
+# ------- FIXED PARAMS --------
+#------------------------------
+[z]
+    group = "observational"
+    scale = "linear"
+    value = 1.1
+
+[dL]
+    group = "observational"
+    scale = "linear"
+    value = 2.36
+
+[X]
+    group = "observational"
+    scale = "linear"
+    value = 0.7
+
+[ebv_mw]
+    scale = "linear"
+    value = 0.0315
+
+# -----------------------------
+# ---- CALIBRATION OFFSETS ----
+#------------------------------
 [g_offset]
     scale = "linear"
 
@@ -113,25 +141,6 @@
         type  = "gaussian"
         mu = 0.0
         sigma = 0.03
-
-[z]
-    group = "observational"
-    scale = "linear"
-    value = 1.1
-
-[dL]
-    group = "observational"
-    scale = "linear"
-    value = 2.36
-
-[X]
-    group = "observational"
-    scale = "linear"
-    value = 0.7
-
-[ebv_mw]
-    scale = "linear"
-    value = 0.0315
 
 [slop]
     scale = "linear"

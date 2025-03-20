@@ -46,6 +46,12 @@ class Observation:
 
         self.length = len(data)
 
+        # Define locations
+        # These are fixed for efficiency. They will not
+        # update if the data is updated.
+        self.flux_loc = np.where(self.flux_types != DataType.SPECTRAL_INDEX)[0]
+        self.spectral_flux_loc = np.where(self.flux_types == DataType.SPECTRAL_FLUX)[0]
+
     @classmethod
     def from_csv(cls, path: str | Path, time_limit=None):
         """  """
@@ -85,15 +91,15 @@ class Observation:
         """ Returns the list of data. """
         return self._data
 
-    @property
-    def flux_loc(self) -> np.ndarray:
-        """ Returns an array of flux indices. """
-        return np.where(self.flux_types != DataType.SPECTRAL_INDEX)[0]
+    # @property
+    # def flux_loc(self) -> np.ndarray:
+    #     """ Returns an array of flux indices. """
+    #     return np.where(self.flux_types != DataType.SPECTRAL_INDEX)[0]
 
-    @property
-    def spectral_flux_loc(self) -> np.ndarray:
-        """ Returns an array of spectral flux indices. """
-        return np.where(self.flux_types == DataType.SPECTRAL_FLUX)[0]
+    # @property
+    # def spectral_flux_loc(self) -> np.ndarray:
+    #     """ Returns an array of spectral flux indices. """
+    #     return np.where(self.flux_types == DataType.SPECTRAL_FLUX)[0]
 
     @property
     def integrated_flux_loc(self) -> np.ndarray:
@@ -121,12 +127,12 @@ class Observation:
 
             for band in bands:
                 # Band already exists
-                if band.encompasses(value.frequency.value):
+                if value.filter == band.name:
                     band.flux.append(value)
                     band.times.append(value.time)
                     break
             else:
                 # First time seeing band
-                bands.append(Band.from_data(value))
+                bands.append(Band.from_name(value.filter))
 
         return bands

@@ -18,6 +18,18 @@ SYS_OFFSET = {
 }
 
 
+# Converts from Vega to AB for UVOT data
+# https://swift.gsfc.nasa.gov/analysis/uvot_digest/zeropts.html
+UVOT_OFFSET = {
+    'uvot-uvw2': 1.73,
+    'uvot-uvm2': 1.69,
+    'uvot-uvw1': 1.51,
+    'uvot-u': 1.02,
+    'uvot-b': -0.13,
+    'uvot-v': -0.01,
+}
+
+
 # Effective wavelengths in Angstrom
 EFF_WL = {
     'U': SpectralElement.from_filter('johnson_u').pivot(),
@@ -30,7 +42,15 @@ EFF_WL = {
     'K': SpectralElement.from_filter('bessel_k').pivot(),
     'Ks': SpectralElement.from_filter('bessel_k').pivot(),
     'Rc': SpectralElement.from_filter('cousins_r').pivot(),
-    'Ic': SpectralElement.from_filter('cousins_i').pivot()
+    'Ic': SpectralElement.from_filter('cousins_i').pivot(),
+
+    # Swift-UVOT wavelengths
+    'uvot-uvw2': u.Quantity(1928.0, unit='AA'),
+    'uvot-uvm2': u.Quantity(2246.0, unit='AA'),
+    'uvot-uvw1': u.Quantity(2600.0, unit='AA'),
+    'uvot-u': u.Quantity(3465.0, unit='AA'),
+    'uvot-b': u.Quantity(4392.0, unit='AA'),
+    'uvot-v': u.Quantity(5468.0, unit='AA'),
 }
 
 
@@ -45,14 +65,16 @@ def main(input_path: str, output_path: str,  xrt_path: str = None) -> None:
 
         # Convert the optical/NIR CSV
         for row in input_csv.rows():
+            dfilter = row.Filter.strip()
+
             # read the time
             time = u.Quantity(row.Time, unit=row.TimeUnits)
 
             # convert mag to flux
-            flux, flux_err = mag_to_flux(row.Mag, row.MagError, row.Filter, row.MagSys)
+            flux, flux_err = mag_to_flux(row.Mag, row.MagError, dfilter, row.MagSys)
 
             # get frequency of filter
-            frequency = filter_to_frequency(row.Filter)
+            frequency = filter_to_frequency(dfilter)
 
             # write values to csv
             writer.writerow(
@@ -63,8 +85,8 @@ def main(input_path: str, output_path: str,  xrt_path: str = None) -> None:
                     # [Value, ValueLower, ValueUpper, ValueUnit, ValueType]
                     flux.value, flux_err.value, flux_err.value, flux.unit, 'Spectral Flux',
 
-                    # [Wave, WaveLower, WaveUpper, WaveUnit]
-                    frequency.value, None, None, frequency.unit
+                    # [Wave, WaveLower, WaveUpper, WaveUnit, Filter]
+                    frequency.value, None, None, frequency.unit, dfilter
                  ]
             )
 
@@ -80,8 +102,8 @@ def main(input_path: str, output_path: str,  xrt_path: str = None) -> None:
                         # [Value, ValueLower, ValueUpper, ValueUnit, ValueType]
                         row.Fluxes, row.FluxErrs, row.FluxErrs, 'erg cm-2 s-1', 'Integrated Flux',
 
-                        # [Wave, WaveLower, WaveUpper, WaveUnit]
-                        None, 7.25E+16, 2.42E+18, 'Hz'
+                        # [Wave, WaveLower, WaveUpper, WaveUnit, Filter]
+                        None, 7.25E+16, 2.42E+18, 'Hz', 'xray'
                      ]
                 )
 
@@ -92,7 +114,7 @@ def write_headers(writer) -> None:
         (
             'Time', 'TimeLower', 'TimeUpper', 'TimeUnits', 'Value',
             'ValueLower', 'ValueUpper', 'ValueUnits', 'ValueType',
-            'Wave', 'WaveLower', 'WaveUpper', 'WaveUnits'
+            'Wave', 'WaveLower', 'WaveUpper', 'WaveUnits', 'Filter'
         )
     )
 
@@ -142,7 +164,10 @@ def mag_to_flux(mag, mag_error, dfilter, system):
     """
     # Convert all mags to AB system
     if system.lower() == 'vega':
-        mag = mag + SYS_OFFSET[dfilter]
+        mag += SYS_OFFSET[dfilter]
+
+    elif system.lower == 'uvot':
+        mag += UVOT_OFFSET[dfilter]
 
     # Convert to flux
     flux = (mag * u.ABmag).to('mJy')
@@ -154,7 +179,43 @@ def mag_to_flux(mag, mag_error, dfilter, system):
 
 if __name__ == '__main__':
 
-    event = '090424'
+    event = '210905A'
+
+    # mags = [
+    #     15.34,
+    #     15.29,
+    #     15.80,
+    #     15.97,
+    #     15.92,
+    #     15.94,
+    #     15.99,
+    #     18.55,
+    #     19.48,
+    #     20.17,
+    #     20.38,
+    #     20.78,
+    #     20.63,
+    # ]
+    #
+    # mag_errs = [
+    #     0.10,
+    #     0.09,
+    #     0.12,
+    #     0.13,
+    #     0.12,
+    #     0.12,
+    #     0.13,
+    #     0.05,
+    #     0.08,
+    #     0.17,
+    #     0.15,
+    #     0.20,
+    #     0.27,
+    # ]
+    #
+    # for i, mag in enumerate(mags):
+    #     flux11, flux_err11 = mag_to_flux(mag, mag_errs[i], 'uvot-v', 'uvot')
+    #     print(round(flux11.value, 6), '\t', flux_err11.value)
 
     args = {
         'input_path':

@@ -11,11 +11,13 @@ BAND_MAP = {
     'B': {'range': BoundedMixin(lower=6.64E+14, upper=6.87E+14), 'color': 'blue'},
     'V': {'range': BoundedMixin(lower=5.34E+14, upper=5.54E+14), 'color': 'green'},
     'R': {'range': BoundedMixin(lower=4.46E+14, upper=4.66E+14), 'color': 'red'},
+    'Rc': {'range': BoundedMixin(lower=4.46E+14, upper=4.66E+14), 'color': 'red'},
     'I': {'range': BoundedMixin(lower=3.62E+14, upper=3.82E+14), 'color': 'purple'},
+    'Ic': {'range': BoundedMixin(lower=3.62E+14, upper=3.82E+14), 'color': 'purple'},
 
     # SDSS Filters
     'uprime': {'range': BoundedMixin(lower=8.38E+14, upper=8.58E+14), 'color': 'tab:cyan'},
-    'gprime': {'range': BoundedMixin(lower=6.19E+14, upper=6.39E+14), 'color': 'tab:blue'},
+    'gprime': {'range': BoundedMixin(lower=6.08E+14, upper=6.50E+14), 'color': 'tab:blue'},
     'rprime': {'range': BoundedMixin(lower=4.71E+14, upper=4.91E+14), 'color': 'orange'},
     'iprime': {'range': BoundedMixin(lower=3.84E+14, upper=4.04E+14), 'color': 'tab:purple'},
     'zprime': {'range': BoundedMixin(lower=3.19E+14, upper=3.39E+14), 'color': 'darkred'},
@@ -26,8 +28,16 @@ BAND_MAP = {
     'K': {'range': BoundedMixin(lower=1.26E+14, upper=1.46E+14), 'color': 'brown'},
     'Ks': {'range': BoundedMixin(lower=1.26E+14, upper=1.46E+14), 'color': 'brown'},
 
+    # Swift UVOT
+    'uvot-uvw2': {'range': BoundedMixin(lower=1.45494013e+15, upper=1.65494013e+15), 'color': 'pink'},
+    'uvot-uvm2': {'range': BoundedMixin(lower=1.23478387e+15, upper=1.43478387e+15), 'color': 'darkblue'},
+    'uvot-uvw1': {'range': BoundedMixin(lower=1.10304792e+15, upper=1.20304792e+15), 'color': 'green'},
+    'uvot-u': {'range': BoundedMixin(lower=8.55201899e+14, upper=8.75201899e+14), 'color': 'cyan'},
+    'uvot-b': {'range': BoundedMixin(lower=6.72587564e+14, upper=6.92587564e+14), 'color': 'lightblue'},
+    'uvot-v': {'range': BoundedMixin(lower=5.38267114e+14, upper=5.58267114e+14), 'color': 'lightgreen'},
+
     # XRAY
-    'XRAY': {'range': BoundedMixin(lower=1.00E+16, upper=1.00E+19), 'color': 'black'}
+    'xray': {'range': BoundedMixin(lower=1.00E+16, upper=1.00E+19), 'color': 'black'}
 }
 
 
@@ -130,7 +140,15 @@ class Band(BoundedMixin):
         if n not in BAND_MAP:
             raise ValueError(f'Band name "{n}" is not unsupported.')
 
-        band_range = BAND_MAP[n].get('range')
-        band_center = (band_range.lower + band_range.upper) / 2
+        band = BAND_MAP[n]
+        band_range = band.get('range')
 
-        return cls.from_frequency(band_center)
+        if 'uvot-b' in n:
+            print()
+
+        return cls(
+            n,
+            band.get('color'),
+            band_range.lower,
+            band_range.upper
+        )

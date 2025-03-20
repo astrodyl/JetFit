@@ -9,9 +9,10 @@ class PosteriorPlot:
     """
 
     """
-    def __init__(self, sampler, params: list):
+    def __init__(self, sampler, params: list, param_pos):
         self.sampler = sampler
         self.params = params
+        self.param_pos = param_pos
 
     def plot(self, show: bool = False, out_dir: str | Path = None) -> None:
         """
@@ -26,12 +27,27 @@ class PosteriorPlot:
         """
         chain = self.sampler.get_chain(flat=True)
 
-        ranges = [(p.prior.lower, p.prior.upper) for p in self.params]
-        bins = [50 for _ in range(len(self.params))]
-        labels = [self.get_pretty_label(p.name) for p in self.params]
+        # Split parameters into physical and non-physical
+        ranges, bins, labels, np_pos = [], [], [], []
+        np_ranges, np_bins, np_labels, pos = [], [], [], []
 
+        for p in self.params:
+            # Non-physical parameters
+            if '_offset' in p.name or '_host' in p.name or p.name == 'slop':
+                np_ranges.append((p.prior.lower, p.prior.upper))
+                np_labels.append(self.get_pretty_label(p.name))
+                np_pos.append(self.param_pos[p.name])
+                np_bins.append(50)
+
+            else:  # Physical parameters
+                ranges.append((p.prior.lower, p.prior.upper))
+                labels.append(self.get_pretty_label(p.name))
+                pos.append(self.param_pos[p.name])
+                bins.append(50)
+
+        # Plot for physical parameters
         fig = corner.corner(
-            chain,
+            chain[:, pos],
             bins=bins,
             color='mediumblue',
             labels=labels,
@@ -47,15 +63,34 @@ class PosteriorPlot:
             range=ranges
         )
 
+        # Plot non-physical parameters
+        np_fig = corner.corner(
+            chain[:, np_pos],
+            bins=np_bins,
+            color='mediumblue',
+            labels=np_labels,
+            label_size=16,
+            show_titles=True,
+            plot_datapoints=False,
+            quantiles=[0.16, 0.5, 0.84],
+            label_kwargs={'fontsize': 14},
+            title_kwargs={"fontsize": 14},
+            fill_contours=True,
+            smooth=0.75,
+            smooth1d=0.75,
+            range=np_ranges
+        )
+
         # Plot dashed lines corresponding to the median for the 2D plots
-        medians = [np.median(chain[:, i]) for i in range(len(chain[0]))]
-        corner.overplot_lines(fig, medians, linestyle='--', color="black")
+        # medians = [np.median(chain[:, i]) for i in range(len(chain[0]))]
+        # corner.overplot_lines(fig, medians, linestyle='--', color="black")
 
         if show:
             plt.show()
 
         if out_dir is not None:
             fig.savefig(out_dir / 'corner.png')
+            np_fig.savefig(out_dir / 'corner_np.png')
 
     @staticmethod
     def get_pretty_label(key: str):
@@ -65,6 +100,9 @@ class PosteriorPlot:
         :param key: fitting parameter name
         :return: LaTeX formatted str or None
         """
+        if '_offset' in key:
+            return rf'$\delta_{key.split('_')[0]}$'
+
         try:
             return {
                 # Boosted Fireball Model
@@ -84,9 +122,6 @@ class PosteriorPlot:
                 'eps_b': r'$log_{10}\epsilon_B$',
                 'ebv_sf': r'$E(B-v)_{sf}$',
                 'rho0': r'$log_{10}n$',
-                'V_offset': r'$\delta_V$',
-                'R_offset': r'$\delta_R$',
-                'I_offset': r'$\delta_I$',
             }[key]
         except KeyError:
             return key

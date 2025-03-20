@@ -1,5 +1,8 @@
 # MCMC Parameter Configuriation File
 
+# -----------------------------
+# ------- FREE PARAMS ---------
+#------------------------------
 [E]
     scale = "log"
 
@@ -39,8 +42,8 @@
         type  = "uniform"
         lower = 1.5
         upper = 3.5
-        initial_guess = 2.25
-        initial_sigma = 0.25
+        initial_guess=2.5
+        initial_sigma=0.5
 
 [k]
     scale = "linear"
@@ -49,6 +52,8 @@
         type  = "uniform"
         lower = -1.0
         upper = 3.0
+        initial_guess=1.0
+        initial_sigma=1.0
 
 [ebv_sf]
     scale = "linear"
@@ -58,54 +63,9 @@
         lower = 0.0
         upper = 1.0
 
-[z_offset]
-    scale = "linear"
-
-    [z_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.3
-
-[i_offset]
-    scale = "linear"
-
-    [i_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.3
-
-[g_offset]
-    scale = "linear"
-
-    [g_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.3
-
-[r_offset]
-    scale = "linear"
-
-    [r_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.3
-
-[B_offset]
-    scale = "linear"
-
-    [B_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.3
-
-[slop]
-    scale = "linear"
-
-    [slop.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 0.3
-
+# -----------------------------
+# ------- FIXED PARAMS --------
+#------------------------------
 [z]
     group = "observational"
     scale = "linear"
@@ -116,7 +76,6 @@
     scale = "linear"
     value = 2.02
 
-
 [X]
     group = "observational"
     scale = "linear"
@@ -126,3 +85,85 @@
     scale = "linear"
     value = 0.093
 
+# -----------------------------
+# ---- CALIBRATION OFFSETS ----
+#------------------------------
+[g_offset]
+    scale = "linear"
+
+    [g_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[r_offset]
+    scale = "linear"
+
+    [r_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[i_offset]
+    scale = "linear"
+
+    [i_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[z_offset]
+    scale = "linear"
+
+    [z_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[uvw2_offset]
+    scale = "linear"
+
+    [uvw2_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[uvm2_offset]
+    scale = "linear"
+
+    [uvm2_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[uvw1_offset]
+    scale = "linear"
+
+    [uvw1_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[uvot-b_offset]
+    scale = "linear"
+
+    [uvot-b_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.02
+
+[uvot-v_offset]
+    scale = "linear"
+
+    [uvot-v_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.02
+
+[slop]
+    scale = "linear"
+
+    [slop.prior]
+        type  = "uniform"
+        lower = 0.0
+        upper = 0.3

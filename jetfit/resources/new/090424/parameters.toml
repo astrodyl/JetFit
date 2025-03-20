@@ -1,83 +1,59 @@
 # MCMC Parameter Configuriation File
 
-# ==========================
-#  HYDRODYNAMIC PARAMETERS
-# ==========================
+# -----------------------------
+# ------- FREE PARAMS ---------
+#------------------------------
 [E]
-    group = "hydrodynamic"
     scale = "log"
 
     [E.prior]
         type  = "uniform"
-        lower = -5.0
+        lower = -2.0
         upper = 3.0
 
 [rho0]
-    group = "hydrodynamic"
     scale = "log"
 
     [rho0.prior]
         type  = "uniform"
-        lower = -5.0
-        upper = 5.0
+        lower = -6.0
+        upper = 9.0
 
 [eps_e]
-    group = "radiation"
     scale = "log"
 
     [eps_e.prior]
         type  = "uniform"
-        lower = -10.0
+        lower = -4.0
         upper = 0.0
 
 [eps_b]
-    group = "radiation"
     scale = "log"
 
     [eps_b.prior]
         type  = "uniform"
-        lower = -10.0
+        lower = -6.0
         upper = 0.0
 
 [p]
-    group = "radiation"
     scale = "linear"
 
     [p.prior]
         type  = "uniform"
-        lower = 2.0
-        upper = 5.0
+        lower = 1.5
+        upper = 3.5
         initial_guess=2.5
         initial_sigma=0.5
-
-[z]
-    group = "observational"
-    scale = "linear"
-    value = 0.544
-
-[dL]
-    group = "observational"
-    scale = "linear"
-    value = 1.00
 
 [k]
     scale = "linear"
 
     [k.prior]
         type  = "uniform"
-        lower = -1.5
-        upper = 2.0
+        lower = -1.0
+        upper = 3.0
         initial_guess=1.0
         initial_sigma=1.0
-
-[X]
-    group = "observational"
-    scale = "linear"
-    value = 0.7
-
-[ebv_mw]
-    scale = "linear"
-    value = 0.022
 
 [ebv_sf]
     scale = "linear"
@@ -86,3 +62,135 @@
         type  = "uniform"
         lower = 0.0
         upper = 1.0
+
+# -----------------------------
+# ------- FIXED PARAMS --------
+#------------------------------
+[z]
+    scale = "linear"
+    value = 0.544
+
+[dL]
+    scale = "linear"
+    value = 1.00
+
+[X]
+    scale = "linear"
+    value = 0.7
+
+[ebv_mw]
+    scale = "linear"
+    value = 0.022
+
+# -----------------------------
+# ---- CALIBRATION OFFSETS ----
+#------------------------------
+[uvw2_offset]
+    scale = "linear"
+
+    [uvw2_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[uvm2_offset]
+    scale = "linear"
+
+    [uvm2_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[uvw1_offset]
+    scale = "linear"
+
+    [uvw1_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[uvot-u_offset]
+    scale = "linear"
+
+    [uvot-u_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[uvot-b_offset]
+    scale = "linear"
+
+    [uvot-b_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.02
+
+[uvot-v_offset]
+    scale = "linear"
+
+    [uvot-v_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.02
+
+[r_offset]
+    scale = "linear"
+
+    [r_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[i_offset]
+    scale = "linear"
+
+    [i_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[J_offset]
+    scale = "linear"
+
+    [J_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[H_offset]
+    scale = "linear"
+
+    [H_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.05
+
+# -----------------------------
+# ------- HOST GALAXY ---------
+# -----------------------------
+[r_host]
+    scale = "linear"
+
+    [r_host.prior]
+        type  = "uniform"
+        lower = 0.00483059
+        upper = 0.00595963
+
+[i_host]
+    scale = "linear"
+
+    [i_host.prior]
+        type  = "uniform"
+        lower = 0.00608135
+        upper = 0.00750273
+
+# -----------------------------
+# ----------- SLOP ------------
+# -----------------------------
+[slop]
+    scale = "linear"
+
+    [slop.prior]
+        type  = "uniform"
+        lower = 0.0
+        upper = 0.3

@@ -168,10 +168,12 @@ class FluxBase:
             lower: u.Quantity,
             upper: u.Quantity,
             time: u.Quantity,
+            dfilter: str,
     ):
         self.value = value
         self.time = time
         self.uncertainty = Bound(lower, upper)
+        self.filter = dfilter
 
     def copy(self):
         """ Returns a deepcopy of the object. """
@@ -283,10 +285,11 @@ class SpectralFlux(FluxBase):
             lower: u.Quantity,
             upper: u.Quantity,
             time: u.Quantity,
+            dfilter: str,
             frequency: u.Quantity = None,
             wavelength: u.Quantity = None
     ):
-        super().__init__(value, lower, upper, time)
+        super().__init__(value, lower, upper, time, dfilter)
         self._frequency = None
         self._wavelength = None
 
@@ -345,6 +348,7 @@ class SpectralFlux(FluxBase):
                 'lower': u.Quantity(row.ValueLower, row.ValueUnits),
                 'upper': u.Quantity(row.ValueUpper, row.ValueUnits),
                 'time': u.Quantity(row.Time, row.TimeUnits).to('d'),
+                'dfilter': row.Filter.strip()
             }
 
             wave = u.Quantity(row.Wave, row.WaveUnits)
@@ -542,10 +546,11 @@ class IntegratedFlux(FluxBase, Integrable):
             lower: u.Quantity,
             upper: u.Quantity,
             time: u.Quantity,
+            dfilter: str,
             int_lower: u.Quantity,
             int_upper: u.Quantity,
     ):
-        FluxBase.__init__(self, value, lower, upper, time)
+        FluxBase.__init__(self, value, lower, upper, time, dfilter)
         Integrable.__init__(self, int_lower, int_upper)
 
     def __repr__(self) -> str:
@@ -588,6 +593,7 @@ class IntegratedFlux(FluxBase, Integrable):
                 'lower': u.Quantity(row.ValueLower, row.ValueUnits),
                 'upper': u.Quantity(row.ValueUpper, row.ValueUnits),
                 'time': u.Quantity(row.Time, row.TimeUnits).to('d'),
+                'dfilter': row.Filter.strip(),
                 'int_lower': u.Quantity(row.WaveLower, row.WaveUnits),
                 'int_upper': u.Quantity(row.WaveUpper, row.WaveUnits),
             }
@@ -646,6 +652,7 @@ class IntegratedFlux(FluxBase, Integrable):
             lower=(self.uncertainty.lower / self.int_range.width).to(unit),
             upper=(self.uncertainty.upper / self.int_range.width).to(unit),
             frequency=self.frequency,
+            dfilter=self.filter,
             time=self.time
         )
 

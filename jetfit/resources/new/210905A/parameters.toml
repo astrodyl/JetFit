@@ -42,8 +42,8 @@
         type  = "uniform"
         lower = 1.5
         upper = 3.5
-        initial_guess = 2.25
-        initial_sigma = 0.25
+        initial_guess=2.5
+        initial_sigma=0.5
 
 [k]
     scale = "linear"
@@ -52,6 +52,8 @@
         type  = "uniform"
         lower = -1.0
         upper = 3.0
+        initial_guess=1.0
+        initial_sigma=1.0
 
 [ebv_sf]
     scale = "linear"
@@ -70,42 +72,66 @@
 
 [z]
     scale = "linear"
-    value = 2.006
+    value = 6.318
 
 [dL]
     scale = "linear"
-    value = 4.94
+    value = 18.70
 
 [ebv_mw]
     scale = "linear"
-    value = 0.0647
+    value = 0.0298
 
 # -----------------------------
 # ---- CALIBRATION OFFSETS ----
 #------------------------------
-[V_offset]
-    scale = "linear"
-
-    [V_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.3
-
-[R_offset]
-    scale = "linear"
-
-    [R_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.3
-
 [I_offset]
     scale = "linear"
 
     [I_offset.prior]
         type  = "gaussian"
         mu = 0.0
-        sigma = 0.3
+        sigma = 0.04
+
+[J_offset]
+    scale = "linear"
+
+    [J_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[H_offset]
+    scale = "linear"
+
+    [H_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.05
+
+[K_offset]
+    scale = "linear"
+
+    [K_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[i_offset]
+    scale = "linear"
+
+    [i_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[z_offset]
+    scale = "linear"
+
+    [z_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
 
 [slop]
     scale = "linear"

@@ -1,53 +1,71 @@
 # MCMC Parameter Configuriation File
 
-# ==========================
-#  HYDRODYNAMIC PARAMETERS
-# ==========================
+# -----------------------------
+# ------- FREE PARAMS ---------
+#------------------------------
 [E]
-    group = "hydrodynamic"
     scale = "log"
 
     [E.prior]
         type  = "uniform"
-        lower = -5.0
+        lower = -2.0
         upper = 3.0
 
 [rho0]
-    group = "hydrodynamic"
     scale = "log"
 
     [rho0.prior]
         type  = "uniform"
-        lower = -5.0
-        upper = 5.0
+        lower = -6.0
+        upper = 9.0
 
 [eps_e]
-    group = "radiation"
     scale = "log"
 
     [eps_e.prior]
         type  = "uniform"
-        lower = -10.0
+        lower = -4.0
         upper = 0.0
 
 [eps_b]
-    group = "radiation"
     scale = "log"
 
     [eps_b.prior]
         type  = "uniform"
-        lower = -10.0
+        lower = -6.0
         upper = 0.0
 
 [p]
-    group = "radiation"
     scale = "linear"
 
     [p.prior]
         type  = "uniform"
-        lower = 2.0
-        upper = 5.0
+        lower = 1.5
+        upper = 3.5
+        initial_guess=2.5
+        initial_sigma=0.5
 
+[k]
+    scale = "linear"
+
+    [k.prior]
+        type  = "uniform"
+        lower = -1.0
+        upper = 3.0
+        initial_guess=1.0
+        initial_sigma=1.0
+
+[ebv_sf]
+    scale = "linear"
+
+    [ebv_sf.prior]
+        type  = "uniform"
+        lower = 0.0
+        upper = 1.0
+
+# -----------------------------
+# ------- FIXED PARAMS --------
+#------------------------------
 [z]
     group = "observational"
     scale = "linear"
@@ -58,14 +76,6 @@
     scale = "linear"
     value = 13.39
 
-[k]
-    scale = "linear"
-
-    [k.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 2.0
-
 [X]
     group = "observational"
     scale = "linear"
@@ -75,10 +85,93 @@
     scale = "linear"
     value = 0.05
 
-[ebv_sf]
+# -----------------------------
+# ---- CALIBRATION OFFSETS ----
+#------------------------------
+[I_offset]
     scale = "linear"
 
-    [ebv_sf.prior]
+    [I_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[R_offset]
+    scale = "linear"
+
+    [R_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[V_offset]
+    scale = "linear"
+
+    [V_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[J_offset]
+    scale = "linear"
+
+    [J_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[H_offset]
+    scale = "linear"
+
+    [H_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.05
+
+[K_offset]
+    scale = "linear"
+
+    [K_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[g_offset]
+    scale = "linear"
+
+    [g_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[r_offset]
+    scale = "linear"
+
+    [r_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[i_offset]
+    scale = "linear"
+
+    [i_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[z_offset]
+    scale = "linear"
+
+    [z_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[slop]
+    scale = "linear"
+
+    [slop.prior]
         type  = "uniform"
         lower = 0.0
-        upper = 1.0
+        upper = 0.3
