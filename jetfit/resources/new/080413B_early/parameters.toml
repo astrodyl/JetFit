@@ -148,4 +148,4 @@
     [slop.prior]
         type  = "uniform"
         lower = 0.0
-        upper = 0.1
+        upper = 0.3

@@ -25,12 +25,16 @@ class LightCurve:
             model,
             model_params,
             obs,
+            cal_offset = None,
+            host_corr = None,
             x_scale: str = 'log',
             y_scale: str = 'log',
             title: str = 'Light Curve',
     ):
         self.model = model
         self.model_params = model_params
+        self.host_corr = host_corr
+        self.cal_offset = cal_offset
         self.observation = obs
         self.bands = obs.get_bands()
 

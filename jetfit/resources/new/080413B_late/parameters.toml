@@ -50,7 +50,7 @@
 
     [k.prior]
         type  = "uniform"
-        lower = -1.0
+        lower = -3.0
         upper = 3.0
         initial_guess=1.0
         initial_sigma=1.0
@@ -179,13 +179,13 @@
 
     [r_host.prior]
         type  = "uniform"
-        lower = 0.0002
-        upper = 0.0004
+        lower = 0.0
+        upper = 0.001
 
 [i_host]
     scale = "linear"
 
     [i_host.prior]
         type  = "uniform"
-        lower = 0.0001
-        upper = 0.0003
+        lower = 0.0
+        upper = 0.001

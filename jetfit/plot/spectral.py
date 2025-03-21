@@ -214,11 +214,13 @@ def main(event, obs, model_params, time):
 
 if __name__ == "__main__":
 
-    event_name = '080413B'
+    event_name = '080413B_late'
+
+    xxxx = (13.6 * u.eV).to('um', equivalencies=u.spectral())
 
     # Paths to input files
     observation_path = nav_utils.get_input_csv_path('new', event_name)
-    best_params_path = rf"C:\skynet-server\PARI\jetfit_7\{event_name}\best_fit.json"
+    best_params_path = rf"C:\server\post-pari\jetfit_2\{event_name}\best_fit.json"
 
     # Read in the model parameters
     with open(best_params_path, "r") as jf:
@@ -229,7 +231,7 @@ if __name__ == "__main__":
         'event': event_name,
 
         # Observation object used for modeling
-        'obs': Observation.from_csv(observation_path, 1000),
+        'obs': Observation.from_csv(observation_path),
 
         # Model parameters to evaluate
         'model_params': best_params,

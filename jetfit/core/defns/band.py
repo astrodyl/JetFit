@@ -143,9 +143,6 @@ class Band(BoundedMixin):
         band = BAND_MAP[n]
         band_range = band.get('range')
 
-        if 'uvot-b' in n:
-            print()
-
         return cls(
             n,
             band.get('color'),

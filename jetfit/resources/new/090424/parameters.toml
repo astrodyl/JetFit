@@ -173,16 +173,16 @@
 
     [r_host.prior]
         type  = "uniform"
-        lower = 0.00483059
-        upper = 0.00595963
+        lower = 0.0
+        upper = 0.01
 
 [i_host]
     scale = "linear"
 
     [i_host.prior]
         type  = "uniform"
-        lower = 0.00608135
-        upper = 0.00750273
+        lower = 0.0
+        upper = 0.01
 
 # -----------------------------
 # ----------- SLOP ------------

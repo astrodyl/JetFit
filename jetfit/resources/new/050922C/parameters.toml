@@ -1,11 +1,14 @@
 # MCMC Parameter Configuriation File
 
+# -----------------------------
+# ------- FREE PARAMS ---------
+#------------------------------
 [E]
     scale = "log"
 
     [E.prior]
         type  = "uniform"
-        lower = -5.0
+        lower = -2.0
         upper = 3.0
 
 [rho0]
@@ -13,15 +16,15 @@
 
     [rho0.prior]
         type  = "uniform"
-        lower = -5.0
-        upper = 10.0
+        lower = -6.0
+        upper = 9.0
 
 [eps_e]
     scale = "log"
 
     [eps_e.prior]
         type  = "uniform"
-        lower = -10.0
+        lower = -4.0
         upper = 0.0
 
 [eps_b]
@@ -29,7 +32,7 @@
 
     [eps_b.prior]
         type  = "uniform"
-        lower = -10.0
+        lower = -6.0
         upper = 0.0
 
 [p]
@@ -37,18 +40,10 @@
 
     [p.prior]
         type  = "uniform"
-        lower = 2.0
+        lower = 1.5
         upper = 3.5
-        initial_guess=2.25
-        initial_sigma=0.25
-
-[z]
-    scale = "linear"
-    value = 2.198
-
-[dL]
-    scale = "linear"
-    value = 5.52
+        initial_guess = 2.25
+        initial_sigma = 0.25
 
 [k]
     scale = "linear"
@@ -56,17 +51,7 @@
     [k.prior]
         type  = "uniform"
         lower = -1.0
-        upper = 4.0
-        initial_guess=1.0
-        initial_sigma=0.5
-
-[X]
-    scale = "linear"
-    value = 0.7
-
-[ebv_mw]
-    scale = "linear"
-    value = 0.1205
+        upper = 3.0
 
 [ebv_sf]
     scale = "linear"
@@ -76,6 +61,29 @@
         lower = 0.0
         upper = 1.0
 
+# -----------------------------
+# ------- FIXED PARAMS --------
+#------------------------------
+[z]
+    scale = "linear"
+    value = 2.198
+
+[dL]
+    scale = "linear"
+    value = 5.52
+
+
+[X]
+    scale = "linear"
+    value = 0.7
+
+[ebv_mw]
+    scale = "linear"
+    value = 0.1205
+
+# -----------------------------
+# ---- CALIBRATION OFFSETS ----
+#------------------------------
 [B_offset]
     scale = "linear"
 
@@ -106,4 +114,4 @@
     [slop.prior]
         type  = "uniform"
         lower = 0.0
-        upper = 0.1
+        upper = 0.3

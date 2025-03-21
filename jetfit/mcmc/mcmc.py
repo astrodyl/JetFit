@@ -157,33 +157,63 @@ class MCMC:
             progress=True
         )
 
-    def samples_to_dict(self, theta) -> dict:
+    def samples_to_dict(self, theta, model: bool = False, offsets: bool = False) -> dict:
         """
         Maps an array of values to a dictionary.
 
         Parameters
         ----------
         theta : np.ndarray of float
-            The parameters values.
+            The fitted parameters values.
+
+        model : bool
+            If `True`, returns only the model parameters.
+
+        offsets : bool
+            If `True`, returns only the offset parameters.
 
         Returns
         -------
         dict
-            key, value pairs of name : value.
+            ??
         """
-        params = {}
+        params = {'offsets': {}, 'host': {}, 'model': {}, 'slop': None}
 
         for i, p in enumerate(self.fitting_params):
-            if 'offset' not in p.name and p.name != 'slop' and 'host' not in p.name:
-                params[p.name] = math_utils.to_scale(
-                    theta[i], p.scale, 'linear'
-                )
+            linear_param = math_utils.to_scale(theta[i], p.scale, 'linear')
+
+            if 'offset' in p.name:
+                params['offsets'][p.name] = linear_param
+
+            elif 'host' in p.name:
+                params['host'][p.name] = linear_param
+
+            elif 'slop' == p.name:
+                params['slop'] = linear_param
+
+            else:
+                params['model'][p.name] = linear_param
 
         for i, p in enumerate(self.fixed_params):
-            if 'offset' not in p.name and p.name != 'slop' and 'host' not in p.name:
-                params[p.name] = math_utils.to_scale(
-                    p.value, p.scale, 'linear'
-                )
+            linear_param = math_utils.to_scale(p.value, p.scale, 'linear')
+
+            if 'offset' in p.name:
+                params['offsets'][p.name] = linear_param
+
+            elif 'host' in p.name:
+                params['host'][p.name] = linear_param
+
+            elif 'slop' == p.name:
+                params['slop'] = linear_param
+
+            else:
+                params['model'][p.name] = linear_param
+
+        if model:
+            return params['model']
+
+        if offsets:
+            return params['offsets']
 
         return params
 
@@ -228,19 +258,12 @@ class MCMC:
             Else, -np.inf.
         """
 
+        # Get the parameters as a dict
+        params = self.samples_to_dict(theta)
+
         # Model the observational data
-        model = self.model(**self.samples_to_dict(theta), **self.meta)
-        modeled = model.model(self.observation)
-
-        # Apply calibration offsets
-        if self.cal_offset_pos:
-            for name, index in self.cal_offset_pos.items():
-                modeled[self.observation.cal_offsets[name]] *= 10.0 ** (-0.4 * theta[index])
-
-        # Apply Host Galaxy correction
-        if self.host_corr_pos:
-            for name, index in self.host_corr_pos.items():
-                modeled[self.observation.host_corr[name]] += theta[index]
+        model = self.model(**params.get('model'), **self.meta)
+        modeled = model.model(self.observation, params.get('offsets'), params.get('host'))
 
         # Skip chi squared calculation since a nan will
         # always result in -inf anyway

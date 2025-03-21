@@ -91,16 +91,6 @@ class Observation:
         """ Returns the list of data. """
         return self._data
 
-    # @property
-    # def flux_loc(self) -> np.ndarray:
-    #     """ Returns an array of flux indices. """
-    #     return np.where(self.flux_types != DataType.SPECTRAL_INDEX)[0]
-
-    # @property
-    # def spectral_flux_loc(self) -> np.ndarray:
-    #     """ Returns an array of spectral flux indices. """
-    #     return np.where(self.flux_types == DataType.SPECTRAL_FLUX)[0]
-
     @property
     def integrated_flux_loc(self) -> np.ndarray:
         """ Returns an array of integrated flux indices. """
@@ -133,6 +123,9 @@ class Observation:
                     break
             else:
                 # First time seeing band
-                bands.append(Band.from_name(value.filter))
+                new_band = Band.from_name(value.filter)
+                new_band.flux.append(value)
+                new_band.times.append(value.time)
+                bands.append(new_band)
 
         return bands

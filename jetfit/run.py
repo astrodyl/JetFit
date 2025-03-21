@@ -47,7 +47,6 @@ def main(
     observation = Observation.from_csv(data_path)
 
     # -------- NEW COOLER WAY OF DOING THINGS --------
-
     mcmc_params = MCMCSettingsReader(mcmc_path)
     model_params = BFParamsReader(model_path)
 
@@ -72,11 +71,18 @@ def main(
         os.makedirs(results_dir)
 
     # Plot the light curves
-    lc = LightCurve(mcmc.model, mcmc.get_best_params(), mcmc.observation)
+    best_params = mcmc.get_best_params()
+    lc = LightCurve(
+        obs=mcmc.observation,
+        model=mcmc.model,
+        model_params=best_params.get('model'),
+        # cal_offset=best_params.get('offsets'),
+        host_corr=best_params.get('host'),
+    )
     lc.plot(out_dir=results_dir)
 
     # Plot the corner plot
-    corner = PosteriorPlot(mcmc.sampler, mcmc.fitting_params)
+    corner = PosteriorPlot(mcmc.sampler, mcmc.fitting_params, mcmc.param_pos)
     corner.plot(out_dir=results_dir)
 
     # -------- LOGGING ---------
@@ -101,8 +107,8 @@ def main(
     az.plot_trace(idata_burnin)
     plt.savefig(results_dir / "trace_burn.png")
 
-    print(f"Autocorrelation........{mcmc.sampler.acor}\n")
-    print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
+    # print(f"Autocorrelation........{mcmc.sampler.acor}\n")
+    # print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
 
 
 if __name__ == "__main__":
@@ -125,13 +131,17 @@ if __name__ == "__main__":
         events = [
             # '050922C',
             # '080413B',
+            # '080413B_early',
+            # '080413B_late',
             # '090424',
             # '090618',
             # '111228A',
-            '130612A',
+            # '130612A',
+            # '131030A',
             # '160131A',
             # '171010A',
             # '220101A',
+            # '210905A',
             # '221009A',
             # '231118A',
         ]

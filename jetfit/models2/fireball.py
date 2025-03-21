@@ -172,7 +172,12 @@ class FireballModel:
 
         self._dL = d
 
-    def model(self, observation: Observation) -> np.ndarray:
+    def model(
+            self,
+            observation: Observation,
+            cal_offsets: dict = None,
+            host_corrs: dict = None
+    ) -> np.ndarray:
         """
         Models the observational data.
 
@@ -180,6 +185,12 @@ class FireballModel:
         ----------
         observation : Observation
             The `Observation` object to model.
+
+        cal_offsets : dict
+            Key, value of name, offset value for the cal group.
+
+        host_corrs : dict
+            Key, value of name, correction value for the host corr.
 
         Returns
         -------
@@ -226,6 +237,16 @@ class FireballModel:
 
             if self.ebv_sf:  # source frame
                 res[mask] *= self.ext_model.extinguish((1 + self.z) * wn, Ebv=self.ebv_sf)
+
+        # Apply calibration offsets
+        if cal_offsets is not None:
+            for name, offset in cal_offsets.items():
+                res[observation.cal_offsets[name]] *= 10.0 ** -(0.4 * offset)
+
+        # Apply host galaxy correction
+        if host_corrs is not None:
+            for name, corr in host_corrs.items():
+                res[observation.host_corr[name]] += corr
 
         return res
 
