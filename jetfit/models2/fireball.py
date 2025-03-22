@@ -198,7 +198,7 @@ class FireballModel:
             The modeled observational data.
         """
         if self.tj is not None:
-            return self.model_jet(observation)
+            return self.model_jet(observation, cal_offsets, host_corrs)
 
         res = np.full(len(observation.data), np.nan)
 
@@ -250,7 +250,12 @@ class FireballModel:
 
         return res
 
-    def model_jet(self, observation: Observation) -> np.ndarray:
+    def model_jet(
+            self,
+            observation: Observation,
+            cal_offsets: dict = None,
+            host_corrs: dict = None
+    ) -> np.ndarray:
         """"""
         res = np.full(len(observation.data), np.nan)
 
@@ -290,72 +295,17 @@ class FireballModel:
             if self.ebv_sf:  # source frame
                 res[mask] *= self.ext_model.extinguish((1 + self.z) * wn, Ebv=self.ebv_sf)
 
+        # Apply calibration offsets
+        if cal_offsets is not None:
+            for name, offset in cal_offsets.items():
+                res[observation.cal_offsets[name]] *= 10.0 ** -(0.4 * offset)
+
+        # Apply host galaxy correction
+        if host_corrs is not None:
+            for name, corr in host_corrs.items():
+                res[observation.host_corr[name]] += corr
+
         return res
-
-    # def model_flux(self, data):
-    #     """
-    #     Models an observational flux value.
-    #
-    #     Parameters
-    #     ----------
-    #     data : SpectralFlux or IntegratedFlux
-    #         The value to model.
-    #
-    #     Returns
-    #     -------
-    #     ??
-    #         The modeled flux.
-    #     """
-    #     f_peak, nu_c, nu_m = (
-    #         self.f_peak(data.time),
-    #         self.nu_c(data.time),
-    #         self.nu_m(data.time)
-    #     )
-    #
-    #     if data.type == DataType.SPECTRAL_FLUX:
-    #         return SpectralFluxModel(nu_m, nu_c, f_peak, self.p).model_smooth(data)
-    #
-    #     return IntegratedFluxModel(nu_m, nu_c, f_peak, self.p).model(data)
-
-    # def model_index(self, val):
-    #     """
-    #     Approximates the spectral index measurement using
-    #     `val`'s integration range and time range.
-    #
-    #     Parameters
-    #     ----------
-    #     val : SpectralIndex
-    #         The value to model.
-    #
-    #     Returns
-    #     -------
-    #     ??
-    #         The modeled flux.
-    #     """
-    #     f_peak, nu_c, nu_m = (
-    #         self.f_peak(val.time_range.lower),
-    #         self.nu_c(val.time_range.lower),
-    #         self.nu_m(val.time_range.lower)
-    #     )
-    #
-    #     f_peak2, nu_c2, nu_m2 = (
-    #         self.f_peak(val.time_range.upper),
-    #         self.nu_c(val.time_range.upper),
-    #         self.nu_m(val.time_range.upper)
-    #     )
-    #
-    #     # Use the critical values to initialize the models
-    #     f_start_model = IntegratedFluxModel(nu_m, nu_c, f_peak, self.p)
-    #     f_stop_model = IntegratedFluxModel(nu_m2, nu_c2, f_peak2, self.p)
-    #
-    #     # Evaluate the models
-    #     f_start = f_start_model(val.int_range.lower.value, val.int_range.upper.value)
-    #     f_stop = f_stop_model(val.int_range.lower.value, val.int_range.upper.value)
-    #
-    #     # Return the approximated spectral index
-    #     return two_point_approx(
-    #         f_stop, f_start, val.int_range.lower.value, val.int_range.upper.value, log=True
-    #     )
 
     def f_peak(self, t: u.Quantity | float, evo: str = 'adiabatic'):
         """
