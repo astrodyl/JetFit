@@ -104,14 +104,6 @@
         mu = 0.0
         sigma = 0.03
 
-[V_offset]
-    scale = "linear"
-
-    [V_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.03
-
 [J_offset]
     scale = "linear"
 
@@ -136,22 +128,6 @@
         mu = 0.0
         sigma = 0.04
 
-[g_offset]
-    scale = "linear"
-
-    [g_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.03
-
-[r_offset]
-    scale = "linear"
-
-    [r_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.03
-
 [i_offset]
     scale = "linear"
 
@@ -175,3 +151,22 @@
         type  = "uniform"
         lower = 0.0
         upper = 0.3
+
+# -----------------------------
+# --------- JET BREAK ---------
+#------------------------------
+[tj]
+    scale = "log"
+
+    [tj.prior]
+        type  = "gaussian"
+        mu = 4.89
+        sigma = 0.064
+
+[sj]
+    scale = "linear"
+
+    [sj.prior]
+        type  = "uniform"
+        lower = 0.0
+        upper = 3.0

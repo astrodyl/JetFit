@@ -51,7 +51,7 @@
     [k.prior]
         type  = "uniform"
         lower = -1.0
-        upper = 3.0
+        upper = 3.5
 
 [ebv_sf]
     scale = "linear"

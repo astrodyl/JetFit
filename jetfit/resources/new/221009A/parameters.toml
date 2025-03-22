@@ -50,7 +50,7 @@
 
     [k.prior]
         type  = "uniform"
-        lower = -3.0
+        lower = -1.0
         upper = 3.0
         initial_guess=1.0
         initial_sigma=1.0
@@ -69,12 +69,12 @@
 [z]
     group = "observational"
     scale = "linear"
-    value = 1.1
+    value = 0.151
 
 [dL]
     group = "observational"
     scale = "linear"
-    value = 2.36
+    value = 0.229
 
 [X]
     group = "observational"
@@ -83,7 +83,7 @@
 
 [ebv_mw]
     scale = "linear"
-    value = 0.0315
+    value = 1.3021
 
 # -----------------------------
 # ---- CALIBRATION OFFSETS ----
@@ -118,31 +118,7 @@
     [z_offset.prior]
         type  = "gaussian"
         mu = 0.0
-        sigma = 0.03
-
-[J_offset]
-    scale = "linear"
-
-    [J_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.03
-
-[H_offset]
-    scale = "linear"
-
-    [H_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.03
-
-[K_offset]
-    scale = "linear"
-
-    [K_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.03
+        sigma = 0.04
 
 [slop]
     scale = "linear"
@@ -151,41 +127,3 @@
         type  = "uniform"
         lower = 0.0
         upper = 0.3
-
-# -----------------------------
-# --------- JET BREAK ---------
-#------------------------------
-[tj]
-    scale = "log"
-
-    [tj.prior]
-        type  = "uniform"
-        lower = 4.0
-        upper = 6.0
-
-[sj]
-    scale = "linear"
-
-    [sj.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 3.0
-
-# -----------------------------
-# -------- HOST GALAXY --------
-#------------------------------
-[r_host]
-    scale = "linear"
-
-    [r_host.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 0.001
-
-[i_host]
-    scale = "linear"
-
-    [i_host.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 0.001

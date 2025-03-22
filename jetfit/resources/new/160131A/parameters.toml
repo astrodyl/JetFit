@@ -120,14 +120,6 @@
         mu = 0.0
         sigma = 0.04
 
-[uvw2_offset]
-    scale = "linear"
-
-    [uvw2_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.04
-
 [uvm2_offset]
     scale = "linear"
 
@@ -167,3 +159,22 @@
         type  = "uniform"
         lower = 0.0
         upper = 0.3
+
+# -----------------------------
+# --------- JET BREAK ---------
+#------------------------------
+[tj]
+    scale = "log"
+
+    [tj.prior]
+        type  = "uniform"
+        lower = 4.0
+        upper = 6.0
+
+[sj]
+    scale = "linear"
+
+    [sj.prior]
+        type  = "uniform"
+        lower = 0.0
+        upper = 3.0

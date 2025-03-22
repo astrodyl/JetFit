@@ -85,14 +85,6 @@
 # -----------------------------
 # ---- CALIBRATION OFFSETS ----
 #------------------------------
-[I_offset]
-    scale = "linear"
-
-    [I_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.04
-
 [J_offset]
     scale = "linear"
 
@@ -113,22 +105,6 @@
     scale = "linear"
 
     [K_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.04
-
-[i_offset]
-    scale = "linear"
-
-    [i_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.03
-
-[z_offset]
-    scale = "linear"
-
-    [z_offset.prior]
         type  = "gaussian"
         mu = 0.0
         sigma = 0.04

@@ -50,7 +50,7 @@
 
     [k.prior]
         type  = "uniform"
-        lower = -3.0
+        lower = -1.0
         upper = 3.0
         initial_guess=1.0
         initial_sigma=1.0
@@ -67,27 +67,48 @@
 # ------- FIXED PARAMS --------
 #------------------------------
 [z]
-    group = "observational"
     scale = "linear"
-    value = 1.1
+    value = 0.714
 
 [dL]
-    group = "observational"
     scale = "linear"
-    value = 2.36
+    value = 1.386
 
 [X]
-    group = "observational"
     scale = "linear"
     value = 0.7
 
 [ebv_mw]
     scale = "linear"
-    value = 0.0315
+    value = 0.0279
 
 # -----------------------------
 # ---- CALIBRATION OFFSETS ----
 #------------------------------
+[B_offset]  # USNO B1
+    scale = "linear"
+
+    [B_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.3
+
+[V_offset]
+    scale = "linear"
+
+    [V_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[R_offset]
+    scale = "linear"
+
+    [R_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
 [g_offset]
     scale = "linear"
 
@@ -118,32 +139,27 @@
     [z_offset.prior]
         type  = "gaussian"
         mu = 0.0
-        sigma = 0.03
+        sigma = 0.04
 
-[J_offset]
+[J_offset]  # 2MASS
     scale = "linear"
 
     [J_offset.prior]
         type  = "gaussian"
         mu = 0.0
-        sigma = 0.03
+        sigma = 0.04
 
-[H_offset]
-    scale = "linear"
-
-    [H_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.03
-
-[K_offset]
+[K_offset]  # 2MASS
     scale = "linear"
 
     [K_offset.prior]
         type  = "gaussian"
         mu = 0.0
-        sigma = 0.03
+        sigma = 0.06
 
+# -----------------------------
+# ----------- SLOP ------------
+# -----------------------------
 [slop]
     scale = "linear"
 
@@ -151,41 +167,3 @@
         type  = "uniform"
         lower = 0.0
         upper = 0.3
-
-# -----------------------------
-# --------- JET BREAK ---------
-#------------------------------
-[tj]
-    scale = "log"
-
-    [tj.prior]
-        type  = "uniform"
-        lower = 4.0
-        upper = 6.0
-
-[sj]
-    scale = "linear"
-
-    [sj.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 3.0
-
-# -----------------------------
-# -------- HOST GALAXY --------
-#------------------------------
-[r_host]
-    scale = "linear"
-
-    [r_host.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 0.001
-
-[i_host]
-    scale = "linear"
-
-    [i_host.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 0.001
