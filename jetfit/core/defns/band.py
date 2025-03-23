@@ -40,6 +40,21 @@ BAND_MAP = {
     'xray': {'range': BoundedMixin(lower=1.00E+16, upper=1.00E+19), 'color': 'black'}
 }
 
+BAND_MAP['g'] = BAND_MAP['gprime']
+BAND_MAP['r'] = BAND_MAP['rprime']
+BAND_MAP['i'] = BAND_MAP['iprime']
+BAND_MAP['z'] = BAND_MAP['zprime']
+
+BAND_MAP['g1'] = BAND_MAP['gprime']
+BAND_MAP['r1'] = BAND_MAP['rprime']
+BAND_MAP['i1'] = BAND_MAP['iprime']
+BAND_MAP['z1'] = BAND_MAP['zprime']
+
+BAND_MAP['g2'] = BAND_MAP['gprime']
+BAND_MAP['r2'] = BAND_MAP['rprime']
+BAND_MAP['i2'] = BAND_MAP['iprime']
+BAND_MAP['z2'] = BAND_MAP['zprime']
+
 
 class Band(BoundedMixin):
     """

@@ -160,8 +160,8 @@
 
     [tj.prior]
         type  = "gaussian"
-        mu = 4.89
-        sigma = 0.064
+        mu = -1.0
+        sigma = 1.0
 
 [sj]
     scale = "linear"

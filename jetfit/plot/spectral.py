@@ -129,7 +129,7 @@ def plot_spectrum(
     plt.show()
 
 
-def main(event, obs, model_params, time):
+def main(event, obs, best_params, time):
     """"""
 
     # Get optical observation frequencies
@@ -138,6 +138,8 @@ def main(event, obs, model_params, time):
         if d.type == DataType.SPECTRAL_FLUX:
             obs_frequencies.append(d.frequency)
     obs_frequencies = np.array(obs_frequencies, dtype=object)
+
+    model_params = best_params.get('model')
 
     # Define the model
     model = FireballModel(**model_params)
@@ -190,7 +192,15 @@ def main(event, obs, model_params, time):
             model.nu_m(t), model.nu_c(t), model.f_peak(t), model.p, model.k
         ).segment(obs_frequencies[0].value).name
 
-    lc = LightCurve(FireballModel, model_params, obs, title='Light Curve')
+    # Plot the Light Curve
+    lc = LightCurve(
+        obs=obs,
+        model=FireballModel,
+        model_params=model_params,
+        # cal_offset=best_params.get('offsets'),
+        host_corr=best_params.get('host'),
+        title=f'{event} Light Curve',
+    )
     lc.plot(show=True)
 
     # Plot the CCM Extinction curve
@@ -216,11 +226,15 @@ if __name__ == "__main__":
 
     event_name = '080413B_late'
 
-    xxxx = (13.6 * u.eV).to('um', equivalencies=u.spectral())
+    import astropy.cosmology.units as cu
+    from astropy.cosmology import Planck18
+
+    z = 0.151 * cu.redshift
+    d = z.to(u.cm, cu.redshift_distance(Planck18, kind='luminosity'))
 
     # Paths to input files
     observation_path = nav_utils.get_input_csv_path('new', event_name)
-    best_params_path = rf"C:\server\post-pari\jetfit_2\{event_name}\best_fit.json"
+    best_params_path = rf"C:\server\post-pari\jetfit_4\{event_name}\best_fit.json"
 
     # Read in the model parameters
     with open(best_params_path, "r") as jf:
@@ -234,7 +248,7 @@ if __name__ == "__main__":
         'obs': Observation.from_csv(observation_path),
 
         # Model parameters to evaluate
-        'model_params': best_params,
+        'best_params': best_params,
 
         # Time to evaluate GRB spectrum
         'time': u.Quantity(value=300, unit='s')

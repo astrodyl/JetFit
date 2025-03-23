@@ -3,6 +3,7 @@ import json
 import os.path
 from pathlib import Path
 
+import emcee
 from matplotlib import pyplot as plt
 
 from jetfit.core.input import Observation
@@ -43,6 +44,10 @@ def main(
     results_dir : Path
         The directory where the results will be saved.
     """
+    # -------- PLOTTING ----------
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+
     # TEST FOR GENERIC FIREBALL MODEL
     observation = Observation.from_csv(data_path)
 
@@ -58,6 +63,7 @@ def main(
         observation=observation,
         fixed_params=model_params.fixed,
         fitting_params=model_params.fitting,
+        filename=str(results_dir / 'chain.h5'),
         # meta={
         #     'hydro_sim_table':
         #           HydroSimTable(nav_utils.get_hydro_sim_table_path())
@@ -65,10 +71,6 @@ def main(
     )
 
     mcmc.run()
-
-    # -------- PLOTTING ----------
-    if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
 
     # Plot the light curves
     best_params = mcmc.get_best_params()
@@ -136,7 +138,7 @@ if __name__ == "__main__":
             # '090424',
             # '090618',
             # '111228A',
-            # '130612A',
+            '130612A',
             # '131030A',
             # '160131A',
             # '171010A',

@@ -155,13 +155,13 @@
 # -----------------------------
 # --------- JET BREAK ---------
 #------------------------------
-[tj]
+[tj]  # Days
     scale = "log"
 
     [tj.prior]
         type  = "uniform"
-        lower = 4.0
-        upper = 6.0
+        lower = -1.0
+        upper = 1.0
 
 [sj]
     scale = "linear"
@@ -174,18 +174,18 @@
 # -----------------------------
 # -------- HOST GALAXY --------
 #------------------------------
-[r_host]
-    scale = "linear"
-
-    [r_host.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 0.001
-
-[i_host]
-    scale = "linear"
+[g_host]
+    scale = "log"
 
     [i_host.prior]
         type  = "uniform"
-        lower = 0.0
-        upper = 0.001
+        lower = -4.0
+        upper = -3.0
+
+[r_host]
+    scale = "log"
+
+    [r_host.prior]
+        type  = "uniform"
+        lower = -4.0
+        upper = -3.0

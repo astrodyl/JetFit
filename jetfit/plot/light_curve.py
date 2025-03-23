@@ -103,6 +103,16 @@ class LightCurve:
             # Model the data at the new times
             modeled_fluxes = model.model(Observation(data))
 
+            # Apply host galaxy correction
+            host_name = band.name + '_host'
+            if host_name in self.host_corr:
+                modeled_fluxes += self.host_corr[host_name]
+
+            # Apply cal offsets
+            # offset_name = band.name + '_offset'
+            # if offset_name in self.cal_offset:
+            #     modeled_fluxes *= 10.0 ** -(0.4 * self.cal_offset[offset_name])
+
             # Convert integrated flux to a flux density in mJy
             if band.flux[0].type == DataType.INTEGRATED_FLUX:
                 frequency_range = band.flux[0].int_range.upper.value - band.flux[0].int_range.lower.value

@@ -1,4 +1,5 @@
 import copy
+import os
 
 import emcee
 import numpy as np
@@ -42,6 +43,7 @@ class MCMC:
             fitting_params: list,
             model,
             observation,
+            filename=None,
             meta = None
     ):
         # Model
@@ -62,6 +64,8 @@ class MCMC:
 
         # Evidence
         self.observation = observation
+
+        self.filename = filename
 
         # Setters
         self.set_sampler()
@@ -100,11 +104,19 @@ class MCMC:
 
     def set_sampler(self) -> None:
         """ Initializes the MCMC sampler. """
+        backend = None
+
+        if self.filename is not None:
+            backend = emcee.backends.HDFBackend(self.filename)
+            if os.path.exists(self.filename):
+                backend.reset(self.num_walkers, self.num_dims)
+
         self.sampler = emcee.EnsembleSampler(
             nwalkers=self.num_walkers,
             ndim=self.num_dims,
             log_prob_fn=self.log_posterior,
-            # moves=emcee.moves.DEMove()
+            # moves=emcee.moves.DEMove(),
+            backend=backend
         )
 
     def get_slop(self, theta: np.ndarray[float]) -> None | float:

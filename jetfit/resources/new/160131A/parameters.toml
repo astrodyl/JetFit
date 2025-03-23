@@ -168,8 +168,8 @@
 
     [tj.prior]
         type  = "uniform"
-        lower = 4.0
-        upper = 6.0
+        lower = -1.0
+        upper = 1.0
 
 [sj]
     scale = "linear"
