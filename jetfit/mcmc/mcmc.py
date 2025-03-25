@@ -1,5 +1,6 @@
 import copy
 import os
+import time
 
 import emcee
 import numpy as np
@@ -287,18 +288,18 @@ class MCMC:
 
         cs_flux = math_utils.chi_squared(
             modeled[flux_mask],
-            self.observation.value_array[flux_mask],
-            self.observation.error_array[flux_mask],
+            self.observation.as_arrays.values[flux_mask],
+            self.observation.as_arrays.errors[flux_mask],
             self.get_slop(theta)
         )
 
         # Chi-squared for spectral indices
-        index_mask = self.observation.spectral_index_loc
+        index_mask = self.observation.sindex_loc
 
         cs_indices = math_utils.chi_squared(
             modeled[index_mask],
-            self.observation.value_array[index_mask],
-            self.observation.error_array[index_mask],
+            self.observation.as_arrays.values[index_mask],
+            self.observation.as_arrays.errors[index_mask],
         )
 
         # return combined chi-squared

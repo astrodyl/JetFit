@@ -177,7 +177,7 @@
 [g_host]
     scale = "log"
 
-    [i_host.prior]
+    [g_host.prior]
         type  = "uniform"
         lower = -4.0
         upper = -3.0

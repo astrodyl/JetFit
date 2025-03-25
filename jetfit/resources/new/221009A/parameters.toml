@@ -88,34 +88,66 @@
 # -----------------------------
 # ---- CALIBRATION OFFSETS ----
 #------------------------------
-[g_offset]
+[g1_offset]
     scale = "linear"
 
-    [g_offset.prior]
+    [g1_offset.prior]
         type  = "gaussian"
         mu = 0.0
         sigma = 0.03
 
-[r_offset]
+[r1_offset]
     scale = "linear"
 
-    [r_offset.prior]
+    [r1_offset.prior]
         type  = "gaussian"
         mu = 0.0
         sigma = 0.03
 
-[i_offset]
+[i1_offset]
     scale = "linear"
 
-    [i_offset.prior]
+    [i1_offset.prior]
         type  = "gaussian"
         mu = 0.0
         sigma = 0.03
 
-[z_offset]
+[z1_offset]
     scale = "linear"
 
-    [z_offset.prior]
+    [z1_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[g2_offset]
+    scale = "linear"
+
+    [g2_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[r2_offset]
+    scale = "linear"
+
+    [r2_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[i2_offset]
+    scale = "linear"
+
+    [i2_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[z2_offset]
+    scale = "linear"
+
+    [z2_offset.prior]
         type  = "gaussian"
         mu = 0.0
         sigma = 0.04

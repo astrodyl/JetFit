@@ -88,7 +88,7 @@ class MCMCFixedParameter(MCMCParameter):
         float
             The value in the specified scale.
         """
-        return maths.to_scale(self.value, self.scale, scale)
+        return math_utils.to_scale(self.value, self.scale, scale)
 
 
 class MCMCFittingParameter(MCMCParameter):

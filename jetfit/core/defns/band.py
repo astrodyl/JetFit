@@ -29,9 +29,9 @@ BAND_MAP = {
     'Ks': {'range': BoundedMixin(lower=1.26E+14, upper=1.46E+14), 'color': 'brown'},
 
     # Swift UVOT
-    'uvot-uvw2': {'range': BoundedMixin(lower=1.45494013e+15, upper=1.65494013e+15), 'color': 'pink'},
-    'uvot-uvm2': {'range': BoundedMixin(lower=1.23478387e+15, upper=1.43478387e+15), 'color': 'darkblue'},
-    'uvot-uvw1': {'range': BoundedMixin(lower=1.10304792e+15, upper=1.20304792e+15), 'color': 'green'},
+    'uvw2': {'range': BoundedMixin(lower=1.45494013e+15, upper=1.65494013e+15), 'color': 'pink'},
+    'uvm2': {'range': BoundedMixin(lower=1.23478387e+15, upper=1.43478387e+15), 'color': 'darkblue'},
+    'uvw1': {'range': BoundedMixin(lower=1.10304792e+15, upper=1.20304792e+15), 'color': 'green'},
     'uvot-u': {'range': BoundedMixin(lower=8.55201899e+14, upper=8.75201899e+14), 'color': 'cyan'},
     'uvot-b': {'range': BoundedMixin(lower=6.72587564e+14, upper=6.92587564e+14), 'color': 'lightblue'},
     'uvot-v': {'range': BoundedMixin(lower=5.38267114e+14, upper=5.58267114e+14), 'color': 'lightgreen'},
@@ -44,16 +44,6 @@ BAND_MAP['g'] = BAND_MAP['gprime']
 BAND_MAP['r'] = BAND_MAP['rprime']
 BAND_MAP['i'] = BAND_MAP['iprime']
 BAND_MAP['z'] = BAND_MAP['zprime']
-
-BAND_MAP['g1'] = BAND_MAP['gprime']
-BAND_MAP['r1'] = BAND_MAP['rprime']
-BAND_MAP['i1'] = BAND_MAP['iprime']
-BAND_MAP['z1'] = BAND_MAP['zprime']
-
-BAND_MAP['g2'] = BAND_MAP['gprime']
-BAND_MAP['r2'] = BAND_MAP['rprime']
-BAND_MAP['i2'] = BAND_MAP['iprime']
-BAND_MAP['z2'] = BAND_MAP['zprime']
 
 
 class Band(BoundedMixin):

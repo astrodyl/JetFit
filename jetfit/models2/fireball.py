@@ -1,4 +1,5 @@
 import math
+import time
 
 import astropy.units as u
 import astropy.constants as const
@@ -6,13 +7,10 @@ import numpy as np
 from dust_extinction.parameter_averages import CCM89
 from matplotlib import pyplot as plt
 
-from jetfit.core.defns.enums import DataType
 from jetfit.core.input import Observation
-from jetfit.core.values import IntegratedFlux, SpectralFlux, SpectralIndex
-from jetfit.models2.basemodels import SynchrotronFrequencyModel, SpectralFluxModel, IntegratedFluxModel, \
-    SpectralIndexModel
+from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel
+from jetfit.models2.basemodels import SynchrotronFrequencyModel, SpectralFluxModel
 from jetfit.models2.basemodels import CoolingFrequencyModel, PeakFluxModel
-from jetfit.core.core import two_point_approx
 
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
@@ -179,64 +177,67 @@ class FireballModel:
             host_corrs: dict = None
     ) -> np.ndarray:
         """
-        Models the observational data.
+        Models an observation object.
 
         Parameters
         ----------
-        observation : Observation
-            The `Observation` object to model.
-
-        cal_offsets : dict
-            Key, value of name, offset value for the cal group.
-
-        host_corrs : dict
-            Key, value of name, correction value for the host corr.
+        observation
+        cal_offsets
+        host_corrs
 
         Returns
         -------
-        np.ndarray of ??
-            The modeled observational data.
+
         """
-        if self.tj is not None:
-            return self.model_jet(observation, cal_offsets, host_corrs)
-
         res = np.full(len(observation.data), np.nan)
 
-        for i, data in enumerate(observation.data):
+        # For speed, get observation as arrays
+        arrays = observation.as_arrays
 
-            # Critical spectral values
-            f_peak = self.f_peak(data.time)
-            nu_m = self.nu_m(data.time)
-            nu_c = self.nu_c(data.time)
+        # Save locations for readability
+        sf_mask = arrays.sflux_loc
+        if_mask = arrays.iflux_loc
+        si_mask = arrays.sindex_loc
 
-            if data.type == DataType.SPECTRAL_FLUX:
-                res[i] = SpectralFluxModel(
-                    nu_m, nu_c, f_peak, self.p, self.k
-                ).model_smooth(data)
+        # Calculate the spectral functions
+        f_peaks = self.f_peak(arrays.times)
+        nu_ms = self.nu_m(arrays.times)
+        nu_cs = self.nu_c(arrays.times)
 
-            elif data.type == DataType.INTEGRATED_FLUX:
-                res[i] = IntegratedFluxModel(
-                    nu_m, nu_c, f_peak, self.p, self.k
-                ).model_smooth(data)
+        # Model spectral fluxes
+        res[sf_mask] = SpectralFluxModel(
+            nu_ms[sf_mask], nu_cs[sf_mask], f_peaks[sf_mask], self.p, self.k
+        ).evaluate(arrays.frequencies[sf_mask])
 
-            elif data.type == DataType.SPECTRAL_INDEX:
-                res[i] = SpectralIndexModel(
-                    nu_m, nu_c, f_peak, self.p, self.k
-                ).model(data)
+        # Model Integrated fluxes
+        res[if_mask] = IntegratedFluxModel(
+            nu_ms[if_mask], nu_cs[if_mask], f_peaks[if_mask], self.p, self.k
+        ).evaluate(arrays.if_lower_freqs[if_mask], arrays.if_upper_freqs[if_mask])
 
-            if res[i] == np.nan:
-                return res
+        # Model Spectral indices
+        res[si_mask] = SpectralIndexModel(
+            nu_ms[si_mask], nu_cs[si_mask], f_peaks[si_mask], self.p, self.k
+        ).evaluate(arrays.si_lower_freqs[si_mask], arrays.si_upper_freqs[si_mask])
 
-        # Apply extinction to spectral flux values
-        if self.ebv_mw or self.ebv_sf:
-            mask = observation.spectral_flux_loc
-            wn = observation.wave_number_array[mask]
+        # Smooth the flux values if there is a jet break
+        if self.tj:
+            # Smooth the spectral flux
+            res[sf_mask] = self.smooth_jet_break(
+                f=res[sf_mask],
+                t=arrays.times[sf_mask],
+                nu=arrays.frequencies[sf_mask]
+            )
 
-            if self.ebv_mw:  # milky way
-                res[mask] *= self.ext_model.extinguish(wn, Ebv=self.ebv_mw)
+            # Smooth the integrated flux
+            res[if_mask] = self.smooth_jet_break(
+                f=res[if_mask],
+                t=arrays.times[if_mask],
+                lower=arrays.if_lower_freqs[if_mask],
+                upper=arrays.if_upper_freqs[if_mask]
+            )
 
-            if self.ebv_sf:  # source frame
-                res[mask] *= self.ext_model.extinguish((1 + self.z) * wn, Ebv=self.ebv_sf)
+        # Apply extinction to spectral flux
+        res[sf_mask] = self.extinguish(res[sf_mask], arrays.wave_numbers[sf_mask])
 
         # Apply calibration offsets
         if cal_offsets is not None:
@@ -248,64 +249,113 @@ class FireballModel:
             for name, corr in host_corrs.items():
                 res[observation.host_corr[name]] += corr
 
+        # return modeled observational data
         return res
 
-    def model_jet(
-            self,
-            observation: Observation,
-            cal_offsets: dict = None,
-            host_corrs: dict = None
-    ) -> np.ndarray:
-        """"""
-        res = np.full(len(observation.data), np.nan)
+    def evaluate_spectral_flux(self, t, f):
+        """ Model spectral fluxes. """
+        res = SpectralFluxModel(
+            self.nu_m(t), self.nu_c(t), self.f_peak(t), self.p, self.k
+        ).evaluate(f)
 
-        for i, data in enumerate(observation.data):
-            # Critical spectral values
-            f_peak, f_peak_j = self.f_peak(data.time), self.f_peak(self.tj)
-            nu_m, nu_m_j = self.nu_m(data.time), self.nu_m(self.tj)
-            nu_c, nu_c_j = self.nu_c(data.time), self.nu_c(self.tj)
-
-            # Model the fluxes
-            if data.type != DataType.SPECTRAL_INDEX:
-
-                if data.type == DataType.SPECTRAL_FLUX:
-                    x = SpectralFluxModel(nu_m, nu_c, f_peak, self.p, self.k).model_smooth(data)
-                    y = SpectralFluxModel(nu_m_j, nu_c_j, f_peak_j, self.p, self.k).model_smooth(data)
-
-                else:
-                    x = IntegratedFluxModel(nu_m, nu_c, f_peak, self.p, self.k).model_smooth(data)
-                    y = IntegratedFluxModel(nu_m_j, nu_c_j, f_peak_j, self.p, self.k).model_smooth(data)
-
-                res[i] = (x ** (-self.sj) + (y * (data.time.to_value('d') / self.tj) ** -self.p) ** -self.sj) ** -(1 / self.sj)
-
-            else:  # Model the spectral index
-                res[i] = SpectralIndexModel(nu_m, nu_c, f_peak, self.p, self.k).model(data)
-
-            if res[i] == np.nan:
-                return res
-
-        # Apply extinction to spectral flux values
-        if self.ebv_mw or self.ebv_sf:
-            mask = observation.flux_types == DataType.SPECTRAL_FLUX
-            wn = observation.wave_number_array[mask]
-
-            if self.ebv_mw:  # milky way
-                res[mask] *= self.ext_model.extinguish(wn, Ebv=self.ebv_mw)
-
-            if self.ebv_sf:  # source frame
-                res[mask] *= self.ext_model.extinguish((1 + self.z) * wn, Ebv=self.ebv_sf)
-
-        # Apply calibration offsets
-        if cal_offsets is not None:
-            for name, offset in cal_offsets.items():
-                res[observation.cal_offsets[name]] *= 10.0 ** -(0.4 * offset)
-
-        # Apply host galaxy correction
-        if host_corrs is not None:
-            for name, corr in host_corrs.items():
-                res[observation.host_corr[name]] += corr
+        if self.tj:
+            return self.smooth_jet_break(res, t, nu=f)
 
         return res
+
+    def evaluate_integrated_flux(self, t, lower, upper):
+        """ Model Integrated fluxes. """
+        res = IntegratedFluxModel(
+            self.nu_m(t), self.nu_c(t), self.f_peak(t), self.p, self.k
+        ).evaluate(lower, upper)
+
+        if self.tj:
+            return self.smooth_jet_break(res, t, lower=lower, upper=upper)
+
+        return res
+
+    def extinguish(self, f, wn) -> np.ndarray | float:
+        """
+        Extinguishes the flux `f` using both the milky way
+        EBV and source frame EBV (if defined).
+
+        Parameters
+        ----------
+        f : np.ndarray or float
+            The flux to extinguish.
+
+        wn : np.ndarray or float
+            The wave numbers measured in inverse micrometers.
+
+        Returns
+        -------
+        np.ndarray or float
+            The extinguished flux.
+        """
+        if self.ebv_mw:  # milky way
+            f *= self.ext_model.extinguish(wn, Ebv=self.ebv_mw)
+
+        if self.ebv_sf:  # source frame
+            f *= self.ext_model.extinguish((1 + self.z) * wn, Ebv=self.ebv_sf)
+
+        return f
+
+    def smooth_jet_break(self, f, t, **kwargs):
+        """
+        Smooths the flux across a jet break.
+
+        Parameters
+        ----------
+        f : np.ndarray or float
+            The flux to smooth.
+
+        t : np.ndarray or float
+            The time of the flux measurements.
+
+        kwargs :
+            Do not pass both `nu` and `lower`/`upper`. OR ELSE.
+
+            nu : np.ndarray or float
+                The frequency to evaluate the jet break flux.
+                Required if passing spectral fluxes.
+
+            lower : np.ndarray or float
+                The lower frequency to evaluate the jet break flux.
+                Required if passing integrated fluxes.
+
+            upper : np.ndarray or float
+                The upper frequency to evaluate the jet break flux.
+                Required if passing integrated fluxes.
+
+        Returns
+        -------
+        np.ndarray or float
+            The jet-break smoothed flux.
+
+        Raises
+        ------
+        ValueError
+            If `nu` and `lower` and `upper` are not provided.
+        """
+        f_peak_jet = self.f_peak(self.tj)
+        nu_m_jet = self.nu_m(self.tj)
+        nu_c_jet = self.nu_c(self.tj)
+
+        if 'nu' in kwargs:
+            model = SpectralFluxModel
+        elif 'lower' in kwargs and 'upper' in kwargs:
+            model = IntegratedFluxModel
+        else:
+            raise ValueError(
+                'Must provide either `nu` or `lower` and `upper`'
+            )
+
+        jet_model = model(nu_m_jet, nu_c_jet, f_peak_jet, self.p, self.k)
+        jet_flux = jet_model(**kwargs)
+
+        return (
+            f ** (-self.sj) + (jet_flux * (t / self.tj) ** -self.p) ** -self.sj
+        ) ** -(1 / self.sj)
 
     def f_peak(self, t: u.Quantity | float, evo: str = 'adiabatic'):
         """
@@ -375,16 +425,6 @@ class FireballModel:
         """
         return SynchrotronFrequencyModel(
             self.E, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p)(t)
-
-
-class ISMModel(FireballModel):
-    """"""
-    pass
-
-
-class WindModel(FireballModel):
-    """"""
-    pass
 
 
 if __name__ == '__main__':

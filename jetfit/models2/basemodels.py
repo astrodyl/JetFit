@@ -5,7 +5,7 @@ import numpy as np
 
 from jetfit.core.defns.enums import DataType
 from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
-from jetfit.core.core import ipl, pl, two_point_approx
+from jetfit.core.core import ipl, pl
 
 
 class FluxSegment:
@@ -139,6 +139,10 @@ class BaseFluxModel:
         The circumburst density power-law index.
     """
     def __init__(self, nu_m, nu_c, f_peak, p, k):
+        if isinstance(nu_m, np.ndarray) or isinstance(nu_c, np.ndarray):
+            if nu_m.size != nu_c.size:
+                raise ValueError('nu_m, nu_c must have the same size.')
+
         self.f_peak = f_peak
         self.nu_m = nu_m
         self.nu_c = nu_c
@@ -159,41 +163,16 @@ class BaseFluxModel:
         self._f_peak = val
 
     @property
-    def regime(self) -> str:
-        """ Returns the regime of the power-law spectrum. """
-        return 'fast' if self.nu_m > self.nu_c else 'slow'
+    def fast_regime(self) -> np.ndarray:
+        """ """
+        nu_m = np.atleast_1d(self.nu_m)
+        nu_c = np.atleast_1d(self.nu_c)
+        return nu_m > nu_c
 
     @property
-    def seg_b(self):
-        """ Returns the object for fast cooling segment B. """
-        return FluxSegment(1 / 3, self.f_peak, self.nu_c, name='B')
-
-    @property
-    def seg_c(self):
-        """ Returns the object for fast cooling segment C. """
-        return FluxSegment(-0.5, self.f_peak, self.nu_c, name='C')
-
-    @property
-    def seg_d(self) -> FluxSegment:
-        """ Returns the object for fast cooling segment D. """
-        amp = self.f_peak * (self.nu_m / self.nu_c) ** -0.5
-        return FluxSegment(-0.5 * self.p, amp, self.nu_m, name='D')
-
-    @property
-    def seg_f(self) -> FluxSegment:
-        """ Returns the object for slow cooling segment G. """
-        return FluxSegment(1 / 3, self.f_peak, self.nu_m, name='F')
-
-    @property
-    def seg_g(self) -> FluxSegment:
-        """ Returns the object for slow cooling segment G. """
-        return FluxSegment(-0.5 * (self.p - 1), self.f_peak, self.nu_m, name='G')
-
-    @property
-    def seg_h(self) -> FluxSegment:
-        """ Returns the object for slow cooling segment H. """
-        amp = self.f_peak * (self.nu_c / self.nu_m) ** -(0.5 * (self.p - 1))
-        return FluxSegment(-0.5 * self.p, amp, self.nu_c, name='H')
+    def slow_regime(self) -> np.ndarray:
+        """ """
+        return ~self.fast_regime
 
 
 class SpectralFluxModel(BaseFluxModel):
@@ -208,86 +187,11 @@ class SpectralFluxModel(BaseFluxModel):
 
     def __call__(self, nu):
         """ Calls the `evaluate_smooth` method. """
-        return self.evaluate_smooth(nu)
-
-    def segment(self, f) -> FluxSegment:
-        """
-        Determines the segment containing the frequency
-        provided `f` in `regime`.
-
-        Parameters
-        ----------
-        f : u.Quantity['frequency']
-            The frequency to evaluate.
-
-        Returns
-        -------
-        FluxSegment
-            The segment containing the frequency `f`.
-        """
-        r = self.regime
-        f1, f2 = self.nu_m, self.nu_c
-
-        if r == 'fast':
-            f1, f2 = f2, f1
-
-        if f <= f1:  # f is below the critical frequencies
-            return self.seg_b if r == 'fast' else self.seg_f
-
-        if f < f2:  # f is between the critical frequencies
-            return self.seg_c if r == 'fast' else self.seg_g
-
-        # f is above the largest critical frequency
-        return self.seg_d if r == 'fast' else self.seg_h
-
-    def model_smooth(self, val: SpectralFlux):
-        """"""
-        return self.evaluate_smooth(val.frequency.value)
-
-    def evaluate_smooth(self, nu) -> float:
-        """
-        Calculates the smoothed flux at a given frequency, `nu`.
-
-        Parameters
-        ----------
-        nu : float or np.ndarray of float
-            The frequency to evaluate.
-
-        Returns
-        -------
-        float or np.ndarray of float
-            The modeled flux with units of `f_peak`.
-        """
-        # Critical frequencies
-        nu12, nu23 = self.nu_m, self.nu_c
-
-        # Segment spectral indices
-        b1, b2, b3 = 1 / 3, (1 - self.p) / 2, -self.p / 2
-
-        # Smoothing factors
-        s12 = 1.84 - (0.040 * self.k) - (0.40 - 0.010 * self.k) * self.p
-        s23 = 1.15 - (0.125 * self.k) - (0.06 - 0.015 * self.k) * self.p
-
-        if self.regime == 'fast':
-            nu12, nu23 = self.nu_c, self.nu_m
-            b2  = -0.50
-            s12 = 0.597
-            s23 = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
-
-        # return flux density smoothed across segments
-        return self.f_peak * (
-            (((nu / nu12) ** -(s12 * (b1 - b2)) + 1) ** (s23 / s12)) *
-            ((nu / nu12) ** -(s23 * b2)) +
-            (((nu23 / nu12) ** -(s23 * b2)) * ((nu/nu23) ** -(s23 * b3)))
-        ) ** -(1 / s23)
-
-    def evaluate_smooth_jet(self):
-        """"""
-        pass
+        return self.evaluate(nu)
 
     def model(self, val: SpectralFlux):
         """
-        Models the flux at `val`'s frequency `f`.
+        Models a `SpectralFlux` value using its frequency.
 
         Parameters
         ----------
@@ -296,27 +200,76 @@ class SpectralFluxModel(BaseFluxModel):
 
         Returns
         -------
-        u.Quantity['spectral flux density']
-            The modeled flux at frequency `f`.
+        float
+            The modeled spectral flux value.
         """
         return self.evaluate(val.frequency.value)
 
-    def evaluate(self, f):
+    def evaluate(self, nu):
         """
-        Evaluates the flux at the frequency `f`.
+        Calculates the smoothed flux at a given frequency, `nu`.
+
+        Supports four cases:
+            (1) One `nu` and many spectral functions:
+                Returns an array of flux with length of the
+                spectral functions (i.e., nu_m.size).
+
+            (2) Many `nu` and one spectral function:
+                Returns an array of flux with length of `nu`.
+
+            (3) Many `nu` and many spectral functions:
+                All arrays must be of the same size and the
+                returned array will have the same size.
+
+            (4) One `nu` and one spectral function:
+                Returns a single flux value.
 
         Parameters
         ----------
-        f : u.Quantity['frequency'] or array_like
+        nu : float or np.ndarray
             The frequency to evaluate.
 
         Returns
         -------
-        u.Quantity['spectral flux density']
-            The modeled flux at frequency `f`.
+        float or np.ndarray of float
+            The modeled flux with units of `f_peak`.
         """
-        return self.segment(f).spectral_flux(f)
-    # </editor-fold>
+        nu = np.atleast_1d(nu)
+        nu_m = np.atleast_1d(self.nu_m)
+        nu_c = np.atleast_1d(self.nu_c)
+
+        # Handles the cases for varying sizes of inputs
+        size = nu_m.size if nu.size == 1 else nu_m.size
+
+        # Initialize spectral indices with slow-cooling params
+        b1 = np.full(size, 1 / 3)
+        b2 = np.full(size, (1 - self.p) / 2)
+        b3 = np.full(size, -self.p / 2)
+
+        # Initialize smoothing factors with slow-cooling params
+        s12 = np.full(size, 1.84 - (0.040 * self.k) - (0.40 - 0.010 * self.k) * self.p)
+        s23 = np.full(size, 1.15 - (0.125 * self.k) - (0.06 - 0.015 * self.k) * self.p)
+
+        # Initialize critical frequencies in slow-cooling order
+        nu12 = np.array(nu_m, copy=True)
+        nu23 = np.array(nu_c, copy=True)
+
+        # Overwrite with any fast-cooling parameters
+        fast_regime = self.fast_regime
+
+        if fast_regime.any():
+            b2[fast_regime] = -0.5
+            s12[fast_regime] = 0.597
+            nu12[fast_regime] = nu_c[fast_regime]
+            nu23[fast_regime] = nu_m[fast_regime]
+            s23[fast_regime] = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
+
+        # return spectral flux smoothed across segments [mJy]
+        return self.f_peak * (
+            (((nu / nu12) ** -(s12 * (b1 - b2)) + 1) ** (s23 / s12)) *
+            ((nu / nu12) ** -(s23 * b2)) +
+            (((nu23 / nu12) ** -(s23 * b2)) * ((nu/nu23) ** -(s23 * b3)))
+        ) ** -(1 / s23)
 
 
 class IntegratedFluxModel(BaseFluxModel):
@@ -331,16 +284,29 @@ class IntegratedFluxModel(BaseFluxModel):
 
     def __call__(self, lower, upper):
         """ Calls the `evaluate` method. """
-        return self.evaluate_smooth(lower, upper)
+        return self.evaluate(lower, upper)
 
-    def model_smooth(self, val: IntegratedFlux):
-        """"""
-        return self.evaluate_smooth(
+    def model(self, val: IntegratedFlux):
+        """
+        Models an `IntegratedFlux` value using its integration
+        range.
+
+        Parameters
+        ----------
+        val : IntegratedFlux
+            The Integrated flux value to model.
+
+        Returns
+        -------
+        float
+            The modeled integrated flux value.
+        """
+        return self.evaluate(
             lower=val.int_range.lower.value,
             upper=val.int_range.upper.value
         )
 
-    def evaluate_smooth(self, lower: float, upper: float):
+    def evaluate(self, lower: float, upper: float):
         """
         Evaluates the integrated flux model using the
         `lower` and `upper` integration limits.
@@ -364,132 +330,13 @@ class IntegratedFluxModel(BaseFluxModel):
 
         flux = SpectralFluxModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k
-        ).evaluate_smooth(lower)
+        ).evaluate(lower)
 
+        # return smoothed integrated flux [erg cm-2 s-1]
         return 1e-26 * (
             (flux * lower / (beta + 1)) *
             (((upper / lower) ** (beta + 1)) - 1)
         )
-
-    def model(self, val: IntegratedFlux):
-        """
-        Models the flux `val` using its integration range.
-
-        Parameters
-        ----------
-        val : IntegratedFlux
-            The Integrate Flux value.
-
-        Returns
-        -------
-        ??
-            The modeled flux for `val`'s integration range.
-        """
-        return self.evaluate(val.int_range.lower.value, val.int_range.upper.value)
-
-    def evaluate(self, lower, upper):
-        """
-        Calculates the flux for the frequency range `lower`, `upper`.
-
-        Parameters
-        ----------
-        lower : u.Quantity['frequency']
-            The lower frequency.
-
-        upper : u.Quantity['frequency']
-            The upper frequency.
-
-        Returns
-        -------
-        u.Quantity['energy flux']
-            The modeled flux for the frequency range `lower`, `upper`.
-        """
-        seg_name = self.segment(lower, upper)
-
-        # Evaluate ranges that span a single segment
-        if seg_name in ('B', 'C', 'D', 'F', 'G', 'H'):
-            seg = getattr(self, f"seg_{seg_name.lower()}")
-            return seg.integrated_flux(lower, upper)
-
-        # Evaluate ranges that span two segments
-        if seg_name == 'BC' or seg_name == 'GH':
-            seg1 = getattr(self, f"seg_{seg_name[0].lower()}")
-            seg2 = getattr(self, f"seg_{seg_name[1].lower()}")
-
-            return (
-                seg1.integrated_flux(lower, self.nu_c) +
-                seg2.integrated_flux(self.nu_c, upper)
-            )
-
-        if seg_name == 'CD' or seg_name == 'FG':
-            seg1 = getattr(self, f"seg_{seg_name[0].lower()}")
-            seg2 = getattr(self, f"seg_{seg_name[1].lower()}")
-
-            return (
-                seg1.integrated_flux(lower, self.nu_m) +
-                seg2.integrated_flux(self.nu_m, upper)
-            )
-
-        # Evaluate ranges that span the entire regime
-        if seg_name == 'BCD':
-            seg_b = self.seg_b.integrated_flux(lower, self.nu_c)
-            seg_c = self.seg_c.integrated_flux(self.nu_c, self.nu_m)
-            seg_d = self.seg_d.integrated_flux(self.nu_m, upper)
-            return seg_b + seg_c + seg_d
-
-        if seg_name == 'FGH':
-            seg_f = self.seg_f.integrated_flux(lower, self.nu_m)
-            seg_g = self.seg_g.integrated_flux(self.nu_m, self.nu_c)
-            seg_h = self.seg_h.integrated_flux(self.nu_c, upper)
-            return seg_f + seg_g + seg_h
-
-    def segment(self, lower, upper) -> str:
-        """
-        Determines the segment(s) that the lower, upper range
-        spans.
-
-        Parameters
-        ----------
-        lower : u.Quantity['frequency']
-            The lower frequency.
-
-        upper : u.Quantity['frequency']
-            The upper frequency.
-
-        Returns
-        -------
-        str
-            The segment name(s) that contain `lower` and `upper`.
-        """
-        if self.regime == 'fast':
-            f1, f2 = self.nu_c, self.nu_m
-            c1, c2, c3 = 'B', 'C', 'D'
-
-        else:
-            f1, f2 = self.nu_m, self.nu_c
-            c1, c2, c3 = 'F', 'G', 'H'
-
-        # Entire range is below nu_c(nu_m) for fast(slow).
-        if upper <= f1:
-            return c1
-
-        # Upper is between nu_c(nu_m) and nu_m(nu_c) for fast(slow).
-        # Check where the lower frequency lies.
-        if upper <= f2:
-            if lower < f1:
-                return c1 + c2
-            return c2
-
-        # Upper is above nu_m(nu_c) for fast(slow).
-        # Check where the lower frequency lies.
-        if lower < f1:
-            return c1 + c2 + c3
-
-        if lower < f2:
-            return c2 + c3
-
-        # Entire range is above nu_m(nu_c) for fast(slow).
-        return c3
 
 
 class SpectralIndexModel(BaseFluxModel):
@@ -504,7 +351,20 @@ class SpectralIndexModel(BaseFluxModel):
         return self.evaluate(lower, upper)
 
     def model(self, val: SpectralIndex):
-        """"""
+        """
+        Models a `SpectralIndex` value using its integration
+        limits.
+
+        Parameters
+        ----------
+        val : SpectralIndex
+            The spectral index value to model.
+
+        Returns
+        -------
+        float
+            The modeled spectral index value.
+        """
         return self.evaluate(
             lower=val.int_range.lower.value,
             upper=val.int_range.upper.value,
@@ -517,20 +377,21 @@ class SpectralIndexModel(BaseFluxModel):
 
         Parameters
         ----------
-        lower : ??
+        lower : float or np.ndarray of float
             The lower integration limit.
 
-        upper : ??
+        upper : float or np.ndarray of float
             The upper integration limit.
 
         Returns
         -------
-        float
+        float or np.ndarray of float
             The modeled spectral index.
         """
         model = SpectralFluxModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k)
 
+        # return spectral index [dimension less]
         return (
             np.log(model(upper) / model(lower)) /
             np.log(upper / lower)

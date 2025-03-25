@@ -101,7 +101,7 @@ class PosteriorPlot:
         :return: LaTeX formatted str or None
         """
         if '_offset' in key:
-            return rf'$\delta_{key.split('_')[0]}$'
+            return r'$\delta_{' + f'{key.split('_')[0]}' r'}$'
 
         try:
             return {

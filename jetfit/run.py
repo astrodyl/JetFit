@@ -3,7 +3,6 @@ import json
 import os.path
 from pathlib import Path
 
-import emcee
 from matplotlib import pyplot as plt
 
 from jetfit.core.input import Observation
@@ -14,7 +13,7 @@ from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSi
 from jetfit.models.afterglow.boosted_fireball.parameters.reader import BFParamsReader
 from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel
-from jetfit.plot.light_curve import LightCurve
+from jetfit.plot.light_curve import LightCurvePlot
 from jetfit.plot.posterior import PosteriorPlot
 
 
@@ -74,14 +73,14 @@ def main(
 
     # Plot the light curves
     best_params = mcmc.get_best_params()
-    lc = LightCurve(
-        obs=mcmc.observation,
+
+    lc = LightCurvePlot(
         model=mcmc.model,
-        model_params=best_params.get('model'),
-        # cal_offset=best_params.get('offsets'),
-        host_corr=best_params.get('host'),
+        params=best_params.get('model'),
+        observation=mcmc.observation,
+        title=f'{event} Light Curve'
     )
-    lc.plot(out_dir=results_dir)
+    lc.plot(out_dir=results_dir, host_corr=best_params.get('host'))
 
     # Plot the corner plot
     corner = PosteriorPlot(mcmc.sampler, mcmc.fitting_params, mcmc.param_pos)
@@ -138,13 +137,13 @@ if __name__ == "__main__":
             # '090424',
             # '090618',
             # '111228A',
-            '130612A',
+            # '130612A',
             # '131030A',
             # '160131A',
             # '171010A',
             # '220101A',
             # '210905A',
-            # '221009A',
+            '221009A',
             # '231118A',
         ]
     else:

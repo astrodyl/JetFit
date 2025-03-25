@@ -158,10 +158,9 @@ def main(event, obs, best_params, time):
     )
 
     # Evaluate the spectrum at all frequencies
-    modeled_spectral_flux, modeled_spectral_segments = [], []
+    modeled_spectral_flux = []
     for f in frequencies:
-        modeled_spectral_segments.append(spectral_model.segment(f).name)
-        modeled_spectral_flux.append(spectral_model.evaluate_smooth(f))
+        modeled_spectral_flux.append(spectral_model.evaluate(f))
     modeled_spectral_flux = np.array(modeled_spectral_flux)
 
     # Plot flux vs. frequency
@@ -183,14 +182,6 @@ def main(event, obs, best_params, time):
         nu_cs=model.nu_c(modeled_times),
         times=modeled_times
     )
-
-    segments = np.full(len(modeled_times), '', dtype=str)
-
-    # Get all the modeled segment names
-    for i, t in enumerate(modeled_times):
-        segments[i] = SpectralFluxModel(
-            model.nu_m(t), model.nu_c(t), model.f_peak(t), model.p, model.k
-        ).segment(obs_frequencies[0].value).name
 
     # Plot the Light Curve
     lc = LightCurve(
