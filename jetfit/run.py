@@ -3,6 +3,7 @@ import json
 import os.path
 from pathlib import Path
 
+from dust_extinction.parameter_averages import CCM89
 from matplotlib import pyplot as plt
 
 from jetfit.core.input import Observation
@@ -15,6 +16,7 @@ from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel
 from jetfit.plot.light_curve import LightCurvePlot
 from jetfit.plot.posterior import PosteriorPlot
+from jetfit.plot.spectral import CriticalFrequenciesPlot
 
 
 def main(
@@ -43,7 +45,7 @@ def main(
     results_dir : Path
         The directory where the results will be saved.
     """
-    # -------- PLOTTING ----------
+    # -------- DIRECTORIES ----------
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
@@ -62,13 +64,13 @@ def main(
         observation=observation,
         fixed_params=model_params.fixed,
         fitting_params=model_params.fitting,
-        filename=str(results_dir / 'chain.h5'),
+        ext_model=CCM89(Rv=3.1)
+        # filename=str(results_dir / f'{event}_chain.h5'),
         # meta={
         #     'hydro_sim_table':
         #           HydroSimTable(nav_utils.get_hydro_sim_table_path())
         #       }
     )
-
     mcmc.run()
 
     # Plot the light curves
@@ -80,7 +82,20 @@ def main(
         observation=mcmc.observation,
         title=f'{event} Light Curve'
     )
-    lc.plot(out_dir=results_dir, host_corr=best_params.get('host'))
+    lc.plot(
+        out_dir=results_dir,
+        host_corr=best_params.get('host'),
+        ext_model=mcmc.ext_model,
+        **best_params.get('ebv')
+    )
+
+    # Plot the critical frequencies
+    cf = CriticalFrequenciesPlot(
+        mcmc.model(**best_params.get('model')),
+        observation.as_arrays.times[observation.flux_loc].min(),
+        observation.as_arrays.times[observation.flux_loc].max()
+    )
+    cf.plot(out_dir=results_dir, title=f'{event} Critical Frequencies')
 
     # Plot the corner plot
     corner = PosteriorPlot(mcmc.sampler, mcmc.fitting_params, mcmc.param_pos)
@@ -137,13 +152,16 @@ if __name__ == "__main__":
             # '090424',
             # '090618',
             # '111228A',
+            # '111228A_early',
+            # '111228A_late',
+            # '140506A',
             # '130612A',
             # '131030A',
             # '160131A',
             # '171010A',
             # '220101A',
             # '210905A',
-            '221009A',
+            # '221009A',
             # '231118A',
         ]
     else:

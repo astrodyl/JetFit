@@ -85,6 +85,14 @@
 # -----------------------------
 # ---- CALIBRATION OFFSETS ----
 #------------------------------
+[Ic_offset]
+    scale = "linear"
+
+    [Ic_offset.prior]
+        type  = "uniform"
+        lower = -1.0
+        upper = 1.0
+
 [J_offset]
     scale = "linear"
 
@@ -108,6 +116,22 @@
         type  = "gaussian"
         mu = 0.0
         sigma = 0.04
+
+[i_offset]
+    scale = "linear"
+
+    [i_offset.prior]
+        type  = "uniform"
+        lower = -1.0
+        upper = 1.0
+
+[z_offset]
+    scale = "linear"
+
+    [z_offset.prior]
+        type  = "uniform"
+        lower = -1.0
+        upper = 1.0
 
 [slop]
     scale = "linear"

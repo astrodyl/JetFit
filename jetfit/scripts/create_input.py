@@ -3,7 +3,6 @@ import csv
 import astropy.units as u
 from synphot import SpectralElement
 
-from jetfit.core.defns.band import Band
 from jetfit.core.utils.csv_utils import CSVReader
 
 
@@ -40,22 +39,55 @@ EFF_WL = {
     'J': SpectralElement.from_filter('bessel_j').pivot(),
     'H': SpectralElement.from_filter('bessel_h').pivot(),
     'K': SpectralElement.from_filter('bessel_k').pivot(),
-    'Ks': SpectralElement.from_filter('bessel_k').pivot(),
     'Rc': SpectralElement.from_filter('cousins_r').pivot(),
     'Ic': SpectralElement.from_filter('cousins_i').pivot(),
 
+    # SDSS
+    'u' : u.Quantity(3540.0, unit='AA'),
+    'g' : u.Quantity(4770.0, unit='AA'),
+    'r' : u.Quantity(6231.0, unit='AA'),
+    'i' : u.Quantity(7625.0, unit='AA'),
+    'z' : u.Quantity(9134.0, unit='AA'),
+
     # Swift-UVOT wavelengths
-    'uvot-uvw2': u.Quantity(1928.0, unit='AA'),
-    'uvot-uvm2': u.Quantity(2246.0, unit='AA'),
-    'uvot-uvw1': u.Quantity(2600.0, unit='AA'),
+    'uvw2': u.Quantity(1928.0, unit='AA'),
+    'uvm2': u.Quantity(2246.0, unit='AA'),
+    'uvw1': u.Quantity(2600.0, unit='AA'),
     'uvot-u': u.Quantity(3465.0, unit='AA'),
     'uvot-b': u.Quantity(4392.0, unit='AA'),
     'uvot-v': u.Quantity(5468.0, unit='AA'),
 }
 
+# aliases
+EFF_WL['Ks'] = EFF_WL['K']
+EFF_WL['uprime'] = EFF_WL['u']
+EFF_WL['gprime'] = EFF_WL['g']
+EFF_WL['rprime'] = EFF_WL['r']
+EFF_WL['iprime'] = EFF_WL['i']
+EFF_WL['zprime'] = EFF_WL['z']
+EFF_WL['uvot-uvw2'] = EFF_WL['uvw2']
+EFF_WL['uvot-uvm2'] = EFF_WL['uvm2']
+EFF_WL['uvot-uvw1'] = EFF_WL['uvw1']
 
-def main(input_path: str, output_path: str,  xrt_path: str = None) -> None:
-    """"""
+
+def main(input_path: str, output_path: str,  xrt_path: str = None, before = None) -> None:
+    """
+    Creates a CSV for use with the AMPy.
+
+    Parameters
+    ----------
+    input_path : str
+        Path to the input CSV file.
+
+    output_path : str
+        Path to save the output CSV file.
+
+    xrt_path : str, optional
+        Path to the XRT input CSV.
+
+    before : u.Quantity['time'], optional
+        Exclude data after `before` time.
+    """
     input_csv = CSVReader(input_path, live_dangerously=True)
     xrt_csv = CSVReader(xrt_path, live_dangerously=True) if xrt_path else None
 
@@ -63,12 +95,15 @@ def main(input_path: str, output_path: str,  xrt_path: str = None) -> None:
         writer = csv.writer(csvfile)
         write_headers(writer)
 
-        # Convert the optical/NIR CSV
+        # Convert the optical/NIR/UV CSV
         for row in input_csv.rows():
             dfilter = row.Filter.strip()
 
             # read the time
             time = u.Quantity(row.Time, unit=row.TimeUnits)
+
+            if before is not None and time > before:
+                continue
 
             # convert mag to flux
             flux, flux_err = mag_to_flux(row.Mag, row.MagError, dfilter, row.MagSys)
@@ -85,8 +120,8 @@ def main(input_path: str, output_path: str,  xrt_path: str = None) -> None:
                     # [Value, ValueLower, ValueUpper, ValueUnit, ValueType]
                     flux.value, flux_err.value, flux_err.value, flux.unit, 'Spectral Flux',
 
-                    # [Wave, WaveLower, WaveUpper, WaveUnit, Filter]
-                    frequency.value, None, None, frequency.unit, dfilter
+                    # [Wave, WaveLower, WaveUpper, WaveUnit, Filter, CalOffset]
+                    frequency.value, None, None, frequency.unit, dfilter, dfilter + '_offset'
                  ]
             )
 
@@ -114,7 +149,7 @@ def write_headers(writer) -> None:
         (
             'Time', 'TimeLower', 'TimeUpper', 'TimeUnits', 'Value',
             'ValueLower', 'ValueUpper', 'ValueUnits', 'ValueType',
-            'Wave', 'WaveLower', 'WaveUpper', 'WaveUnits', 'Filter'
+            'Wave', 'WaveLower', 'WaveUpper', 'WaveUnits', 'Filter', 'CalOffset'
         )
     )
 
@@ -133,12 +168,8 @@ def filter_to_frequency(dfilter: str) -> u.Quantity:
     float
         The effective frequency of the filer.
     """
-    try:
-        f = EFF_WL[dfilter].to('Hz', equivalencies=u.spectral())
-    except KeyError:
-        f = u.Quantity(Band.from_name(dfilter).center, unit='Hz')
+    return EFF_WL[dfilter].to('Hz', equivalencies=u.spectral())
 
-    return f
 
 def mag_to_flux(mag, mag_error, dfilter, system):
     """
@@ -179,43 +210,7 @@ def mag_to_flux(mag, mag_error, dfilter, system):
 
 if __name__ == '__main__':
 
-    event = '210905A'
-
-    # mags = [
-    #     15.34,
-    #     15.29,
-    #     15.80,
-    #     15.97,
-    #     15.92,
-    #     15.94,
-    #     15.99,
-    #     18.55,
-    #     19.48,
-    #     20.17,
-    #     20.38,
-    #     20.78,
-    #     20.63,
-    # ]
-    #
-    # mag_errs = [
-    #     0.10,
-    #     0.09,
-    #     0.12,
-    #     0.13,
-    #     0.12,
-    #     0.12,
-    #     0.13,
-    #     0.05,
-    #     0.08,
-    #     0.17,
-    #     0.15,
-    #     0.20,
-    #     0.27,
-    # ]
-    #
-    # for i, mag in enumerate(mags):
-    #     flux11, flux_err11 = mag_to_flux(mag, mag_errs[i], 'uvot-v', 'uvot')
-    #     print(round(flux11.value, 6), '\t', flux_err11.value)
+    event = '140506A'
 
     args = {
         'input_path':
@@ -226,6 +221,9 @@ if __name__ == '__main__':
 
         'output_path':
             rf"C:\Users\Dylan\Documents\GRB_DATA\{event}\{event}_out.csv",
+
+        'before':
+            u.Quantity(10.0, unit='d')
     }
 
     main(**args)

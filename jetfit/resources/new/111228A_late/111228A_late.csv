@@ -1,0 +1,123 @@
+Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueType,Wave,WaveLower,WaveUpper,WaveUnits,Filter,CalGroup
+21251.16,,,s,0.094102248,0.008121742,0.008121742,mJy,Spectral Flux,4.35E+14,,,Hz,R,R_offset
+20139.12003,,,s,0.09103324,0.008543488,0.008543488,mJy,Spectral Flux,5.47E+14,,,Hz,V,V_offset
+20779.91997,,,s,0.056545754,0.011046948,0.011046948,mJy,Spectral Flux,5.47E+14,,,Hz,V,V_offset
+21422.16003,,,s,0.07848741,0.008406457,0.008406457,mJy,Spectral Flux,5.47E+14,,,Hz,V,V_offset
+89351.27997,,,s,0.01650441,0.000887324,0.000887324,mJy,Spectral Flux,6.86E+14,,,Hz,B,B_offset
+91463.04,,,s,0.014804713,0.000847459,0.000847459,mJy,Spectral Flux,6.86E+14,,,Hz,B,B_offset
+93696.84003,,,s,0.014641986,0.000812693,0.000812693,mJy,Spectral Flux,6.86E+14,,,Hz,B,B_offset
+182547.36,,,s,0.006103796,0.000537068,0.000537068,mJy,Spectral Flux,6.86E+14,,,Hz,B,B_offset
+88692.47997,,,s,0.020511622,0.001102763,0.001102763,mJy,Spectral Flux,5.47E+14,,,Hz,V,V_offset
+90821.15997,,,s,0.017782794,0.001002483,0.001002483,mJy,Spectral Flux,5.47E+14,,,Hz,V,V_offset
+92996.27997,,,s,0.018450154,0.001008005,0.001008005,mJy,Spectral Flux,5.47E+14,,,Hz,V,V_offset
+181901.88,,,s,0.008053784,0.000735656,0.000735656,mJy,Spectral Flux,5.47E+14,,,Hz,V,V_offset
+88074,,,s,0.020118704,0.001081639,0.001081639,mJy,Spectral Flux,4.35E+14,,,Hz,R,R_offset
+90483.11997,,,s,0.021028098,0.00113053,0.00113053,mJy,Spectral Flux,4.35E+14,,,Hz,R,R_offset
+92647.8,,,s,0.018331584,0.000985558,0.000985558,mJy,Spectral Flux,4.35E+14,,,Hz,R,R_offset
+182139.12,,,s,0.010864256,0.000955937,0.000955937,mJy,Spectral Flux,4.35E+14,,,Hz,R,R_offset
+70253.63997,,,s,0.057279603,0.001561028,0.001561028,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+70804.8,,,s,0.053210826,0.001354708,0.001354708,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+71077.67997,,,s,0.054852951,0.001248606,0.001248606,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+71357.76,,,s,0.054250032,0.001381166,0.001381166,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+71921.15997,,,s,0.053259857,0.001308129,0.001308129,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+72194.04003,,,s,0.052384162,0.001286621,0.001286621,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+72743.76003,,,s,0.052384162,0.00138066,0.00138066,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+73020.24003,,,s,0.053456436,0.001408921,0.001408921,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+73299.23997,,,s,0.054000776,0.00127779,0.00127779,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+73847.87997,,,s,0.050862769,0.001157778,0.001157778,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+74126.88,,,s,0.050072584,0.001139791,0.001139791,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+74672.99997,,,s,0.046816614,0.001233919,0.001233919,mJy,Spectral Flux,2.43E+14,,,Hz,J,J_offset
+74883.59997,,,s,0.086059734,0.002268227,0.002268227,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+75089.52003,,,s,0.085270734,0.002017713,0.002017713,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+75288.96,,,s,0.083176377,0.002042917,0.002042917,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+75494.52003,,,s,0.086139035,0.002193036,0.002193036,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+75694.32003,,,s,0.082035154,0.001941151,0.001941151,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+75889.44,,,s,0.082035154,0.001867348,0.001867348,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+76096.08003,,,s,0.082641844,0.00180674,0.00180674,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+76296.23997,,,s,0.081507956,0.001928677,0.001928677,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+76496.03997,,,s,0.08090959,0.001841727,0.001841727,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+76696.56003,,,s,0.079579279,0.001739786,0.001739786,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+76901.03997,,,s,0.08480081,0.00185394,0.00185394,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+77100.83997,,,s,0.079799469,0.00188825,0.00188825,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+77302.79997,,,s,0.082413812,0.002024187,0.002024187,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+77509.44,,,s,0.081583062,0.001857057,0.001857057,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+78114.95997,,,s,0.078995072,0.001727014,0.001727014,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+78314.75997,,,s,0.081658237,0.001785237,0.001785237,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+78519.60003,,,s,0.081058768,0.001699071,0.001699071,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+78718.32003,,,s,0.077410523,0.001762079,0.001762079,mJy,Spectral Flux,1.36E+14,,,Hz,K,K_offset
+23232.688,,,s,1.52E-11,5.96E-12,5.96E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+24227.034,,,s,6.86E-12,1.25E-12,1.25E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+28703.464,,,s,3.94E-12,9.82E-13,9.82E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+29450.275,,,s,3.25E-12,7.22E-13,7.22E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+41337.425,,,s,4.81E-12,9.36E-13,9.36E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+45094.597,,,s,6.96E-12,1.60E-12,1.60E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+45494.611,,,s,5.34E-12,1.02E-12,1.02E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+46899.326,,,s,5.46E-12,1.22E-12,1.22E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+47213.928,,,s,3.07E-12,7.12E-13,7.12E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+50784.16,,,s,3.02E-12,7.86E-13,7.86E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+51024.627,,,s,5.99E-12,1.31E-12,1.31E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+51184.98,,,s,6.22E-12,1.37E-12,1.37E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+51405.484,,,s,3.81E-12,9.89E-13,9.89E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+51597.218,,,s,4.38E-12,1.01E-12,1.01E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+56622.599,,,s,4.70E-12,1.15E-12,1.15E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+56919.301,,,s,3.21E-12,8.40E-13,8.40E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+57222.24,,,s,4.28E-12,1.12E-12,1.12E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+57470.098,,,s,4.18E-12,9.67E-13,9.67E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+62304.401,,,s,6.05E-12,1.36E-12,1.36E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+62503.1,,,s,5.65E-12,1.27E-12,1.27E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+62715.479,,,s,4.68E-12,1.22E-12,1.22E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+62915.565,,,s,4.15E-12,1.08E-12,1.08E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+63134.172,,,s,3.46E-12,9.07E-13,9.07E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+63492.434,,,s,3.36E-12,7.23E-13,7.23E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+68090.323,,,s,3.82E-12,9.93E-13,9.93E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+68375.462,,,s,3.14E-12,8.22E-13,8.22E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+68655.417,,,s,2.84E-12,7.19E-13,7.19E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+68943.66,,,s,4.00E-12,1.05E-12,1.05E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+69133.712,,,s,4.54E-12,1.18E-12,1.18E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+69343.4,,,s,5.93E-12,1.34E-12,1.34E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+69582.608,,,s,4.22E-12,9.34E-13,9.34E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+73970.206,,,s,4.40E-12,1.10E-12,1.10E-12,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+74321.881,,,s,3.04E-12,7.90E-13,7.90E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+74668.53,,,s,2.84E-12,7.42E-13,7.42E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+75021.426,,,s,3.07E-12,7.95E-13,7.95E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+75414.091,,,s,3.05E-12,7.92E-13,7.92E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+75726.676,,,s,2.98E-12,7.76E-13,7.76E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+79867.15,,,s,2.17E-12,5.68E-13,5.68E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+80420.374,,,s,2.06E-12,5.38E-13,5.38E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+80792.56,,,s,3.40E-12,8.81E-13,8.81E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+81236.789,,,s,2.29E-12,4.82E-13,4.82E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+97163.125,,,s,2.34E-12,6.09E-13,6.09E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+97648.674,,,s,1.94E-12,5.06E-13,5.06E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+98030.98,,,s,2.52E-12,6.54E-13,6.54E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+98512.514,,,s,1.69E-12,4.42E-13,4.42E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+99067.152,,,s,1.84E-12,4.06E-13,4.06E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+102886.549,,,s,2.88E-12,7.45E-13,7.45E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+103273.482,,,s,2.08E-12,5.41E-13,5.41E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+103725.305,,,s,1.95E-12,5.09E-13,5.09E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+104233.654,,,s,1.98E-12,4.99E-13,4.99E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+104821.321,,,s,2.10E-12,4.11E-13,4.11E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+108810.073,,,s,1.71E-12,4.58E-13,4.58E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+109462.996,,,s,1.63E-12,4.28E-13,4.28E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+110036.775,,,s,1.74E-12,3.75E-13,3.75E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+155648.622,,,s,9.26E-13,2.04E-13,2.04E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+160780.542,,,s,1.14E-12,2.99E-13,2.99E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+161974.066,,,s,1.20E-12,2.40E-13,2.40E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+209543.81,,,s,6.06E-13,1.53E-13,1.53E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+259455.411,,,s,9.53E-13,1.90E-13,1.90E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+265411.077,,,s,6.30E-13,1.62E-13,1.62E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+271133.347,,,s,5.71E-13,1.46E-13,1.46E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+276839.406,,,s,6.01E-13,1.54E-13,1.54E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+282889.83,,,s,6.58E-13,1.60E-13,1.60E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+329143.637,,,s,6.42E-13,1.61E-13,1.61E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+338387.704,,,s,3.82E-13,9.41E-14,9.41E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+367080.591,,,s,5.45E-13,1.01E-13,1.01E-13,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+440276.903,,,s,2.78E-13,5.01E-14,5.01E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+507159.019,,,s,3.54E-13,7.08E-14,7.08E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+542958.665,,,s,3.48E-13,7.37E-14,7.37E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+590909.209,,,s,1.98E-13,4.78E-14,4.78E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+660782.5,,,s,1.54E-13,3.67E-14,3.67E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+868575.379,,,s,1.13E-13,2.94E-14,2.94E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+1012818.115,,,s,1.10E-13,2.46E-14,2.46E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+1542748.43,,,s,3.86E-14,1.18E-14,1.18E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
+46705,,,s,-9.70E-01,2.60E-01,2.80E-01,erg cm-2 s-1,Spectral Index,,7.25E+16,2.42E+18,Hz,,
+276672,,,s,-9.70E-01,1.30E-01,1.40E-01,erg cm-2 s-1,Spectral Index,,7.25E+16,2.42E+18,Hz,,

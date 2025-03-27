@@ -62,7 +62,6 @@ class LightCurvePlot:
         ax.set_yscale('log')
         ax.set_xscale('log')
         ax.set_title(title)
-        ax.grid(alpha=0.5)
 
         # Add secondary x-axis
         ax2 = ax.secondary_xaxis('top', functions=(sec_to_days, days_to_sec))
@@ -93,7 +92,10 @@ class LightCurvePlot:
         if out_dir is not None:
             plt.savefig(out_dir / 'light_curve.png')
 
-    def plot_model(self, show: bool = False, host_corr: dict = None, ndata: int = 200) -> None:
+    def plot_model(
+            self, show: bool = False, host_corr: dict = None,
+            ext_model=None, ebv_mw=None, ebv_sf=None, ndata: int = 200
+    ) -> None:
         """
         Plots the model as a light curve. Converts all flux to
         flux density. Flux is plotted in `mJy` and the time is
@@ -106,6 +108,15 @@ class LightCurvePlot:
 
         host_corr : dict, optional
             Key value pairs of 'filter' : value
+
+        ext_model : dust_extinction model, optional
+            Extinction model to use.
+
+        ebv_mw : float, optional
+            The E(B - V) Milky Way value.
+
+        ebv_sf : float, optional
+            The E(B - V) source frame value.
 
         ndata : int, optional
             The number of data points to plot.
@@ -127,9 +138,10 @@ class LightCurvePlot:
         integrated_data = data[self.observation.as_arrays.types[filter_loc] == DataType.INTEGRATED_FLUX]
 
         # Modeling time [days]
-        t_start = np.log10(flux_times.min())
-        t_stop = np.log10(flux_times.max() * 2)
-        times = np.logspace(t_start, t_stop, num=ndata)
+        times = np.logspace(
+            np.log10(flux_times.min()), np.log10(flux_times.max() * 2),
+            num=ndata
+        )
 
         # Plot the spectral flux for each t in `time`
         for sdata in spectral_data:
@@ -141,9 +153,14 @@ class LightCurvePlot:
             sflux = model.evaluate_spectral_flux(times, frequency)
 
             # Extinguish for Milky Way and source frame dust
-            wn = 1 / wavelength
-            sflux *= model.ext_model.extinguish(wn, Ebv=model.ebv_mw)
-            sflux *= model.ext_model.extinguish((1 + model.z) * wn, Ebv=model.ebv_sf)
+            if ext_model is not None:
+                wn = 1 / wavelength
+
+                if ebv_mw is not None:
+                    sflux *= ext_model.extinguish(wn, Ebv=ebv_mw)
+
+                if ebv_sf is not None:
+                    sflux *= ext_model.extinguish((1 + model.z) * wn, Ebv=ebv_sf)
 
             # Add host galaxy contribution (if defined)
             filter_host = sdata.filter + '_host'
@@ -168,6 +185,8 @@ class LightCurvePlot:
 
             # Plot the modeled integrated flux as a spectral flux
             self.ax.loglog(days_to_sec(times), sflux_quant.value, '--', linewidth=1.5, color=COLOR_MAP[idata.filter])
+
+        self.ax.set_xlim(days_to_sec(times[0]/3), days_to_sec(times[-1]*1.5))
 
         if show:
             plt.show()
@@ -201,6 +220,7 @@ class LightCurvePlot:
             self.ax.errorbar(times, flux, yerr=errors, fmt='.', label=dfilter, color=COLOR_MAP[dfilter])
 
         self.ax.legend(loc='best')
+        self.ax.grid(alpha=0.5)
 
         if show:
             plt.show()

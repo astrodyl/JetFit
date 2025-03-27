@@ -1,4 +1,5 @@
 import json
+
 import astropy.units as u
 import numpy as np
 from dust_extinction.parameter_averages import CCM89
@@ -9,7 +10,7 @@ from jetfit.core.input import Observation
 from jetfit.core.utils import nav_utils
 from jetfit.models2.basemodels import SpectralFluxModel
 from jetfit.models2.fireball import FireballModel
-from jetfit.plot.light_curve import LightCurve
+from jetfit.plot.light_curve import LightCurvePlot
 
 
 def sec_to_days(x):
@@ -20,6 +21,82 @@ def sec_to_days(x):
 def days_to_sec(x):
     """ Used for plotting axes. """
     return x * 86400
+
+
+class CriticalFrequenciesPlot:
+    """
+    Useful for visualizing frequencies cross.
+
+    Parameters
+    ----------
+    model :
+        The model to calculate the critical frequencies
+
+    t_start : float
+        The lower time bound in days.
+
+    t_stop : float
+        The upper time bound in days.
+    """
+    def __init__(self, model, t_start, t_stop):
+        self.model = model
+        self.t_start = t_start
+        self.t_stop = t_stop
+
+    def plot(self, show: bool = False, out_dir = None, title = None) -> None:
+        """
+        Plots the critical frequencies as a function of time.
+
+        Parameters
+        ----------
+        show : bool, optional
+            If `True`, calls `plt.show()`.
+
+        out_dir : str or Path, optional
+            The directory to save `frequencies.png.`
+
+        title : str, optional
+            The title of the plot.
+        """
+        _, ax = plt.subplots()
+
+        times = np.logspace(np.log10(self.t_start), np.log10(self.t_stop), num=200)
+
+        # Calculate the critical frequencies
+        nu_ms = self.model.nu_m(times)
+        nu_cs = self.model.nu_c(times)
+
+        # Calculate the temporal indices
+        slope_nu_m, _ = np.polyfit(np.log10(times), np.log10(nu_ms), 1)
+        slope_nu_c, _ = np.polyfit(np.log10(times), np.log10(nu_cs), 1)
+
+        # Include indices in label
+        ax.loglog(times, nu_ms, color='blue',
+                  label=r'$\nu_{m},  \alpha = $' + f'{round(slope_nu_m, 3)}')
+        ax.loglog(times, nu_cs, color='orange',
+                  label=r'$\nu_{c},  \alpha = $' + f'{round(slope_nu_c, 3)}')
+
+        # Plot horizontal lines roughly corresponding to optical/xray
+        plt.axhline(y=5e14, color='green', linewidth=10, alpha=0.2)
+        plt.axhline(y=1e18, color='black', linewidth=10, alpha=0.3)
+
+        if title is not None:
+            plt.title(title)
+
+        ax.set_title('Critical Frequencies')
+        ax.set_xlabel('Time Since Trigger (days)')
+        ax.set_ylabel('Frequency (Hz)')
+        ax.legend(loc='best')
+        ax.grid(alpha=0.5)
+
+        ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
+        ax2.set_xlabel("Time Since Trigger (seconds)")
+
+        if show:
+            plt.show()
+
+        if out_dir is not None:
+            plt.savefig(out_dir / 'frequencies.png')
 
 
 def plot_critical_frequencies(nu_ms, nu_cs, times) -> None:
@@ -184,15 +261,14 @@ def main(event, obs, best_params, time):
     )
 
     # Plot the Light Curve
-    lc = LightCurve(
-        obs=obs,
+    lc = LightCurvePlot(
+        observation=obs,
         model=FireballModel,
-        model_params=model_params,
+        params=model_params,
         # cal_offset=best_params.get('offsets'),
-        host_corr=best_params.get('host'),
         title=f'{event} Light Curve',
     )
-    lc.plot(show=True)
+    lc.plot(show=True, host_corr=best_params.get('host'))
 
     # Plot the CCM Extinction curve
     obs_wn = np.unique(obs.wave_number_array[obs.spectral_flux_loc])
@@ -220,8 +296,8 @@ if __name__ == "__main__":
     import astropy.cosmology.units as cu
     from astropy.cosmology import Planck18
 
-    z = 0.151 * cu.redshift
-    d = z.to(u.cm, cu.redshift_distance(Planck18, kind='luminosity'))
+    z = 0.889 * cu.redshift
+    d = z.to(u.cm, cu.redshift_distance(Planck18, kind='luminosity')) / 1e28
 
     # Paths to input files
     observation_path = nav_utils.get_input_csv_path('new', event_name)

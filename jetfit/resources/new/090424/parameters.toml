@@ -169,20 +169,20 @@
 # ------- HOST GALAXY ---------
 # -----------------------------
 [r_host]
-    scale = "linear"
+    scale = "log"
 
     [r_host.prior]
         type  = "uniform"
-        lower = 0.0
-        upper = 0.01
+        lower = -3.0
+        upper = 0.0
 
 [i_host]
-    scale = "linear"
+    scale = "log"
 
     [i_host.prior]
         type  = "uniform"
-        lower = 0.0
-        upper = 0.01
+        lower = -3.0
+        upper = 0.0
 
 # -----------------------------
 # ----------- SLOP ------------

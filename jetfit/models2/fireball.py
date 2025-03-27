@@ -1,5 +1,4 @@
 import math
-import time
 
 import astropy.units as u
 import astropy.constants as const
@@ -66,7 +65,7 @@ class FireballModel:
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, ebv_mw=None, ebv_sf=None, tj=None, sj=None):
+    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, tj=None, sj=None):
         # intrinsic properties
         self.E = E
         self.p = p
@@ -83,11 +82,6 @@ class FireballModel:
         # Jet break props
         self.tj = tj
         self.sj = sj
-
-        # temp
-        self.ebv_mw = ebv_mw
-        self.ebv_sf = ebv_sf
-        self.ext_model = CCM89(Rv=3.1)
 
     # noinspection PyPep8Naming
     @property
@@ -236,9 +230,6 @@ class FireballModel:
                 upper=arrays.if_upper_freqs[if_mask]
             )
 
-        # Apply extinction to spectral flux
-        res[sf_mask] = self.extinguish(res[sf_mask], arrays.wave_numbers[sf_mask])
-
         # Apply calibration offsets
         if cal_offsets is not None:
             for name, offset in cal_offsets.items():
@@ -273,32 +264,6 @@ class FireballModel:
             return self.smooth_jet_break(res, t, lower=lower, upper=upper)
 
         return res
-
-    def extinguish(self, f, wn) -> np.ndarray | float:
-        """
-        Extinguishes the flux `f` using both the milky way
-        EBV and source frame EBV (if defined).
-
-        Parameters
-        ----------
-        f : np.ndarray or float
-            The flux to extinguish.
-
-        wn : np.ndarray or float
-            The wave numbers measured in inverse micrometers.
-
-        Returns
-        -------
-        np.ndarray or float
-            The extinguished flux.
-        """
-        if self.ebv_mw:  # milky way
-            f *= self.ext_model.extinguish(wn, Ebv=self.ebv_mw)
-
-        if self.ebv_sf:  # source frame
-            f *= self.ext_model.extinguish((1 + self.z) * wn, Ebv=self.ebv_sf)
-
-        return f
 
     def smooth_jet_break(self, f, t, **kwargs):
         """
@@ -357,7 +322,7 @@ class FireballModel:
             f ** (-self.sj) + (jet_flux * (t / self.tj) ** -self.p) ** -self.sj
         ) ** -(1 / self.sj)
 
-    def f_peak(self, t: u.Quantity | float, evo: str = 'adiabatic'):
+    def f_peak(self, t):
         """
         Calculates the peak flux in the case of an ultra-
         relativistic shock moving into an external medium
@@ -365,22 +330,19 @@ class FireballModel:
 
         Parameters
         ----------
-        t : astropy.units.Quantity ot float
+        t : float or np.ndarray of float or u.Quantity['time']
             The time to evaluate. If `t` is a float, must
             be measured in days since trigger.
 
-        evo : str, {'adiabatic', 'radiative'}, default='adiabatic'
-            The evolution type.
-
         Returns
         -------
-        ??
+        float or np.ndarray of float or u.Quantity['time']
             The peak flux in mJy at time `t`.
         """
         return PeakFluxModel(
             self.E, self.rho0, self.eps_b, self.dL, self.z, self.k, self.X)(t)
 
-    def nu_c(self, t: u.Quantity | float, evo: str = 'adiabatic'):
+    def nu_c(self, t):
         """
         Calculates the cooling frequency in the case of an ultra-
         relativistic shock moving into an external medium with
@@ -388,22 +350,19 @@ class FireballModel:
 
         Parameters
         ----------
-        t : astropy.units.Quantity or float
+        t : float or np.ndarray of float or u.Quantity['time']
             The time to evaluate. If `t` is a float, must
             be measured in days since trigger.
 
-        evo : str, {'adiabatic', 'radiative'}, default='adiabatic'
-            The evolution type.
-
         Returns
         -------
-        ??
+        float or np.ndarray of float or u.Quantity['time']
             The cooling frequency in Hz at time `t`.
         """
         return CoolingFrequencyModel(
             self.E, self.rho0, self.eps_b, self.k, self.z)(t)
 
-    def nu_m(self, t: u.Quantity | float, evo: str = 'adiabatic'):
+    def nu_m(self, t):
         """
         Calculates the synchrotron frequency in the case of an
         ultra-relativistic shock moving into an external medium
@@ -411,16 +370,13 @@ class FireballModel:
 
         Parameters
         ----------
-        t : astropy.units.Quantity or float
+        t : float or np.ndarray of float or u.Quantity['time']
             The time to evaluate. If `t` is a float, must
             be measured in days since trigger.
 
-        evo : str, {'adiabatic', 'radiative'}, default='adiabatic'
-            The evolution type.
-
         Returns
         -------
-        ??
+        float or np.ndarray of float or u.Quantity['time']
             The synchrotron frequency in Hz at time `t`.
         """
         return SynchrotronFrequencyModel(
@@ -469,25 +425,15 @@ if __name__ == '__main__':
     # Test SP values for k = 0
     ism = FireballModel(1.,2.5,1,1,0.0,1., 10.,0.0, 1.0)
 
-    nus = np.logspace(12, 18, 100)
-    density_model = SpectralFluxModel(nu_m=10**13, nu_c=10**15, f_peak=10**4.5, p=2.5, k=2.0)
+    nus = np.logspace(10, 18, 100)
+    density_model = SpectralFluxModel(nu_m=10**11, nu_c=3*10**12, f_peak=10**1.5, p=2.5, k=0.0)
 
-    fluxes, fluxes2 = [], []
-    for nu in nus:
-        fluxes.append(density_model.evaluate_smooth(nu))
-        fluxes2.append(density_model.evaluate(nu))
-    fluxes = np.array(fluxes)
-    fluxes2 = np.array(fluxes2)
+    fluxes = np.empty(nus.size)
+    for i, nu in enumerate(nus):
+        fluxes[i] = density_model(nu)
 
     plt.loglog(nus, fluxes)
-    plt.loglog(nus, fluxes2, color='black')
-
-    # plt.axvline(x=10**11.1, color='black', linestyle=':', alpha=0.3)
-    # plt.axvline(x=10**12.5, color='black', linestyle=':', alpha=0.3)
-    plt.axhline(y=10**4.5, color='black', linestyle=':', alpha=0.3)
-    plt.show()
-
-    # plt.loglog(nus, np.abs(fluxes - fluxes2), color='red')
+    plt.axhline(y=10**1.5, color='black', linestyle=':', alpha=0.3)
     # plt.show()
 
     if not math.isclose(ism.nu_c(1 * u.d), 2.7e12, abs_tol=1e11):

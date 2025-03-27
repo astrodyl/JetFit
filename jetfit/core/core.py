@@ -7,22 +7,6 @@ def q_e():
     return u.Quantity(4.8032e-10 * u.g**0.5 * u.cm**1.5 / u.s)
 
 
-def two_point_approx(y1, y2, x1, x2, log: bool = False):
-    """"""
-    if not log:
-        return (y2 / y1) / (x2 / x1)
-
-    return np.log(y2 / y1) / np.log(x2 / x1)
-
-
-def to_array(x, unit: str | u.Unit):
-    """"""
-    if isinstance(x, u.Quantity):
-        x = x.to_value(unit)
-
-    return np.atleast_1d(x)
-
-
 def pl(amplitude, x, x_0, beta):
     """
     1D Power law.

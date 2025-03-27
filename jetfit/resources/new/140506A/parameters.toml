@@ -69,12 +69,12 @@
 [z]
     group = "observational"
     scale = "linear"
-    value = 0.97
+    value = 0.889
 
 [dL]
     group = "observational"
     scale = "linear"
-    value = 2.02
+    value = 1.813
 
 [X]
     group = "observational"
@@ -83,11 +83,43 @@
 
 [ebv_mw]
     scale = "linear"
-    value = 0.093
+    value = 0.0816
 
 # -----------------------------
 # ---- CALIBRATION OFFSETS ----
 #------------------------------
+[R_offset]
+    scale = "linear"
+
+    [R_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
+
+[J_offset]
+    scale = "linear"
+
+    [J_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[H_offset]
+    scale = "linear"
+
+    [H_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.05
+
+[K_offset]
+    scale = "linear"
+
+    [K_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.06
+
 [g_offset]
     scale = "linear"
 
@@ -120,21 +152,37 @@
         mu = 0.0
         sigma = 0.04
 
+[uvw2_offset]
+    scale = "linear"
+
+    [uvw2_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
 [uvm2_offset]
-    scale = "log"
+    scale = "linear"
 
     [uvm2_offset.prior]
-        type  = "uniform"
-        lower = -1.0
-        upper = 1.0
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
 
 [uvw1_offset]
-    scale = "log"
+    scale = "linear"
 
     [uvw1_offset.prior]
-        type  = "uniform"
-        lower = -1.0
-        upper = 1.0
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.04
+
+[uvot-u_offset]
+    scale = "linear"
+
+    [uvot-u_offset.prior]
+        type  = "gaussian"
+        mu = 0.0
+        sigma = 0.03
 
 [uvot-b_offset]
     scale = "linear"
@@ -159,22 +207,3 @@
         type  = "uniform"
         lower = 0.0
         upper = 0.3
-
-# -----------------------------
-# --------- JET BREAK ---------
-#------------------------------
-[tj]
-    scale = "log"
-
-    [tj.prior]
-        type  = "uniform"
-        lower = -1.0
-        upper = 1.0
-
-[sj]
-    scale = "linear"
-
-    [sj.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 3.0

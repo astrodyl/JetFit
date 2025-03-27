@@ -56,6 +56,8 @@ class ObsArray:
         The wave numbers corresponding to the frequencies.
         Measured in micro-meters.
     """
+
+    # Units
     if_units = 'erg cm-2 s-1'
     sf_units = 'mJy'
     time_units = 'd'
@@ -91,9 +93,6 @@ class ObsArray:
         self.sflux_loc = np.where(self.types == DataType.SPECTRAL_FLUX)[0]
         self.iflux_loc = np.where(self.types == DataType.INTEGRATED_FLUX)[0]
         self.sindex_loc = np.where(self.types == DataType.SPECTRAL_INDEX)[0]
-
-        # Units
-
 
     @classmethod
     def from_data(cls, data):

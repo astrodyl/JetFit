@@ -1,6 +1,5 @@
 import copy
 import os
-import time
 
 import emcee
 import numpy as np
@@ -44,6 +43,7 @@ class MCMC:
             fitting_params: list,
             model,
             observation,
+            ext_model,
             filename=None,
             meta = None
     ):
@@ -82,6 +82,17 @@ class MCMC:
 
             if p.name in self.observation.host_corr:
                 self.host_corr_pos[p.name] = i
+
+        # Store MW extinction values if fixed
+        self.ext_model = ext_model
+        self.ext_mw = None
+        for p in self.fixed_params:
+            if p.name =='ebv_mw':
+                self.ext_mw = self.ext_model.extinguish(
+                    self.observation.as_arrays.wave_numbers[self.observation.sflux_loc],
+                    Ebv=p.value
+                )
+                break
 
         self.meta = meta if meta else {}
 
@@ -190,7 +201,7 @@ class MCMC:
         dict
             ??
         """
-        params = {'offsets': {}, 'host': {}, 'model': {}, 'slop': None}
+        params = {'offsets': {}, 'host': {}, 'model': {}, 'ebv': {}, 'slop': None}
 
         for i, p in enumerate(self.fitting_params):
             linear_param = math_utils.to_scale(theta[i], p.scale, 'linear')
@@ -200,6 +211,9 @@ class MCMC:
 
             elif 'host' in p.name:
                 params['host'][p.name] = linear_param
+
+            elif 'ebv' in p.name:
+                params['ebv'][p.name] = linear_param
 
             elif 'slop' == p.name:
                 params['slop'] = linear_param
@@ -216,6 +230,9 @@ class MCMC:
             elif 'host' in p.name:
                 params['host'][p.name] = linear_param
 
+            elif 'ebv' in p.name:
+                params['ebv'][p.name] = linear_param
+
             elif 'slop' == p.name:
                 params['slop'] = linear_param
 
@@ -229,6 +246,42 @@ class MCMC:
             return params['offsets']
 
         return params
+
+    def extinguish(self, flux, wn, z, ebv_sf, ebv_mw) -> np.ndarray:
+        """
+        Extinguishes the `flux`.
+
+        Parameters
+        ----------
+        flux : float or np.ndarray of float
+            THe flux to extinguish.
+
+        wn : float or np.ndarray of float
+            The wave numbers in micro-meters.
+
+        z : float
+            The redshift.
+
+        ebv_sf : float
+            The source frame E(B - V).
+
+        ebv_mw : float
+            The milky way E(B - V).
+
+        Returns
+        -------
+        float or np.ndarray of float
+            The extinguished flux.
+        """
+
+        # Extinguish for source frame dust
+        flux *= self.ext_model.extinguish((1 + z) * wn, Ebv=ebv_sf)
+
+        # Extinguish for Milky Way dust
+        if self.ext_mw is not None:
+            return flux * self.ext_mw
+
+        return flux * self.ext_model.extinguish(wn, Ebv=ebv_mw)
 
     def log_prior(self, theta: np.ndarray[float]) -> float:
         """
@@ -277,6 +330,15 @@ class MCMC:
         # Model the observational data
         model = self.model(**params.get('model'), **self.meta)
         modeled = model.model(self.observation, params.get('offsets'), params.get('host'))
+
+        # Apply dust extinction
+        wn = self.observation.as_arrays.wave_numbers[
+            self.observation.sflux_loc]
+
+        modeled[self.observation.sflux_loc] = self.extinguish(
+            modeled[self.observation.sflux_loc],
+            wn, model.z, **params.get('ebv')
+        )
 
         # Skip chi squared calculation since a nan will
         # always result in -inf anyway
