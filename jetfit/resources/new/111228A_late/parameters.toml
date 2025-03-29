@@ -50,7 +50,7 @@
 
     [k.prior]
         type  = "uniform"
-        lower = -1.0
+        lower = -3.0
         upper = 3.0
         initial_guess=1.0
         initial_sigma=1.0

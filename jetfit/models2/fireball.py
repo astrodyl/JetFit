@@ -168,7 +168,6 @@ class FireballModel:
             self,
             observation: Observation,
             cal_offsets: dict = None,
-            host_corrs: dict = None
     ) -> np.ndarray:
         """
         Models an observation object.
@@ -177,11 +176,11 @@ class FireballModel:
         ----------
         observation
         cal_offsets
-        host_corrs
 
         Returns
         -------
-
+        np.ndarray of float
+            The modeled flux.
         """
         res = np.full(len(observation.data), np.nan)
 
@@ -234,11 +233,6 @@ class FireballModel:
         if cal_offsets is not None:
             for name, offset in cal_offsets.items():
                 res[observation.cal_offsets[name]] *= 10.0 ** -(0.4 * offset)
-
-        # Apply host galaxy correction
-        if host_corrs is not None:
-            for name, corr in host_corrs.items():
-                res[observation.host_corr[name]] += corr
 
         # return modeled observational data
         return res

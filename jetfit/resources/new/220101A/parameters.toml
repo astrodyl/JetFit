@@ -9,7 +9,7 @@
     [E.prior]
         type  = "uniform"
         lower = -2.0
-        upper = 3.0
+        upper = 4.5
 
 [rho0]
     scale = "log"
@@ -50,7 +50,7 @@
 
     [k.prior]
         type  = "uniform"
-        lower = -1.0
+        lower = -4.0
         upper = 3.0
         initial_guess=1.0
         initial_sigma=1.0
@@ -67,17 +67,14 @@
 # ------- FIXED PARAMS --------
 #------------------------------
 [z]
-    group = "observational"
     scale = "linear"
     value = 4.61
 
 [dL]
-    group = "observational"
     scale = "linear"
     value = 13.39
 
 [X]
-    group = "observational"
     scale = "linear"
     value = 0.7
 
@@ -128,6 +125,14 @@
         mu = 0.0
         sigma = 0.04
 
+[r_offset]
+    scale = "linear"
+
+    [r_offset.prior]
+        type  = "uniform"
+        lower = -1.0
+        upper = 1.0
+
 [i_offset]
     scale = "linear"
 
@@ -156,12 +161,8 @@
 # --------- JET BREAK ---------
 #------------------------------
 [tj]
-    scale = "log"
-
-    [tj.prior]
-        type  = "gaussian"
-        mu = -1.0
-        sigma = 1.0
+    scale = "linear"
+    value = 0.9143
 
 [sj]
     scale = "linear"

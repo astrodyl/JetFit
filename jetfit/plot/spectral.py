@@ -99,49 +99,6 @@ class CriticalFrequenciesPlot:
             plt.savefig(out_dir / 'frequencies.png')
 
 
-def plot_critical_frequencies(nu_ms, nu_cs, times) -> None:
-    """
-    Plots the critical frequencies as a function of time.
-
-    Useful for visualizing if they cross.
-
-    Parameters
-    ----------
-    nu_ms : np.ndarray of float
-        The synchrotron frequencies.
-
-    nu_cs : np.ndarray of float
-        The cooling frequencies.
-
-    times: np.ndarray
-        The times for the frequencies.
-    """
-    _, ax = plt.subplots()
-
-    # Calculate the temporal indices
-    slope_nu_m, _ = np.polyfit(np.log10(times), np.log10(nu_ms), 1)
-    slope_nu_c, _ = np.polyfit(np.log10(times), np.log10(nu_cs), 1)
-
-    ax.loglog(times, nu_ms, color='blue',
-              label=r'$\nu_{m},  \alpha = $' + f'{round(slope_nu_m, 3)}')
-    ax.loglog(times, nu_cs, color='orange',
-              label=r'$\nu_{c},  \alpha = $' + f'{round(slope_nu_c, 3)}')
-
-    # Plot horizontal lines corresponding to filter frequencies
-    plt.axhline(y=5e14, color='green', linewidth=10, alpha=0.2)
-    plt.axhline(y=1e18, color='black', linewidth=10, alpha=0.3)
-
-    ax.set_title('Critical Frequencies')
-    ax.set_xlabel('Time Since Trigger (days)')
-    ax.set_ylabel('Frequency (Hz)')
-    ax.legend(loc='best')
-    ax.grid(alpha=0.5)
-
-    ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
-    ax2.set_xlabel("Time Since Trigger (seconds)")
-    plt.show()
-
-
 def plot_spectrum(
         frequencies, flux, time, redshift, ebv_mw, ebv_sf
 ) -> None:
@@ -253,12 +210,6 @@ def main(event, obs, best_params, time):
         num=200
     )
 
-    # Plot critical frequencies
-    plot_critical_frequencies(
-        nu_ms=model.nu_m(modeled_times),
-        nu_cs=model.nu_c(modeled_times),
-        times=modeled_times
-    )
 
     # Plot the Light Curve
     lc = LightCurvePlot(

@@ -120,6 +120,41 @@
         mu = 0.0
         sigma = 0.04
 
+# -----------------------------
+# -------- HOST GALAXY --------
+#------------------------------
+[g_host]
+    scale = "log"
+
+    [g_host.prior]
+        type = "uniform"
+        lower = -2.0
+        upper = -1.0
+
+[r_host]
+    scale = "log"
+
+    [r_host.prior]
+        type = "uniform"
+        lower = -2.0
+        upper = -1.0
+
+[i_host]
+    scale = "log"
+
+    [i_host.prior]
+        type = "uniform"
+        lower = -2.0
+        upper = -1.0
+
+[i_host]
+    scale = "log"
+
+    [i_host.prior]
+        type = "uniform"
+        lower = -2.0
+        upper = -1.0
+
 [slop]
     scale = "linear"
 

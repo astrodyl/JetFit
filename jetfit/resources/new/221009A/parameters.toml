@@ -9,7 +9,7 @@
     [E.prior]
         type  = "uniform"
         lower = -2.0
-        upper = 3.0
+        upper = 4.0
 
 [rho0]
     scale = "log"
@@ -67,17 +67,14 @@
 # ------- FIXED PARAMS --------
 #------------------------------
 [z]
-    group = "observational"
     scale = "linear"
     value = 0.151
 
 [dL]
-    group = "observational"
     scale = "linear"
     value = 0.229
 
 [X]
-    group = "observational"
     scale = "linear"
     value = 0.7
 

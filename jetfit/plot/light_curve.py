@@ -42,6 +42,73 @@ def days_to_sec(x):
     return x * 86400
 
 
+class FrequencyPlot:
+    """"""
+    def __init__(self, mcmc, model, observation):
+        self.mcmc = mcmc
+        self.model = model
+        self.observation = observation
+
+    def plot(self, t_start, t_stop, out_dir):
+        """"""
+        _, ax = plt.subplots()
+
+        flat_chain = self.mcmc.sampler.get_chain(flat=True, thin=10)
+        inds = np.random.randint(len(flat_chain), size=100)
+
+        times = np.logspace(np.log10(t_start), np.log10(t_stop), num=200)
+
+        for ind in inds:
+            params = self.mcmc.samples_to_dict(flat_chain[ind], model=True)
+
+            # Calculate the critical frequencies
+            grb_model = self.model(**params)
+            nu_ms = grb_model.nu_m(times)
+            nu_cs = grb_model.nu_c(times)
+
+            ax.loglog(times, nu_ms, color='blue', alpha=0.1)
+            ax.loglog(times, nu_cs, color='orange', alpha=0.1)
+
+        # Plot the best fit frequencies
+        best_params = self.mcmc.get_best_params(model=True)
+        best_grb_model = self.model(**best_params)
+        best_nu_ms = best_grb_model.nu_m(times)
+        best_nu_cs = best_grb_model.nu_c(times)
+
+        # Plot median frequencies
+        ax.loglog(times, best_nu_ms, color='purple', linewidth=2)
+        ax.loglog(times, best_nu_cs, color='red', linewidth=2)
+
+        # Plot data as frequency vs time
+        flux_mask = self.observation.flux_loc
+        arrays = self.observation.as_arrays
+
+        # Plot each band
+        for dfilter in np.unique(arrays.filters[flux_mask]):
+            times, frequencies = [], []
+            data = self.observation.data[flux_mask][arrays.filters[flux_mask] == dfilter]
+
+            for d in data:
+                times.append(d.time.to_value('d'))
+                frequencies.append(d.frequency.to_value('Hz'))
+
+            # Plot the band
+            ax.scatter(times, frequencies, label=dfilter, color=COLOR_MAP[dfilter])
+
+        # Plot options
+        ax.set_title('Critical Frequencies')
+        ax.set_xlabel('Time Since Trigger (days)')
+        ax.set_ylabel('Frequency (Hz)')
+        ax.set_ylim(1e13, 2e18)
+        ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
+        ax2.set_xlabel("Time Since Trigger (seconds)")
+        ax.legend(loc='best')
+        ax.grid(alpha=0.5)
+
+        if out_dir is not None:
+            plt.savefig(out_dir / 'frequency_scatter.png')
+
+
 class LightCurvePlot:
     """"""
     def __init__(self, model, params, observation, title='Light Curve'):
@@ -152,20 +219,18 @@ class LightCurvePlot:
             # Model the spectral flux
             sflux = model.evaluate_spectral_flux(times, frequency)
 
-            # Extinguish for Milky Way and source frame dust
-            if ext_model is not None:
-                wn = 1 / wavelength
+            # Apply source dust extinction before host galaxy correction
+            if ext_model is not None and ebv_sf is not None:
+                sflux *= ext_model.extinguish((1 + model.z) / wavelength, Ebv=ebv_sf)
 
-                if ebv_mw is not None:
-                    sflux *= ext_model.extinguish(wn, Ebv=ebv_mw)
-
-                if ebv_sf is not None:
-                    sflux *= ext_model.extinguish((1 + model.z) * wn, Ebv=ebv_sf)
-
-            # Add host galaxy contribution (if defined)
+            # Add host galaxy contribution before Milky Way dust correction
             filter_host = sdata.filter + '_host'
             if host_corr is not None and filter_host in host_corr:
                 sflux += host_corr[filter_host]
+
+            # Apply Milky Way dust extinction
+            if ext_model is not None and ebv_mw is not None:
+                sflux *= ext_model.extinguish(1 / wavelength, Ebv=ebv_mw)
 
             # Plot the modeled spectral flux
             self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.5, color=COLOR_MAP[sdata.filter])

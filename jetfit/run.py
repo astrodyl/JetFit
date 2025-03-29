@@ -14,7 +14,7 @@ from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSi
 from jetfit.models.afterglow.boosted_fireball.parameters.reader import BFParamsReader
 from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel
-from jetfit.plot.light_curve import LightCurvePlot
+from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
 from jetfit.plot.posterior import PosteriorPlot
 from jetfit.plot.spectral import CriticalFrequenciesPlot
 
@@ -75,6 +75,13 @@ def main(
 
     # Plot the light curves
     best_params = mcmc.get_best_params()
+
+    fp = FrequencyPlot(mcmc, FireballModel, observation)
+    fp.plot(
+        observation.as_arrays.times[observation.flux_loc].min(),
+        observation.as_arrays.times[observation.flux_loc].max(),
+        out_dir=results_dir
+    )
 
     lc = LightCurvePlot(
         model=mcmc.model,
@@ -148,7 +155,7 @@ if __name__ == "__main__":
             # '050922C',
             # '080413B',
             # '080413B_early',
-            # '080413B_late',
+            '080413B_late',
             # '090424',
             # '090618',
             # '111228A',

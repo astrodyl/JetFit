@@ -148,7 +148,7 @@ class MCMC:
         if (pos := self.param_pos.get('slop')) is not None:
             return theta[pos]
 
-    def get_best_params(self) -> dict:
+    def get_best_params(self, model = False) -> dict:
         """
         Returns the sampled values from the chain with the highest likelihood.
 
@@ -158,7 +158,7 @@ class MCMC:
             The values from the highest likelihood chain.
         """
         max_index = np.nanargmax(self.sampler.get_log_prob(flat=True))
-        return self.samples_to_dict(self.sampler.get_chain(flat=True)[max_index])
+        return self.samples_to_dict(self.sampler.get_chain(flat=True)[max_index], model)
     # </editor-fold>
 
     # <editor-fold desc="Sampling Routine">
@@ -247,42 +247,6 @@ class MCMC:
 
         return params
 
-    def extinguish(self, flux, wn, z, ebv_sf, ebv_mw) -> np.ndarray:
-        """
-        Extinguishes the `flux`.
-
-        Parameters
-        ----------
-        flux : float or np.ndarray of float
-            THe flux to extinguish.
-
-        wn : float or np.ndarray of float
-            The wave numbers in micro-meters.
-
-        z : float
-            The redshift.
-
-        ebv_sf : float
-            The source frame E(B - V).
-
-        ebv_mw : float
-            The milky way E(B - V).
-
-        Returns
-        -------
-        float or np.ndarray of float
-            The extinguished flux.
-        """
-
-        # Extinguish for source frame dust
-        flux *= self.ext_model.extinguish((1 + z) * wn, Ebv=ebv_sf)
-
-        # Extinguish for Milky Way dust
-        if self.ext_mw is not None:
-            return flux * self.ext_mw
-
-        return flux * self.ext_model.extinguish(wn, Ebv=ebv_mw)
-
     def log_prior(self, theta: np.ndarray[float]) -> float:
         """
         Evaluates the natural log of the priors.
@@ -329,16 +293,27 @@ class MCMC:
 
         # Model the observational data
         model = self.model(**params.get('model'), **self.meta)
-        modeled = model.model(self.observation, params.get('offsets'), params.get('host'))
+        modeled = model.model(self.observation, params.get('offsets'))
 
-        # Apply dust extinction
         wn = self.observation.as_arrays.wave_numbers[
             self.observation.sflux_loc]
 
-        modeled[self.observation.sflux_loc] = self.extinguish(
-            modeled[self.observation.sflux_loc],
-            wn, model.z, **params.get('ebv')
-        )
+        # Apply source dust extinction before host galaxy correction
+        if (ebv_sf := params.get('ebv').get('ebv_sf')) is not None:
+            modeled[self.observation.sflux_loc] *= self.ext_model.extinguish((1 + model.z) * wn, Ebv=ebv_sf)
+
+        # Add host galaxy contribution before Milky Way dust correction
+        if params.get('host') is not None:
+            for name, corr in params.get('host').items():
+                modeled[self.observation.host_corr[name]] += corr
+
+        # Apply Milky Way dust extinction
+        if (ebv_mw := params.get('ebv').get('ebv_mw')) is not None:
+            if self.ext_mw is not None:
+                # Already stored, skip calculation
+                modeled[self.observation.sflux_loc] *= self.ext_mw
+            else:
+                modeled[self.observation.sflux_loc] *= self.ext_model.extinguish(wn, Ebv=ebv_mw)
 
         # Skip chi squared calculation since a nan will
         # always result in -inf anyway
