@@ -1,4 +1,4 @@
-Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueType,Wave,WaveLower,WaveUpper,WaveUnits,Filter,CalOffset
+Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueType,Wave,WaveLower,WaveUpper,WaveUnits,Filter,CalGroup
 641.0016,,,s,0.010626739,0.009344408,0.009344408,mJy,Spectral Flux,1.55E+15,,,Hz,uvw2,uvw2_offset
 814.1472,,,s,0.009691701,0.009480838,0.009480838,mJy,Spectral Flux,1.55E+15,,,Hz,uvw2,uvw2_offset
 1046.5632,,,s,0.012554517,0.010766383,0.010766383,mJy,Spectral Flux,1.55E+15,,,Hz,uvw2,uvw2_offset

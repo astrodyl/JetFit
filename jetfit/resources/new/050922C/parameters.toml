@@ -42,8 +42,8 @@
         type  = "uniform"
         lower = 1.5
         upper = 3.5
-        initial_guess=2.5
-        initial_sigma=0.5
+        initial_guess = 2.25
+        initial_sigma = 0.25
 
 [k]
     scale = "linear"
@@ -51,9 +51,7 @@
     [k.prior]
         type  = "uniform"
         lower = -1.0
-        upper = 3.0
-        initial_guess=1.0
-        initial_sigma=1.0
+        upper = 3.5
 
 [ebv_sf]
     scale = "linear"
@@ -67,93 +65,48 @@
 # ------- FIXED PARAMS --------
 #------------------------------
 [z]
-    group = "observational"
     scale = "linear"
-    value = 0.33
+    value = 2.198
 
 [dL]
-    group = "observational"
     scale = "linear"
-    value = 0.552
+    value = 5.52
+
 
 [X]
-    group = "observational"
     scale = "linear"
     value = 0.7
 
 [ebv_mw]
     scale = "linear"
-    value = 0.13
+    value = 0.1205
 
 # -----------------------------
 # ---- CALIBRATION OFFSETS ----
 #------------------------------
-[g_offset]
+[B_offset]
     scale = "linear"
 
-    [g_offset.prior]
+    [B_offset.prior]
         type  = "gaussian"
         mu = 0.0
         sigma = 0.03
 
-[r_offset]
+[Rc_offset]
     scale = "linear"
 
-    [r_offset.prior]
+    [Rc_offset.prior]
         type  = "gaussian"
         mu = 0.0
         sigma = 0.03
 
-[i_offset]
+[Ic_offset]
     scale = "linear"
 
-    [i_offset.prior]
+    [Ic_offset.prior]
         type  = "gaussian"
         mu = 0.0
         sigma = 0.03
-
-[z_offset]
-    scale = "linear"
-
-    [z_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.04
-
-# -----------------------------
-# -------- HOST GALAXY --------
-#------------------------------
-[g_host]
-    scale = "log"
-
-    [g_host.prior]
-        type = "uniform"
-        lower = -2.0
-        upper = -1.0
-
-[r_host]
-    scale = "log"
-
-    [r_host.prior]
-        type = "uniform"
-        lower = -2.0
-        upper = -1.0
-
-[i_host]
-    scale = "log"
-
-    [i_host.prior]
-        type = "uniform"
-        lower = -2.0
-        upper = -1.0
-
-[z_host]
-    scale = "log"
-
-    [z_host.prior]
-        type = "uniform"
-        lower = -2.0
-        upper = -1.0
 
 [slop]
     scale = "linear"
