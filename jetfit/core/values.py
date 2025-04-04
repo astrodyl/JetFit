@@ -1,6 +1,7 @@
 import copy
 
 import astropy.units as u
+import numpy as np
 from astropy.units import Quantity, UnitTypeError
 
 from jetfit.core.defns.enums import DataType
@@ -628,9 +629,9 @@ class IntegratedFlux(FluxBase, Integrable):
         self._value = value
 
     @property
-    def frequency(self) -> u.Quantity:
-        """ Returns the average of the integration frequency. """
-        return self.int_range.center
+    def frequency(self) -> float:
+        """ Returns the log average of the integration frequency. """
+        return (10 ** (0.5 * (np.log10(self.int_range.lower.value) + np.log10(self.int_range.upper.value)))) * self.int_range.lower.unit
 
     def to_spectral(self, unit: str | u.Unit = u.mJy) -> SpectralFlux:
         """
@@ -638,7 +639,7 @@ class IntegratedFlux(FluxBase, Integrable):
 
         Parameters
         ----------
-        unit : str or astropy.units.Unit, optional, default=mJy
+        unit : str or astropy.units.Unit, optional, default=u.mJy
             The unit to return the spectral flux density. Must
             be a spectral flux density unit.
 

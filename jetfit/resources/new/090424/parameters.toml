@@ -168,6 +168,54 @@
 # -----------------------------
 # ------- HOST GALAXY ---------
 # -----------------------------
+[uvw2_host]
+    scale = "log"
+
+    [uvw2_host.prior]
+        type  = "uniform"
+        lower = -3.0
+        upper = 0.0
+
+[uvm2_host]
+    scale = "log"
+
+    [uvm2_host.prior]
+        type  = "uniform"
+        lower = -3.0
+        upper = 0.0
+
+[uvw1_host]
+    scale = "log"
+
+    [uvw1_host.prior]
+        type  = "uniform"
+        lower = -3.0
+        upper = 0.0
+
+[uvot-u_host]
+    scale = "log"
+
+    [uvot-u_host.prior]
+        type  = "uniform"
+        lower = -3.0
+        upper = 0.0
+
+[uvot-b_host]
+    scale = "log"
+
+    [uvot-b_host.prior]
+        type  = "uniform"
+        lower = -3.0
+        upper = 0.0
+
+[uvot-v_host]
+    scale = "log"
+
+    [uvot-v_host.prior]
+        type  = "uniform"
+        lower = -3.0
+        upper = 0.0
+
 [r_host]
     scale = "log"
 

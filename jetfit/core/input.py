@@ -88,11 +88,11 @@ class ObsArray:
         self.si_upper_freqs = si_upper_freqs
         self.wave_numbers = wave_numbers
 
-        # Static locations of data
-        self.flux_loc = np.where(self.types != DataType.SPECTRAL_INDEX)[0]
-        self.sflux_loc = np.where(self.types == DataType.SPECTRAL_FLUX)[0]
-        self.iflux_loc = np.where(self.types == DataType.INTEGRATED_FLUX)[0]
-        self.sindex_loc = np.where(self.types == DataType.SPECTRAL_INDEX)[0]
+        # Static truth arrays of data
+        self.flux_loc = self.types != DataType.SPECTRAL_INDEX
+        self.sflux_loc = self.types == DataType.SPECTRAL_FLUX
+        self.iflux_loc = self.types == DataType.INTEGRATED_FLUX
+        self.sindex_loc = self.types == DataType.SPECTRAL_INDEX
 
     @classmethod
     def from_data(cls, data):
@@ -180,13 +180,14 @@ class Observation:
     ----------
     ??
     """
-    def __init__(self, data, offsets: defaultdict = None, host=None):
+    def __init__(self, data, offsets=None, host=None, groups=None):
         self._data = data
         self._as_arrays = ObsArray.from_data(data)
 
-        # Map fitting offset from MCMC to data groups
+        #
         self.cal_offsets = offsets
-        self.host_corr = host
+        self.data_groups = groups
+        self.host_groups = host
 
         self.length = len(data)
 
@@ -198,7 +199,7 @@ class Observation:
         Parameters
         ----------
         path : str | Path
-            CSV file path.
+            The CSV file path.
 
         Returns
         -------
@@ -207,9 +208,26 @@ class Observation:
         """
         csv = CSVReader(path, live_dangerously=True)
 
-        data = []
-        offsets, host = defaultdict(list), defaultdict(list)
+        def init_dict(group: str) -> dict:
+            """ Initialize group dictionary. """
+            return {
+                cg : [False for _ in range(len(csv.df))]
+                for cg in csv.df[group].unique() if isinstance(cg, str)
+            }
 
+        # Handle optional columns
+        groups, offsets, hosts = None, None, None
+
+        if 'CalGroup' in csv.df.columns.values:
+            offsets = init_dict('CalGroup')
+
+        if 'DataGroup' in csv.df.columns.values:
+            groups = init_dict('DataGroup')
+
+        if 'HostGroup' in csv.df.columns.values:
+            hosts = init_dict('HostGroup')
+
+        data = []
         for row in csv.rows():
             data_type = row.ValueType.lower()
 
@@ -228,13 +246,16 @@ class Observation:
                     f'{row.ValueType}.'
                 )
 
-            if hasattr(row, 'CalGroup') and isinstance(row.CalGroup, str):
-                offsets[row.CalGroup].append(row.Index)
+            if offsets and isinstance(row.CalGroup, str):
+                offsets[row.CalGroup][row.Index] = True
 
-            if hasattr(row, 'HostGroup') and isinstance(row.HostGroup, str):
-                host[row.HostGroup].append(row.Index)
+            if hosts and isinstance(row.HostGroup, str):
+                hosts[row.HostGroup][row.Index] = True
 
-        return cls(np.asarray(data, dtype=object), offsets, host)
+            if groups and isinstance(row.DataGroup, str):
+                groups[row.DataGroup][row.Index] = True
+
+        return cls(np.asarray(data, dtype=object), offsets, hosts, groups)
 
     @property
     def data(self) -> np.ndarray:
@@ -261,25 +282,26 @@ class Observation:
         Returns
         -------
         ObsArray
+            The array representation of the observation.
         """
         return self._as_arrays
 
     @property
-    def flux_loc(self):
-        """ Returns the locations of the flux values. """
+    def flux_loc(self) -> np.array:
+        """ Returns bools indicating the flux locations. """
         return self.as_arrays.flux_loc
 
     @property
-    def sflux_loc(self):
-        """ Returns the locations of the flux values. """
+    def sflux_loc(self) -> np.array:
+        """ Returns bools indicating the spectral flux locations. """
         return self.as_arrays.sflux_loc
 
     @property
-    def iflux_loc(self):
-        """ Returns the locations of the flux values. """
+    def iflux_loc(self) -> np.array:
+        """ Returns bools indicating the integrated flux locations. """
         return self.as_arrays.iflux_loc
 
     @property
-    def sindex_loc(self):
-        """ Returns the locations of the flux values. """
+    def sindex_loc(self) -> np.array:
+        """ Returns bools indicating the spectral index locations. """
         return self.as_arrays.sindex_loc

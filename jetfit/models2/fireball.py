@@ -3,7 +3,6 @@ import math
 import astropy.units as u
 import astropy.constants as const
 import numpy as np
-from dust_extinction.parameter_averages import CCM89
 from matplotlib import pyplot as plt
 
 from jetfit.core.input import Observation
@@ -58,6 +57,12 @@ class FireballModel:
     X : float
         The hydrogen mass fraction.
 
+    tj : float, optional
+        The jet break time in days.
+
+    sj : float, optional
+        The jet break smoothing factor.
+
     References
     ----------
     [1] Broadband view of blast wave physics: A study
@@ -79,9 +84,13 @@ class FireballModel:
         self.dL = dL
         self.z = z
 
-        # Jet break props
+        # Jet break properties
         self.tj = tj
         self.sj = sj
+
+    def __repr__(self):
+        """ Human-readable representation. """
+        return f'FireballModel(E={self.E}, n={self.rho0}, .., p={self.p}, k={self.k})'
 
     # noinspection PyPep8Naming
     @property
@@ -167,15 +176,18 @@ class FireballModel:
     def model(
             self,
             observation: Observation,
-            cal_offsets: dict = None,
+            group: str = None
     ) -> np.ndarray:
         """
         Models an observation object.
 
         Parameters
         ----------
-        observation
-        cal_offsets
+        observation : Observation
+            The observation object to model.
+
+        group : str, optional
+            The data group to model.
 
         Returns
         -------
@@ -192,6 +204,12 @@ class FireballModel:
         if_mask = arrays.iflux_loc
         si_mask = arrays.sindex_loc
 
+        if group is not None:
+            g_mask = observation.data_groups[group]
+            sf_mask = np.logical_and(sf_mask, g_mask)
+            if_mask = np.logical_and(if_mask, g_mask)
+            si_mask = np.logical_and(si_mask, g_mask)
+
         # Calculate the spectral functions
         f_peaks = self.f_peak(arrays.times)
         nu_ms = self.nu_m(arrays.times)
@@ -200,28 +218,25 @@ class FireballModel:
         # Model spectral fluxes
         res[sf_mask] = SpectralFluxModel(
             nu_ms[sf_mask], nu_cs[sf_mask], f_peaks[sf_mask], self.p, self.k
-        ).evaluate(arrays.frequencies[sf_mask])
+        )(arrays.frequencies[sf_mask])
 
         # Model Integrated fluxes
         res[if_mask] = IntegratedFluxModel(
             nu_ms[if_mask], nu_cs[if_mask], f_peaks[if_mask], self.p, self.k
-        ).evaluate(arrays.if_lower_freqs[if_mask], arrays.if_upper_freqs[if_mask])
+        )(arrays.if_lower_freqs[if_mask], arrays.if_upper_freqs[if_mask])
 
         # Model Spectral indices
         res[si_mask] = SpectralIndexModel(
             nu_ms[si_mask], nu_cs[si_mask], f_peaks[si_mask], self.p, self.k
-        ).evaluate(arrays.si_lower_freqs[si_mask], arrays.si_upper_freqs[si_mask])
+        )(arrays.si_lower_freqs[si_mask], arrays.si_upper_freqs[si_mask])
 
         # Smooth the flux values if there is a jet break
         if self.tj:
-            # Smooth the spectral flux
             res[sf_mask] = self.smooth_jet_break(
                 f=res[sf_mask],
                 t=arrays.times[sf_mask],
                 nu=arrays.frequencies[sf_mask]
             )
-
-            # Smooth the integrated flux
             res[if_mask] = self.smooth_jet_break(
                 f=res[if_mask],
                 t=arrays.times[if_mask],
@@ -229,13 +244,8 @@ class FireballModel:
                 upper=arrays.if_upper_freqs[if_mask]
             )
 
-        # Apply calibration offsets
-        if cal_offsets is not None:
-            for name, offset in cal_offsets.items():
-                res[observation.cal_offsets[name]] *= 10.0 ** -(0.4 * offset)
-
         # return modeled observational data
-        return res
+        return res[observation.data_groups[group]] if group else res
 
     def evaluate_spectral_flux(self, t, f):
         """ Model spectral fluxes. """

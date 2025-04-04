@@ -9,20 +9,22 @@ from jetfit.core.utils import nav_utils
 
 def prior_factory(d: dict):
     """
+    Instantiates the appropriate prior class.
 
     Parameters
     ----------
     d : dict
-        Contains the required key : value pairs for the prior specified
-        using the `type` key.
+        Contains the required key : value pairs for
+        the prior specified using the `type` key.
 
     Returns
     -------
-    GaussianPrior or UniformPrior
+    One of valid Prior objects.
+        Instantiated from the dict `d`.
     """
-    prior = Prior(d.get('type'))
+    ptype = Prior(d.get('type'))
 
-    match prior:
+    match ptype:
         case Prior.GAUSSIAN:
             return GaussianPrior.from_dict(d)
 

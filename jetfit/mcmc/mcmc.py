@@ -5,7 +5,7 @@ import emcee
 import numpy as np
 
 from jetfit.core.utils import math_utils
-from jetfit.mcmc.parameters.parameters import MCMCFittingParameter
+from jetfit.models2.basemodels import ObservedFluxModel
 
 
 class MCMC:
@@ -22,13 +22,7 @@ class MCMC:
     num_walkers : int
         Number of MCMC walkers.
 
-    fixed_params : list of MCMCFixedParameter
-        The fixed parameters.
-
-    fitting_params : list of MCMCFittingParameter
-        The fitting, or free, parameters.
-
-    model : ??
+    intrinsic_model : ??
         The model to evaluate.
 
     observation : Observation
@@ -39,19 +33,15 @@ class MCMC:
             burn_length: int,
             run_length: int,
             num_walkers: int,
-            fixed_params: list,
-            fitting_params: list,
             model,
             observation,
-            ext_model,
+            parameters,
             filename=None,
-            meta = None
+            meta=None,
     ):
         # Model
         self.model = model
-        self.fixed_params = fixed_params
-        self.fitting_params = fitting_params
-        self.param_pos = None
+        self.params = parameters
 
         # Sampler
         self.sampler = None
@@ -60,6 +50,7 @@ class MCMC:
         self.burn_length = burn_length
         self.num_walkers = num_walkers
 
+        self.param_pos = None
         self.start_burn_pos = None
         self.start_run_pos = None
 
@@ -73,45 +64,24 @@ class MCMC:
         self.set_start_positions()
         self.set_param_position()
 
-        # Store the calibration offsets for quick access
-        self.cal_offset_pos = {}
-        self.host_corr_pos = {}
-        for i, p in enumerate(fitting_params):
-            if p.name in self.observation.cal_offsets:
-                self.cal_offset_pos[p.name] = i
-
-            if p.name in self.observation.host_corr:
-                self.host_corr_pos[p.name] = i
-
-        # Store MW extinction values if fixed
-        self.ext_model = ext_model
-        self.ext_mw = None
-        for p in self.fixed_params:
-            if p.name =='ebv_mw':
-                self.ext_mw = self.ext_model.extinguish(
-                    self.observation.as_arrays.wave_numbers[self.observation.sflux_loc],
-                    Ebv=p.value
-                )
-                break
-
         self.meta = meta if meta else {}
 
     @property
     def num_dims(self) -> int | None:
         """ The number of fitting parameters. """
-        if self.fitting_params is not None:
-            return len(self.fitting_params)
+        if self.params.fitting is not None:
+            return len(self.params.fitting)
 
     # <editor-fold desc="Getters and Setters">
     def set_param_position(self) -> None:
         """ Sets the position of the parameters in the fitting list. """
-        self.param_pos = {p.name : i for i, p in enumerate(self.fitting_params)}
+        self.param_pos = {p.name : i for i, p in enumerate(self.params.fitting)}
 
     def set_start_positions(self) -> None:
         """ Calculates the start positions for each MCMC walker. """
         self.start_burn_pos = np.zeros((self.num_walkers, self.num_dims))
 
-        for i, p in enumerate(self.fitting_params):
+        for i, p in enumerate(self.params.fitting):
             self.start_burn_pos[:, i] = p.prior.draw(self.num_walkers)
 
     def set_sampler(self) -> None:
@@ -128,29 +98,25 @@ class MCMC:
             ndim=self.num_dims,
             log_prob_fn=self.log_posterior,
             # moves=emcee.moves.DEMove(),
-            backend=backend
+            backend=backend  # type: ignore
         )
 
-    def get_slop(self, theta: np.ndarray[float]) -> None | float:
+    def get_best_params(self, **kwargs) -> dict:
         """
-        Indexes the array of samples and returns the slope value.
+        Returns the sampled values from the chain with the highest
+        likelihood.
 
         Parameters
         ----------
-        theta
-            The `emcee.Emcee` sample array.
+        kwargs : dict
+            cat : str, optional
+                Limit the params to the `cat` categories.
 
-        Returns
-        -------
-        float or None
-            The slop value if it is a fitting parameter, else None.
-        """
-        if (pos := self.param_pos.get('slop')) is not None:
-            return theta[pos]
+            group : str, optional
+                Limit the params to the `group` data groups.
 
-    def get_best_params(self, model = False) -> dict:
-        """
-        Returns the sampled values from the chain with the highest likelihood.
+            scale : str, optional, default='linear'
+                The scale to return the parameters in.
 
         Returns
         -------
@@ -158,7 +124,7 @@ class MCMC:
             The values from the highest likelihood chain.
         """
         max_index = np.nanargmax(self.sampler.get_log_prob(flat=True))
-        return self.samples_to_dict(self.sampler.get_chain(flat=True)[max_index], model)
+        return self.params.samples_to_dict(self.sampler.get_chain(flat=True)[max_index], **kwargs)
     # </editor-fold>
 
     # <editor-fold desc="Sampling Routine">
@@ -171,8 +137,8 @@ class MCMC:
                 progress=True,
             )
         )
-        self.burn_sampler = copy.deepcopy(self.sampler)
 
+        self.burn_sampler = copy.deepcopy(self.sampler)
         self.sampler.reset()
 
         self.sampler.run_mcmc(
@@ -180,72 +146,6 @@ class MCMC:
             self.run_length,
             progress=True
         )
-
-    def samples_to_dict(self, theta, model: bool = False, offsets: bool = False) -> dict:
-        """
-        Maps an array of values to a dictionary.
-
-        Parameters
-        ----------
-        theta : np.ndarray of float
-            The fitted parameters values.
-
-        model : bool
-            If `True`, returns only the model parameters.
-
-        offsets : bool
-            If `True`, returns only the offset parameters.
-
-        Returns
-        -------
-        dict
-            ??
-        """
-        params = {'offsets': {}, 'host': {}, 'model': {}, 'ebv': {}, 'slop': None}
-
-        for i, p in enumerate(self.fitting_params):
-            linear_param = math_utils.to_scale(theta[i], p.scale, 'linear')
-
-            if 'offset' in p.name:
-                params['offsets'][p.name] = linear_param
-
-            elif 'host' in p.name:
-                params['host'][p.name] = linear_param
-
-            elif 'ebv' in p.name:
-                params['ebv'][p.name] = linear_param
-
-            elif 'slop' == p.name:
-                params['slop'] = linear_param
-
-            else:
-                params['model'][p.name] = linear_param
-
-        for i, p in enumerate(self.fixed_params):
-            linear_param = math_utils.to_scale(p.value, p.scale, 'linear')
-
-            if 'offset' in p.name:
-                params['offsets'][p.name] = linear_param
-
-            elif 'host' in p.name:
-                params['host'][p.name] = linear_param
-
-            elif 'ebv' in p.name:
-                params['ebv'][p.name] = linear_param
-
-            elif 'slop' == p.name:
-                params['slop'] = linear_param
-
-            else:
-                params['model'][p.name] = linear_param
-
-        if model:
-            return params['model']
-
-        if offsets:
-            return params['offsets']
-
-        return params
 
     def log_prior(self, theta: np.ndarray[float]) -> float:
         """
@@ -263,7 +163,7 @@ class MCMC:
         """
         log_prior = 0
 
-        for i, p in enumerate(self.fitting_params):
+        for i, p in enumerate(self.params.fitting):
             if np.isinf(prior := p.prior.evaluate(theta[i])):
                 return -np.inf
 
@@ -287,39 +187,105 @@ class MCMC:
             The log of the likelihood if the parameters were valid.
             Else, -np.inf.
         """
+        params = self.params.samples_to_dict(theta)
 
-        # Get the parameters as a dict
-        params = self.samples_to_dict(theta)
+        modeled = self.model(self.observation, params, **self.meta)
 
-        # Model the observational data
-        model = self.model(**params.get('model'), **self.meta)
-        modeled = model.model(self.observation, params.get('offsets'))
+        # Assume we only need shared parameters.
+        if params.get('shared') is not None:
+            params = params.get('shared')
 
-        wn = self.observation.as_arrays.wave_numbers[
-            self.observation.sflux_loc]
-
-        # Apply source dust extinction before host galaxy correction
-        if (ebv_sf := params.get('ebv').get('ebv_sf')) is not None:
-            modeled[self.observation.sflux_loc] *= self.ext_model.extinguish((1 + model.z) * wn, Ebv=ebv_sf)
-
-        # Add host galaxy contribution before Milky Way dust correction
-        if params.get('host') is not None:
-            for name, corr in params.get('host').items():
-                modeled[self.observation.host_corr[name]] += corr
-
-        # Apply Milky Way dust extinction
-        if (ebv_mw := params.get('ebv').get('ebv_mw')) is not None:
-            if self.ext_mw is not None:
-                # Already stored, skip calculation
-                modeled[self.observation.sflux_loc] *= self.ext_mw
-            else:
-                modeled[self.observation.sflux_loc] *= self.ext_model.extinguish(wn, Ebv=ebv_mw)
+        # Apply calibration offsets
+        modeled = self.calibration_offsets(
+            modeled, params.get('offsets')
+        )
 
         # Skip chi squared calculation since a nan will
         # always result in -inf anyway
         if np.isnan(modeled.min()):
             return -np.inf
 
+        # return log likelihood
+        return -0.5 * self.chi_squared(
+            modeled, params.get('slop').get('slop')
+        )
+
+    def calibration_offsets(self, modeled, offsets) -> np.array:
+        """
+        Applies calibration offsets to the modeled values.
+
+        Parameters
+        ----------
+        modeled : np.array
+            The modeled values.
+
+        offsets : dict
+            Key value pairs of `CalGroup` and offset values.
+
+        Returns
+        -------
+        np.array
+            The modeled values with applied offsets.
+        """
+        if offsets is not None:
+            cal_pos = self.observation.cal_offsets
+
+            for name, offset in offsets.items():
+                modeled[cal_pos[name]] *= 10.0 ** -(0.4 * offset)
+
+        return modeled
+
+    def log_posterior(self, theta: np.array) -> float:
+        """
+        Calculates the natural log of the posterior
+        probability.
+
+        The posterior probability is the probability
+        of the parameters, `theta`, given the evidence
+        X denoted by p(theta | X).
+
+        Parameters
+        ----------
+        theta : np.ndarray of float
+            The sampled MCMC parameter values.
+
+        Returns
+        -------
+        float
+            The natural log of the posterior.
+        """
+        if np.isfinite(log_prior := self.log_prior(theta)):
+            log_likelihood = self.log_likelihood(theta)
+
+            if np.isfinite(log_likelihood):
+                return log_prior + log_likelihood
+
+        return -np.inf
+
+    def chi_squared(self, modeled, slop=None) -> float:
+        """
+        Calculates the combined chi-squared between
+        the modeled and observational data for both
+        the flux and spectral indices.
+
+        The flux chi-squared calculation uses a so-
+        called chi-squared effective which utilizes
+        a slop parameter. Spectral indices use the
+        standard chi-squared formulation.
+
+        Parameters
+        ----------
+        modeled : np.ndarray of float
+            The modeled or predicted values.
+
+        slop : float, optional, default=None
+            The slop value.
+
+        Returns
+        -------
+        float
+            The combined chi-squared value.
+        """
         # Chi-squared for flux
         flux_mask = self.observation.flux_loc
 
@@ -327,7 +293,7 @@ class MCMC:
             modeled[flux_mask],
             self.observation.as_arrays.values[flux_mask],
             self.observation.as_arrays.errors[flux_mask],
-            self.get_slop(theta)
+            slop
         )
 
         # Chi-squared for spectral indices
@@ -340,39 +306,5 @@ class MCMC:
         )
 
         # return combined chi-squared
-        return -0.5 * (cs_flux + cs_indices)
-
-    def log_posterior(self, theta: np.ndarray[float]) -> float:
-        """
-        Calculates the natural log of the posterior probability.
-
-        The posterior probability is the probability of the parameters,
-        `theta`, given the evidence X denoted by p(theta | X).
-
-        Parameters
-        ----------
-        theta : np.ndarray of float, with length of ``fitting_params``
-            The sampled MCMC parameter values.
-
-        Notes
-        -----
-        This method is called `num_walkers` x `num_iterations` times which is
-        typically 1e6 times. Iterating even once over a dataset with 1e3
-        datapoints results in 1e9 (1 billion) iterations. Developers must
-        respect this expense when modifying this method.
-
-        To reduce unnecessary calculations, I only calculate the likelihood if
-        the prior is a finite value since there is no possible value of the
-        log likelihood that could modify `-infinity`.
-
-        Returns
-        -------
-        float
-            The natural log of the posterior.
-        """
-        if np.isfinite(log_prior := self.log_prior(theta)):
-            if np.isfinite(likelihood := self.log_likelihood(theta)):
-                return log_prior + likelihood
-
-        return -np.inf
+        return cs_flux + cs_indices
     # </editor-fold>

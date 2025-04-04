@@ -1,6 +1,205 @@
+from pathlib import Path
+
+import numpy as np
+
 from jetfit.core.defns.enums import ScaleType
-from jetfit.core.utils import math_utils, nav_utils
+from jetfit.core.utils import math_utils
+from jetfit.core.utils.toml_utils import TOMLReader
 from jetfit.mcmc.parameters import priors
+
+
+def factory(d: dict):
+    """
+    Instantiates a MCMCParameter from the dict `d`.
+
+    Parameters
+    ----------
+    d : dict
+        The parameter values.
+
+    Returns
+    -------
+    MCMCFixedParameter or MCMCFittingParameter
+        Instantiated from the dict `d`.
+    """
+    return MCMCFittingParameter.from_dict(d) if 'prior' in d \
+        else MCMCFixedParameter.from_dict(d)
+
+
+# noinspection PyUnresolvedReferences
+class Parameters:
+    """
+    Container class for afterglow parameters.
+
+    Parameters
+    ----------
+    params : array_like
+        The fixed and fitting parameters.
+    """
+
+    # Nyaa :3
+    _valid_cats = ('model', 'extinction', 'host', 'offsets', 'slop')
+
+    def __init__(self, params):
+        if not isinstance(params, np.ndarray):
+            params = np.asarray(params)
+
+        init_arr = np.full(params.size, False)
+
+        # Initialize positions for each cat
+        self.pos = {
+            cat : np.array(init_arr, copy=True)
+            for cat in self._valid_cats
+        }
+
+        # Initialize positions for each data group
+        self.data_groups = set([p.group for p in params if p.group is not None])
+
+        for dg in self.data_groups:
+            self.pos[dg] = np.array(init_arr, copy=True)
+
+        # Initialize positions for additional useful locators
+        self.pos['fixed'] = np.array(init_arr, copy=True)
+        self.pos['fitting'] = np.array(init_arr, copy=True)
+
+        # Determine positions of the categories
+        # Stored once here instead of in a prop
+        # to spead up MCMC as much as possible.
+        for i, p in enumerate(params):
+            self.pos['fixed'][i] = p.fixed
+            self.pos['fitting'][i] = not p.fixed
+            self.pos[p.category][i] = True
+
+            # If there is no group, then it is meant
+            # to be used will all groups.
+            if p.group is None:
+                for dg in self.data_groups:
+                    self.pos[dg][i] = True
+            else:
+                self.pos[p.group][i] = True
+
+        self.all = params
+        self.fixed = params[self.pos['fixed']]
+        self.fitting = params[self.pos['fitting']]
+
+    @classmethod
+    def from_toml(cls, d):
+        """
+        Instantiate `Parameters` from a dict.
+
+        Parameters
+        ----------
+        d : dict or str or Path
+            Either a path to the toml file or a dict
+            representing the TOML file.
+
+        Returns
+        -------
+        Parameters
+            Instantiated from `t`.
+        """
+        if isinstance(d, (str, Path)):
+            d = TOMLReader(d).read()
+
+        params = []
+        for cat, vals in d.items():
+            for val in vals:
+                params.append(
+                    factory(val | {'category': cat})
+                )
+
+        return cls(np.asarray(params, dtype=object))
+
+    def samples_to_dict(self, theta, cat=None, group=None, scale='linear'):
+        """
+        Maps MCMC samples to a dictionary.
+
+        If both `cat` and `group` are specified, then the
+        union of the two are returned.
+
+        Parameters
+        ----------
+        theta : np.array of float
+            The MCMC samples.
+
+        cat : str, optional
+            Limit the dictionary to the `cat` categories.
+
+        group : str, optional
+            Limit the dictionary to the `group` data groups.
+
+        scale : str, optional, default='linear'
+            The scale to return the parameters in.
+
+        Returns
+        -------
+        dict
+            The parameters in dict form.
+        """
+        if theta.size != len(self.fitting):
+            raise ValueError(
+                f'Size mismatch: theta[{theta.size}] != params'
+                f'[{len(self.fitting)}].'
+            )
+
+        # Define the categories to return ~Nyaa :3
+        cats = [cat] if cat else self._valid_cats
+
+        # Define the groups to return
+        groups = [group] if group else self.data_groups or []
+
+        # Initialize the result with cats and groups
+        params = {'shared': {cat: {} for cat in cats}}
+
+        for dg in groups:
+            params[dg] = {cat: {} for cat in cats}
+
+        for i, p in enumerate(np.concatenate([self.fitting, self.fixed])):
+            if p.category in cats:
+                val = math_utils.to_scale(
+                    theta[i] if i < theta.size else p.value, p.scale, scale
+                )
+
+                if p.group is None:
+                    params['shared'][p.category][p.name] = val
+
+                for g in groups:
+                    if p.group is None or p.group == g:
+                        params[g][p.category][p.name] = val
+
+        return params if self.data_groups else params['shared']
+
+    @staticmethod
+    def extrinsic(obs, params) -> dict:
+        """
+        Formats the arguments for `ExtrinsicFluxModel.extinguish`.
+
+        Parameters
+        ----------
+        obs : Observation
+            The `Observation` object.
+
+        params : dict
+            The return from `samples_to_dict`.
+
+        Returns
+        -------
+        dict
+            `ExtrinsicFluxModel.extinguish` parameters.
+        """
+
+        # dict of data groups
+        if 'shared' in params:
+            params = params['shared']
+
+        return {
+            'z': params.get('model').get('z'),
+            'wn': obs.as_arrays.wave_numbers[obs.sflux_loc],
+            'ebv_sf': params.get('extinction').get('ebv_source_frame'),
+            'ebv_mw': params.get('extinction').get('ebv_milky_way'),
+            'host_vals': params.get('host'),
+            'host_pos': obs.host_groups,
+        }
 
 
 class MCMCParameter:
@@ -14,14 +213,34 @@ class MCMCParameter:
 
     scale : `jetfit.core.enums.ScaleType`
         The scale of the parameter.
+
+    category : str
+        One of: `model`, `extinction`, `host`,
+        `offsets`, or `slop`
+
+    group : str, optional
+        The data group of the parameter. Useful
+        for values that are intended to be applied
+        to a subset of the data.
     """
     def __init__(
             self,
             name: str,
-            scale: ScaleType
+            scale: ScaleType,
+            category: str,
+            group: str = None
     ):
         self.name = name
         self.scale = scale
+        self.group = group
+        self.category = category
+
+    @classmethod
+    def from_dict(cls, d: dict):
+        """ Placeholder. """
+        raise NotImplementedError(
+            '`from_dict` method is not implemented.'
+        )
 
 
 class MCMCFixedParameter(MCMCParameter):
@@ -37,58 +256,59 @@ class MCMCFixedParameter(MCMCParameter):
             self,
             name: str,
             value: float,
-            scale: ScaleType
+            scale: ScaleType,
+            category: str,
+            group: str = None
     ):
-        super().__init__(name, scale)
+        super().__init__(name, scale, category, group)
         self.value = value
 
+    def __repr__(self) -> str:
+        """ Human-readable string. """
+        return (
+            f'FixedParameter(name={self.name}, '
+            f'category={self.category}, '
+            f'value={self.value})'
+        )
+
     @classmethod
-    def from_dict(cls, name: str, params: dict):
+    def from_dict(cls, d: dict):
         """
         Instantiates the class from a dictionary.
 
         Parameters
         ----------
-        name : str
-            The name of the parameter.
-
-        params : dict
+        d : dict
             The class attributes and values.
 
         Returns
         -------
         MCMCFixedParameter
-            Instantiated from `params`.
+            Instantiated from `d`.
         """
-        if not nav_utils.is_expected_type(params.get('value'), float):
-            raise ValueError(f'Received unexpected value information for'
-                             f'{name}.')
+        if not isinstance(d.get('value'), (int, float)):
+            raise TypeError(
+                f"Expected a number for value in `{d.get('name')}`. "
+                f"Received `{type(d.get("value"))}` instead."
+            )
 
-        if not nav_utils.is_expected_type(params.get('scale'), str):
-            raise ValueError(f'Received unexpected scale information for'
-                             f'{name}.')
+        if not isinstance(d.get('scale'), str):
+            raise TypeError(
+                f'Expected type `str` for scale in `{d.get('name')}`. '
+                f'Received `{type(d.get("scale"))}` instead.'
+            )
 
         return cls(
-            name,
-            params.get('value'),
-            ScaleType(params.get('scale'))
+            d.get('name'),
+            d.get('value'),
+            ScaleType(d.get('scale')),
+            d.get('category'),
+            d.get('group')
         )
 
-    def get_value(self, scale: ScaleType | str) -> float | None:
-        """
-        Returns ``value`` in ``scale``.
-
-        Parameters
-        ----------
-        scale : ScaleType or str
-            The scale of the parameter to return.
-
-        Returns
-        -------
-        float
-            The value in the specified scale.
-        """
-        return math_utils.to_scale(self.value, self.scale, scale)
+    @property
+    def fixed(self) -> bool:
+        return True
 
 
 class MCMCFittingParameter(MCMCParameter):
@@ -104,39 +324,52 @@ class MCMCFittingParameter(MCMCParameter):
             self,
             name: str,
             scale: ScaleType,
-            prior
+            prior,
+            category: str,
+            group: str = None
     ):
-        MCMCParameter.__init__(self, name, scale)
+        MCMCParameter.__init__(self, name, scale, category, group)
         self.prior = prior
 
+    def __repr__(self) -> str:
+        """ Human-readable string. """
+        return f'FittingParameter(name={self.name}, category={self.category})'
+
     @classmethod
-    def from_dict(cls, name: str, params: dict):
+    def from_dict(cls, d: dict):
         """
         Instantiates the class from a dictionary.
 
         Parameters
         ----------
-        name : str
-            The name of the parameter.
-
-        params : dict
+        d : dict
             The class attributes and values.
 
         Returns
         -------
         MCMCFittingParameter
-            Instantiated from `params`.
+            Instantiated from `d`.
         """
-        if not nav_utils.is_expected_type(params.get('prior'), dict):
-            raise ValueError(f'Received unexpected prior information for'
-                             f'{name}.')
+        if not isinstance(d.get('prior'), dict):
+            raise TypeError(
+                f'Expected type `dict` for prior in {d.get('name')}. '
+                f'Received `{type(d.get("prior"))}` instead.'
+            )
 
-        if not nav_utils.is_expected_type(params.get('scale'), str):
-            raise ValueError(f'Received unexpected scale information for '
-                             f'{name}.')
+        if not isinstance(d.get('scale'), str):
+            raise TypeError(
+                f'Expected type `str` for scale in {d.get('name')}. '
+                f'Received `{type(d.get("scale"))}` instead.'
+            )
 
         return cls(
-            name,
-            ScaleType(params.get('scale')),
-            priors.prior_factory(params.get('prior'))
+            d.get('name'),
+            ScaleType(d.get('scale')),
+            priors.prior_factory(d.get('prior')),
+            d.get('category'),
+            d.get('group')
         )
+
+    @property
+    def fixed(self) -> bool:
+        return False

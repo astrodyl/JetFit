@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 
 import astropy.units as u
@@ -13,7 +14,8 @@ COLOR_MAP = {
     'I': '#4424D6', 'J': '#66B032', 'H': '#FC600A', 'K': '#FE2712',
 
     # SDSS Optical
-    "u": '#4424D6', "g": '#347C98', "r": '#FC600A', "i": '#8601AF', "z": '#0247FE',
+    "u": '#4424D6', "g": '#347C98', "r": '#FC600A', "i": '#8601AF',
+    "z": '#0247FE',
 
     # Swift Optical/UV/XRAY
     'uvot-u': 'cyan', 'uvot-b': 'lightblue', 'uvot-v': 'lightgreen',
@@ -42,71 +44,206 @@ def days_to_sec(x):
     return x * 86400
 
 
+def get_best_params(sampler, params, **kwargs):
+    """"""
+    max_index = np.nanargmax(sampler.get_log_prob(flat=True))
+    return params.samples_to_dict(sampler.get_chain(flat=True)[max_index], **kwargs)
+
+
+def map_groups(observation, gen_times):
+    """"""
+    group_map = {
+        g: np.full(len(gen_times), False, dtype=bool)
+        for g in observation.data_groups
+    }
+
+    for group in group_map:
+        group_times = observation.as_arrays.times[observation.data_groups[group]]
+
+        for i, t in enumerate(gen_times):
+            if (group_times.min() - 1e-6) <= t <= (group_times.max() + 1e-6):
+                group_map[group][i] = True
+
+    return group_map
+
+
 class FrequencyPlot:
     """"""
-    def __init__(self, mcmc, model, observation):
-        self.mcmc = mcmc
-        self.model = model
-        self.observation = observation
+    def __init__(self, sampler, params):
+        self.sampler = sampler
+        self.parameters = params
 
-    def plot(self, t_start, t_stop, out_dir):
+        self.ax = None
+        self._set_axes()
+
+    def _set_axes(self) -> None:
+        """"""
+        _, ax = plt.subplots(figsize=(8, 8))
+
+        ax.set_title('Critical Frequencies')
+        ax.set_xlabel('Time Since Trigger (days)')
+        ax.set_ylabel('Frequency (Hz)')
+        ax.set_ylim(1e13, 1e18)
+
+        # Define secondary axis
+        ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
+        ax2.set_xlabel("Time Since Trigger (seconds)")
+
+        self.ax = ax
+
+    def plot(self, model, obs, out_dir=None, show=False, **model_kw):
+        """"""
+        self.plot_frequencies(model, obs, **model_kw)
+        self.plot_data(obs)
+
+        if show:
+            plt.show()
+
+        if out_dir is not None:
+            plt.savefig(out_dir / 'frequency_dist.png')
+
+    def plot_frequencies(self, model, obs, **model_kw):
+        """"""
+
+        def model_frequencies(p: dict):
+            """ Model the critical frequencies using data groups. """
+            nu_ms_all = np.full(times.size, np.nan)
+            nu_cs_all = np.full(times.size, np.nan)
+
+            if p.get('shared'):
+                groups = map_groups(obs, times)
+
+                for group in groups.keys():
+                    model_params = p.get(group).get('model')
+                    afterglow_model = model(**model_params, **model_kw)
+                    nu_ms_all[groups[group]] = afterglow_model.nu_m(times[groups[group]])
+                    nu_cs_all[groups[group]] = afterglow_model.nu_c(times[groups[group]])
+            else:
+                afterglow_model = model(**p.get('model'), **model_kw)
+                nu_ms_all = afterglow_model.nu_m(times)
+                nu_cs_all = afterglow_model.nu_c(times)
+            return nu_ms_all, nu_cs_all
+
+        # Get random locations from flattened chain
+        flat_chain = self.sampler.get_chain(flat=True, thin=10)
+        indices = np.random.randint(len(flat_chain), size=100)
+
+        # Define time range for plot
+        times = np.logspace(
+            start=np.log10(obs.as_arrays.times[obs.flux_loc].min()),
+            stop=np.log10(obs.as_arrays.times[obs.flux_loc].max()),
+            num=100  # Frequencies are straight lines, low num is OK.
+        )
+
+        for idx in indices:
+
+            # Model params for each group
+            params = self.parameters.samples_to_dict(
+                flat_chain[idx], cat='model'
+            )
+
+            # For each data group...
+            nu_ms, nu_cs = model_frequencies(params)
+
+            # Finally plot them.
+            self.ax.loglog(times, nu_ms, color='blue', alpha=0.1)
+            self.ax.loglog(times, nu_cs, color='orange', alpha=0.1)
+
+        best_params = get_best_params(self.sampler, self.parameters, cat='model')
+        best_nu_ms, best_nu_cs = model_frequencies(best_params)
+
+        # Max likelihood parameters using data groups
+        # best_params = get_best_params(self.sampler, self.parameters, cat='model')
+        # best_nu_ms, best_nu_cs = model_frequencies(best_params)
+        #
+        # else:
+            # Max likelihood parameters
+            # best_params = get_best_params(self.sampler, self.parameters, cat='model')
+            # best_afterglow_model = model(**best_params.get('model'), **model_kw)
+            # best_nu_ms = best_afterglow_model.nu_m(times)
+            # best_nu_cs = best_afterglow_model.nu_c(times)
+
+        # Plot best frequencies
+        self.ax.loglog(times, best_nu_ms, color='purple', linewidth=2)
+        self.ax.loglog(times, best_nu_cs, color='red', linewidth=2)
+
+    def plot_best(self, obs, model, out_dir=None, **model_kw):
         """"""
         _, ax = plt.subplots()
 
-        flat_chain = self.mcmc.sampler.get_chain(flat=True, thin=10)
-        inds = np.random.randint(len(flat_chain), size=100)
+        def model_frequencies(p: dict):
+            """ Model the critical frequencies using data groups. """
+            nu_ms_all = np.full(times.size, np.nan)
+            nu_cs_all = np.full(times.size, np.nan)
 
-        times = np.logspace(np.log10(t_start), np.log10(t_stop), num=200)
+            if p.get('shared'):
+                groups = map_groups(obs, times)
 
-        for ind in inds:
-            params = self.mcmc.samples_to_dict(flat_chain[ind], model=True)
+                for group in groups.keys():
+                    model_params = p.get(group).get('model')
+                    afterglow_model = model(**model_params, **model_kw)
+                    nu_ms_all[groups[group]] = afterglow_model.nu_m(times[groups[group]])
+                    nu_cs_all[groups[group]] = afterglow_model.nu_c(times[groups[group]])
+            else:
+                afterglow_model = model(**p.get('model'), **model_kw)
+                nu_ms_all = afterglow_model.nu_m(times)
+                nu_cs_all = afterglow_model.nu_c(times)
+            return nu_ms_all, nu_cs_all
 
-            # Calculate the critical frequencies
-            grb_model = self.model(**params)
-            nu_ms = grb_model.nu_m(times)
-            nu_cs = grb_model.nu_c(times)
+        times = np.logspace(
+            start=np.log10(obs.as_arrays.times[obs.flux_loc].min()),
+            stop=np.log10(obs.as_arrays.times[obs.flux_loc].max()),
+            num=100  # Frequencies are straight lines, low num is OK.
+        )
 
-            ax.loglog(times, nu_ms, color='blue', alpha=0.1)
-            ax.loglog(times, nu_cs, color='orange', alpha=0.1)
+        best_params = get_best_params(self.sampler, self.parameters, cat='model')
+        nu_ms, nu_cs = model_frequencies(best_params)
 
-        # Plot the best fit frequencies
-        best_params = self.mcmc.get_best_params(model=True)
-        best_grb_model = self.model(**best_params)
-        best_nu_ms = best_grb_model.nu_m(times)
-        best_nu_cs = best_grb_model.nu_c(times)
+        # Calculate the temporal indices
+        slope_nu_m, _ = np.polyfit(np.log10(times), np.log10(nu_ms), 1)
+        slope_nu_c, _ = np.polyfit(np.log10(times), np.log10(nu_cs), 1)
 
-        # Plot median frequencies
-        ax.loglog(times, best_nu_ms, color='purple', linewidth=2)
-        ax.loglog(times, best_nu_cs, color='red', linewidth=2)
+        # Include indices in label
+        ax.loglog(times, nu_ms, color='blue',
+                  label=r'$\nu_{m},  \alpha = $' + f'{round(slope_nu_m, 3)}')
+        ax.loglog(times, nu_cs, color='orange',
+                  label=r'$\nu_{c},  \alpha = $' + f'{round(slope_nu_c, 3)}')
 
-        # Plot data as frequency vs time
-        flux_mask = self.observation.flux_loc
-        arrays = self.observation.as_arrays
+        # Plot horizontal lines roughly corresponding to optical/xray
+        plt.axhline(y=5e14, color='green', linewidth=10, alpha=0.2)
+        plt.axhline(y=1e18, color='black', linewidth=10, alpha=0.3)
 
-        # Plot each band
-        for dfilter in np.unique(arrays.filters[flux_mask]):
+        ax.set_title('Critical Frequencies')
+        ax.set_xlabel('Time Since Trigger (days)')
+        ax.set_ylabel('Frequency (Hz)')
+        ax.legend(loc='best')
+        ax.grid(alpha=0.5)
+
+        ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
+        ax2.set_xlabel("Time Since Trigger (seconds)")
+
+        if out_dir is not None:
+            plt.savefig(out_dir / 'frequency_best.png')
+
+    def plot_data(self, obs):
+        """ Plot data as frequency vs time """
+        filters = np.unique(obs.as_arrays.filters[obs.flux_loc])
+
+        for f in filters:
             times, frequencies = [], []
-            data = self.observation.data[flux_mask][arrays.filters[flux_mask] == dfilter]
+
+            # Get data for band == f
+            data = obs.data[obs.flux_loc][obs.as_arrays.filters[obs.flux_loc] == f]
 
             for d in data:
                 times.append(d.time.to_value('d'))
                 frequencies.append(d.frequency.to_value('Hz'))
 
             # Plot the band
-            ax.scatter(times, frequencies, label=dfilter, color=COLOR_MAP[dfilter])
+            self.ax.scatter(times, frequencies, label=f, color=COLOR_MAP[f])
 
-        # Plot options
-        ax.set_title('Critical Frequencies')
-        ax.set_xlabel('Time Since Trigger (days)')
-        ax.set_ylabel('Frequency (Hz)')
-        ax.set_ylim(1e13, 2e18)
-        ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
-        ax2.set_xlabel("Time Since Trigger (seconds)")
-        ax.legend(loc='best')
-        ax.grid(alpha=0.5)
-
-        if out_dir is not None:
-            plt.savefig(out_dir / 'frequency_scatter.png')
+        self.ax.legend(loc='best')
+        self.ax.grid(alpha=0.5)
 
 
 class LightCurvePlot:
@@ -160,8 +297,7 @@ class LightCurvePlot:
             plt.savefig(out_dir / 'light_curve.png')
 
     def plot_model(
-            self, show: bool = False, host_corr: dict = None,
-            ext_model=None, ebv_mw=None, ebv_sf=None, ndata: int = 200
+            self, show: bool = False, ext_model=None, ndata: int = 200
     ) -> None:
         """
         Plots the model as a light curve. Converts all flux to
@@ -188,7 +324,38 @@ class LightCurvePlot:
         ndata : int, optional
             The number of data points to plot.
         """
-        model = self.model(**self.params)
+
+        def model_spectral_fluxes(p: dict, freq):
+            """ """
+            modeled = np.full(times.size, np.nan)
+
+            if p.get('shared') is not None:
+                groups = map_groups(self.observation, times)
+
+                for group, pos in groups.items():
+                    model_params = p.get(group).get('model')
+                    afterglow_model = self.model(**model_params)
+                    modeled[pos] = afterglow_model.evaluate_spectral_flux(times[pos], freq)
+            else:
+                afterglow_model = self.model(**p.get('model'))
+                modeled = afterglow_model.evaluate_spectral_flux(times, freq)
+            return modeled
+
+        def model_integrated_fluxes(p: dict, low, upp):
+            """ """
+            modeled = np.full(times.size, np.nan)
+
+            if p.get('shared') is not None:
+                groups = map_groups(self.observation, times)
+
+                for group, pos in groups.items():
+                    model_params = p.get(group).get('model')
+                    afterglow_model = self.model(**model_params)
+                    modeled[pos] = afterglow_model.evaluate_integrated_flux(times[pos], low, upp)
+            else:
+                afterglow_model = self.model(**p.get('model'))
+                modeled = afterglow_model.evaluate_integrated_flux(times, low, upp)
+            return modeled
 
         # Only plot flux values
         flux_mask = self.observation.flux_loc
@@ -217,11 +384,23 @@ class LightCurvePlot:
             wavelength = sdata.wavelength.to_value('um')
 
             # Model the spectral flux
-            sflux = model.evaluate_spectral_flux(times, frequency)
+            # model = self.model(**self.params)
+            # sflux = model.evaluate_spectral_flux(times, frequency)
+            sflux = model_spectral_fluxes(self.params, frequency)
+
+            if 'shared' in self.params:
+                params = self.params['shared']
+            else:
+                params = self.params
+
+            z = params.get('model').get('z')
+            host_corr = params.get('host')
+            ebv_sf = params.get('extinction').get('ebv_source_frame')
+            ebv_mw = params.get('extinction').get('ebv_milky_way')
 
             # Apply source dust extinction before host galaxy correction
             if ext_model is not None and ebv_sf is not None:
-                sflux *= ext_model.extinguish((1 + model.z) / wavelength, Ebv=ebv_sf)
+                sflux *= ext_model.extinguish((1 + z) / wavelength, Ebv=ebv_sf)
 
             # Add host galaxy contribution before Milky Way dust correction
             filter_host = sdata.filter + '_host'
@@ -242,7 +421,8 @@ class LightCurvePlot:
             upper = idata.int_range.upper.to_value('Hz')
 
             # Model the integrated flux
-            iflux = model.evaluate_integrated_flux(times, lower, upper)
+            # iflux = model.evaluate_integrated_flux(times, lower, upper)
+            iflux = model_integrated_fluxes(self.params, lower, upper)
 
             # Convert to flux density [mJy]
             iflux_quant = u.Quantity(iflux, unit=self.observation.as_arrays.if_units)

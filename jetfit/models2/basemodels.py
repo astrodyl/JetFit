@@ -4,6 +4,7 @@ import astropy.units as u
 import numpy as np
 
 from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
+from jetfit.mcmc.parameters.parameters import Parameters
 
 
 class ExtrinsicFlux:
@@ -373,20 +374,6 @@ class BaseSpectralModel:
 
     z : float
         The redshift.
-
-    Attributes
-    ----------
-    E : float
-        The explosion energy normalized to 1e52 ergs.
-
-    eps_b : float
-        The fraction of thermal energy in the magnetic field.
-
-    k : float
-        The density power-law index.
-
-    z : float
-        The redshift.
     """
 
     # noinspection PyPep8Naming
@@ -447,8 +434,6 @@ class PeakFluxModel(BaseSpectralModel):
     """
     Peak flux model. Assumes an ultra-relativistic shock moving
     through an external medium with rho = rho0 * R^-k density.
-
-    Both radiative and adiabatic models are supported.
     """
 
     # noinspection PyPep8Naming
@@ -463,7 +448,7 @@ class PeakFluxModel(BaseSpectralModel):
         """ Returns the inverse particle density. """
         return 0.5 * (1 + self.X)
 
-    def evaluate(self, t: u.Quantity | float) -> float:
+    def evaluate(self, t):
         """
         Calculates the peak flux at time `t` for a shock's
         movement that is described by `evo`.
@@ -476,23 +461,23 @@ class PeakFluxModel(BaseSpectralModel):
 
         Returns
         -------
-        float or np.ndarray of float
+        float or np.ndarray of u.Quantity['time']
             The peak flux at time `t` measured in mJy.
         """
         if isinstance(t, u.Quantity):
             t = t.to_value('d')
 
-        # convenience variables
+        # Convenience variables
         k, x = self.k, 4 - self.k
 
-        # evaluate exponents once
+        # Evaluate exponents once
         exp_z   = (0.5 * (8 - self.k) / x)
         exp_c   = -0.5 * (24 - 7 * k) / x
         exp_en  = 0.5 * (8 - 3 * k) / x
         exp_t   = -0.5 * k / x
         exp_rho = 2 / x
 
-        # exponents in log-space to prevent overflow
+        # Exponents in log-space to prevent overflow
         log_pot = (
             (10 * exp_c) +              # speed of light [cm]
             (52 * exp_en) +             # 1e52 erg normalization
@@ -536,8 +521,6 @@ class CoolingFrequencyModel(BaseSpectralModel):
     Cooling frequency model. Assumes an ultra-relativistic
     shock moving through an external medium with rho = rho0
     * R^-k density.
-
-    Both radiative and adiabatic models are supported.
     """
 
     # noinspection PyPep8Naming
@@ -545,7 +528,7 @@ class CoolingFrequencyModel(BaseSpectralModel):
         super().__init__(E, eps_b, k, z)
         self.rho0 = rho0
 
-    def evaluate(self, t: u.Quantity | float) -> float:
+    def evaluate(self, t):
         """
         Calculates the cooling frequency at time `t`
         for a shock's movement that is described by `evo`.
@@ -613,8 +596,6 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
     shock moving through an external medium with rho = rho0
     * R^-k density.
 
-    Both radiative and adiabatic models are supported.
-
     Attributes
     ----------
     eps_e : float
@@ -640,7 +621,7 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
         """ Returns the particle density. """
         return 0.5 * (1 + self.X)
 
-    def evaluate(self, t: u.Quantity | float):
+    def evaluate(self, t):
         """
         Calculates the synchrotron frequency at time `t`
         for a shock's movement that is described by `evo`.
@@ -686,3 +667,177 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
             ((self.p - 1) ** -2) *  # electron energy index
             (t ** -1.5)             # time in days
         )
+
+
+class ObservedFluxModel:
+    """
+    Container for computing the observed afterglow flux.
+
+    Parameters
+    ----------
+    afterglow_model :
+        The afterglow flux model to use. Can be any custom
+        defined model as long as it has a `model` method
+        that takes an `Observation` and returns an array.
+
+    extinction_model :
+        The dust extinction model to use. Models from
+        `dust_extinction` package or any custom object
+        that has an `extinguish` method.
+
+    ext_sf : np.array, optional
+        The pre-computed source frame extinction values.
+
+    ext_mw : np.array, optional
+        The pre-computed milky way extinction values.
+    """
+    def __init__(self, afterglow_model, extinction_model, ext_sf=None, ext_mw=None):
+        self.afterglow_model = afterglow_model
+        self.extinction_model = extinction_model
+        self.ext_sf = ext_sf
+        self.ext_mw = ext_mw
+
+    def __repr__(self):
+        """ Human-readable representation. """
+        return (
+            f'ObservedFluxModel('
+            f'ag={self.afterglow_model}, '
+            f'ext={self.extinction_model})'
+        )
+
+    def __call__(self, *args, **kwargs) -> np.array:
+        """ Calls the `model` method. """
+        return self.model(*args, **kwargs)
+
+    def model(self, obs, params, **kwargs) -> np.array:
+        """
+        Models the observed GRB afterglow flux.
+
+        Parameters
+        ----------
+        obs : Observation
+            The `Observation` object to model.
+
+        params : dict
+            The dict returned from `Parameters.samples_to_dict`.
+
+        kwargs : dict, optional
+            Any additional arguments needed to instantiate the
+            flux model.
+
+        Returns
+        -------
+        np.array
+            The modeled observed GRB afterglow flux.
+        """
+
+        # Model the GRB afterglow flux
+        modeled = self.model_afterglow(obs, params, **kwargs)
+
+        # Apply dust extinction and host galaxy corrections
+        modeled[obs.sflux_loc] = self.model_extinction(
+            modeled[obs.sflux_loc], **Parameters.extrinsic(obs, params)
+        )
+
+        return modeled
+
+    def model_afterglow(self, obs, params, **kwargs) -> np.array:
+        """
+        Models the GRB afterglow flux.
+
+        Parameters
+        ----------
+        obs : Observation
+            The `Observation` object to model.
+
+        params : dict
+            The dict returned from `Parameters.samples_to_dict`.
+
+        kwargs : optional
+            Any additional arguments needed to instantiate the
+            flux model.
+
+        Returns
+        -------
+        np.array
+            The modeled GRB afterglow flux.
+        """
+        if params.get('shared') is not None:
+            modeled = np.full(obs.length, np.nan, dtype=float)
+
+            # Model each data group separately
+            for group in obs.data_groups.keys():
+                model_params = params.get(group).get('model')
+
+                modeled[obs.data_groups[group]] = self.afterglow_model(
+                    **model_params, **kwargs).model(obs, group)
+
+        else:
+            # No data groups, model all together
+            model = self.afterglow_model(**params.get('model'), **kwargs)
+            modeled = model.model(obs)
+
+        # return GRB afterglow flux
+        return modeled
+
+    def model_extinction(
+        self, modeled, wn, z=None, ebv_sf=None,
+        ebv_mw=None, host_pos=None, host_vals=None
+    ) -> np.array:
+        """
+        Corrects the intrinsic flux, `modeled`, for
+        dust extinction and host galaxy contributions.
+
+        Parameters
+        ----------
+        modeled : np.array
+            The modeled flux.
+
+        wn : np.array
+            The observed wave numbers measured in inverse
+            microns.
+
+        z : float, optional
+            The redshift. If provided, transforms `wn` to
+            the source frame when extinguishing for source
+            frame dust.
+
+        ebv_sf : float, optional
+            The E(B - V) value for the source frame. The
+            precomputed source frame extinction values are
+            given priority over `ebv_sf` (if defined).
+
+        ebv_mw : float, optional
+            The E(B - V) value for the Milky Way. The
+            precomputed source frame extinction values are
+            given priority over `ebv_mw` (if defined).
+
+        host_pos, host_vals : dict, optional
+            The positions and values of the host galaxy corrections.
+            Both must be provided to apply host galaxy corrections.
+            Assumes that the values are measured in the same space
+            as the intrinsic flux.
+
+        Returns
+        -------
+        np.array
+            The extinguished and host galaxy corrected flux.
+        """
+
+        # Apply source frame extinction
+        if self.ext_sf is not None or ebv_sf is not None:
+            modeled *= self.ext_sf if self.ext_sf is not None \
+                else self.extinction_model.extinguish((1+z)*wn, Ebv=ebv_sf)
+
+        # Apply host galaxy correction
+        if host_vals is not None and host_pos is not None:
+            for name, corr in host_vals.items():
+                modeled[np.where(host_pos[name])] += corr
+
+        # Apply Milky Way extinction
+        if self.ext_mw is not None or ebv_mw is not None:
+            modeled *= self.ext_mw if self.ext_mw is not None \
+                else self.extinction_model.extinguish(wn, Ebv=ebv_mw)
+
+        # return (afterglow_flux * ext_sf + host_correction) * ext_mw
+        return modeled

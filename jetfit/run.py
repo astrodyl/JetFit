@@ -9,9 +9,10 @@ from matplotlib import pyplot as plt
 from jetfit.core.input import Observation
 from jetfit.mcmc.mcmc import MCMC
 from jetfit.core.utils import nav_utils
+from jetfit.mcmc.parameters.parameters import Parameters
 from jetfit.mcmc.settings.reader import MCMCSettingsReader
 from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSimTable
-from jetfit.models.afterglow.boosted_fireball.parameters.reader import BFParamsReader
+from jetfit.models2.basemodels import ObservedFluxModel
 from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel
 from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
@@ -31,7 +32,8 @@ def main(
 
     Parameters
     ----------
-    event : Path
+    event : str
+        The name of the event.
 
     mcmc_path : Path
         The path to the MCMC settings file.
@@ -45,67 +47,94 @@ def main(
     results_dir : Path
         The directory where the results will be saved.
     """
-    # -------- DIRECTORIES ----------
+    # -----------------------------------------------------------------
+    # -------------------------- Directories --------------------------
+    # -----------------------------------------------------------------
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
-    # TEST FOR GENERIC FIREBALL MODEL
+    # -----------------------------------------------------------------
+    # ----------------------------- I/O -------------------------------
+    # -----------------------------------------------------------------
+    parameters = Parameters.from_toml(model_path)
     observation = Observation.from_csv(data_path)
-
-    # -------- NEW COOLER WAY OF DOING THINGS --------
     mcmc_params = MCMCSettingsReader(mcmc_path)
-    model_params = BFParamsReader(model_path)
 
+    # -----------------------------------------------------------------
+    # ---------------------- Observed Flux Model ----------------------
+    # -----------------------------------------------------------------
+    # Pre-compute extinction values (if applicable)
+    ebv = {'ebv_source_frame': None, 'ebv_milky_way': None}
+    wn = observation.as_arrays.wave_numbers[observation.sflux_loc]
+    extinction_model = CCM89(Rv=3.1)
+
+    for p in parameters.fixed:
+        if p.name in ebv.keys():
+            ebv[p.name] = extinction_model.extinguish(wn, Ebv=p.value)
+
+    # Store pre-computed values in the extrinsic model
+    observed_flux_model = ObservedFluxModel(
+        FireballModel, extinction_model,
+        ext_sf=ebv['ebv_source_frame'],
+        ext_mw=ebv['ebv_milky_way']
+    )
+
+    # -----------------------------------------------------------------
+    # ----------------------------- MCMC ------------------------------
+    # -----------------------------------------------------------------
+    # Define a filename to save the sampler to disk.
+    # Warning: The sampler files are very large ~1 GB each.
+    filename = None  # str(results_dir / f'{event}_chain.h5')
+
+    # Create the MCMC object and run. See you in a few hours!
     mcmc = MCMC(
-        burn_length=mcmc_params.burn_length,
-        run_length=mcmc_params.run_length,
-        num_walkers=mcmc_params.num_walkers,
-        model=FireballModel,
+        **mcmc_params.data['sampler'],
+        model=observed_flux_model,
         observation=observation,
-        fixed_params=model_params.fixed,
-        fitting_params=model_params.fitting,
-        ext_model=CCM89(Rv=3.1)
-        # filename=str(results_dir / f'{event}_chain.h5'),
-        # meta={
-        #     'hydro_sim_table':
-        #           HydroSimTable(nav_utils.get_hydro_sim_table_path())
-        #       }
+        parameters=parameters,
+        filename=filename
     )
     mcmc.run()
 
+    # -----------------------------------------------------------------
+    # ----------------------------- PLOT ------------------------------
+    # -----------------------------------------------------------------
     # Plot the light curves
     best_params = mcmc.get_best_params()
 
-    fp = FrequencyPlot(mcmc, FireballModel, observation)
+    fp = FrequencyPlot(mcmc.sampler, parameters)
     fp.plot(
-        observation.as_arrays.times[observation.flux_loc].min(),
-        observation.as_arrays.times[observation.flux_loc].max(),
+        model=observed_flux_model.afterglow_model,
+        obs=observation,
+        out_dir=results_dir
+    )
+    fp.plot_best(
+        model=observed_flux_model.afterglow_model,
+        obs=observation,
         out_dir=results_dir
     )
 
     lc = LightCurvePlot(
-        model=mcmc.model,
-        params=best_params.get('model'),
-        observation=mcmc.observation,
+        model=observed_flux_model.afterglow_model,
+        params=best_params,
+        observation=observation,
         title=f'{event} Light Curve'
     )
     lc.plot(
         out_dir=results_dir,
-        host_corr=best_params.get('host'),
-        ext_model=mcmc.ext_model,
-        **best_params.get('ebv')
+        ext_model=observed_flux_model.extinction_model,
     )
 
     # Plot the critical frequencies
-    cf = CriticalFrequenciesPlot(
-        mcmc.model(**best_params.get('model')),
-        observation.as_arrays.times[observation.flux_loc].min(),
-        observation.as_arrays.times[observation.flux_loc].max()
-    )
-    cf.plot(out_dir=results_dir, title=f'{event} Critical Frequencies')
+    # cf = CriticalFrequenciesPlot(
+    #     mcmc.model.afterglow_model(**best_params.get('model')),
+    #     observation.as_arrays.times[observation.flux_loc].min(),
+    #     observation.as_arrays.times[observation.flux_loc].max()
+    # )
+    # cf.plot(out_dir=results_dir, title=f'{event} Critical Frequencies')
 
     # Plot the corner plot
-    corner = PosteriorPlot(mcmc.sampler, mcmc.fitting_params, mcmc.param_pos)
+    corner = PosteriorPlot(mcmc.sampler, mcmc.params.fitting, mcmc.param_pos)
     corner.plot(out_dir=results_dir)
 
     # -------- LOGGING ---------
@@ -116,11 +145,11 @@ def main(
     import arviz as az
 
     az.style.use("arviz-darkgrid")
-    idata = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.fitting_params])
-    idata_burnin = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.fitting_params])
+    idata = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.params.fitting])
+    idata_burnin = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.params.fitting])
 
     # Save summary statistics to a csv
-    az.summary(idata).to_csv(results_dir / "summary.csv")
+    # az.summary(idata).to_csv(results_dir / "summary.csv")
 
     # Plot the trace plot
     az.plot_trace(idata)
@@ -147,15 +176,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'new'
+    sub_dir = 'newer'
 
     if args.event is None:
         # Specify the events to run
         events = [
             # '050922C',
-            # '080413B',
+            '080413B',
             # '080413B_early',
-            '080413B_late',
+            # '080413B_late',
             # '090424',
             # '090618',
             # '111228A',

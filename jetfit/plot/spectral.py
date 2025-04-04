@@ -58,6 +58,7 @@ class CriticalFrequenciesPlot:
         title : str, optional
             The title of the plot.
         """
+
         _, ax = plt.subplots()
 
         times = np.logspace(np.log10(self.t_start), np.log10(self.t_stop), num=200)

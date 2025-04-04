@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import corner
-import numpy as np
 from matplotlib import pyplot as plt
 
 
@@ -31,18 +30,24 @@ class PosteriorPlot:
         ranges, bins, labels, np_pos = [], [], [], []
         np_ranges, np_bins, np_labels, pos = [], [], [], []
 
+        param_pos = {}
+        for i, p in enumerate(self.params):
+            name = p.name if p.group is None else f'{p.name}_{p.group}'
+            param_pos[name] = i
+
         for p in self.params:
             # Non-physical parameters
             if '_offset' in p.name or '_host' in p.name or p.name == 'slop':
                 np_ranges.append((p.prior.lower, p.prior.upper))
                 np_labels.append(self.get_pretty_label(p.name))
-                np_pos.append(self.param_pos[p.name])
+                np_pos.append(param_pos[p.name])
                 np_bins.append(50)
 
             else:  # Physical parameters
+                name = p.name if p.group is None else f'{p.name}_{p.group}'
                 ranges.append((p.prior.lower, p.prior.upper))
-                labels.append(self.get_pretty_label(p.name))
-                pos.append(self.param_pos[p.name])
+                labels.append(self.get_pretty_label(name))
+                pos.append(param_pos[name])
                 bins.append(50)
 
         # Plot for physical parameters
