@@ -1,6 +1,8 @@
 import csv
 
+import numpy as np
 import astropy.units as u
+from dust_extinction.parameter_averages import CCM89
 from synphot import SpectralElement
 
 from jetfit.core.utils.csv_utils import CSVReader
@@ -70,7 +72,7 @@ EFF_WL['uvot-uvm2'] = EFF_WL['uvm2']
 EFF_WL['uvot-uvw1'] = EFF_WL['uvw1']
 
 
-def main(input_path: str, output_path: str,  xrt_path: str = None, before = None) -> None:
+def main(input_path: str, output_path: str,  xrt_path: str = None, before = None, after = None) -> None:
     """
     Creates a CSV for use with the AMPy.
 
@@ -87,6 +89,9 @@ def main(input_path: str, output_path: str,  xrt_path: str = None, before = None
 
     before : u.Quantity['time'], optional
         Exclude data after `before` time.
+
+    after : u.Quantity['time'], optional
+        Exclude data before `after` time.
     """
     input_csv = CSVReader(input_path, live_dangerously=True)
     xrt_csv = CSVReader(xrt_path, live_dangerously=True) if xrt_path else None
@@ -99,17 +104,35 @@ def main(input_path: str, output_path: str,  xrt_path: str = None, before = None
         for row in input_csv.rows():
             dfilter = row.Filter.strip()
 
-            # read the time
+            # Read the time
             time = u.Quantity(row.Time, unit=row.TimeUnits)
 
             if before is not None and time > before:
                 continue
 
-            # convert mag to flux
-            flux, flux_err = mag_to_flux(row.Mag, row.MagError, dfilter, row.MagSys)
+            if after is not None and time < after:
+                continue
 
-            # get frequency of filter
-            frequency = filter_to_frequency(dfilter)
+            # If ebv is provided, we need to de-redden the data
+            ebv = None
+            if hasattr(row, 'Ebv') and isinstance(row.Ebv, float):
+                ebv = row.Ebv
+
+            # Check if fluxes were provided already
+            if hasattr(row, 'Flux') and not np.isnan(row.Flux):
+                flux = u.Quantity(row.Flux, unit=row.FluxUnit).to('mJy')
+                flux_err = u.Quantity(row.FluxError, unit=row.FluxUnit).to('mJy')
+
+            else:
+                flux, flux_err = mag_to_flux(row.Mag, row.MagError, dfilter, row.MagSys, ebv)
+
+            # Get frequency of filter
+            frequency = EFF_WL[dfilter].to('Hz', equivalencies=u.spectral())
+
+            # Format the CalOffset
+            cal_offset = dfilter + '_offset'
+            if hasattr(row, 'DataSource'):
+                cal_offset = dfilter + str(row.DataSource) + '_offset'
 
             # write values to csv
             writer.writerow(
@@ -121,7 +144,7 @@ def main(input_path: str, output_path: str,  xrt_path: str = None, before = None
                     flux.value, flux_err.value, flux_err.value, flux.unit, 'Spectral Flux',
 
                     # [Wave, WaveLower, WaveUpper, WaveUnit, Filter, CalOffset]
-                    frequency.value, None, None, frequency.unit, dfilter, dfilter + '_offset'
+                    frequency.value, None, None, frequency.unit, dfilter, cal_offset
                  ]
             )
 
@@ -149,29 +172,12 @@ def write_headers(writer) -> None:
         (
             'Time', 'TimeLower', 'TimeUpper', 'TimeUnits', 'Value',
             'ValueLower', 'ValueUpper', 'ValueUnits', 'ValueType',
-            'Wave', 'WaveLower', 'WaveUpper', 'WaveUnits', 'Filter', 'CalOffset'
+            'Wave', 'WaveLower', 'WaveUpper', 'WaveUnits', 'Filter', 'CalGroup'
         )
     )
 
 
-def filter_to_frequency(dfilter: str) -> u.Quantity:
-    """
-    Maps a filter name to a frequency.
-
-    Parameters
-    ----------
-    dfilter : str
-        The filter name.
-
-    Returns
-    -------
-    float
-        The effective frequency of the filer.
-    """
-    return EFF_WL[dfilter].to('Hz', equivalencies=u.spectral())
-
-
-def mag_to_flux(mag, mag_error, dfilter, system):
+def mag_to_flux(mag, mag_error, dfilter, system, ebv=None):
     """
     Converts a magnitude and magnitude error to a flux.
 
@@ -187,6 +193,8 @@ def mag_to_flux(mag, mag_error, dfilter, system):
         The filter name.
 
     system : str, {'vega', 'ab'}
+
+    ebv : float, optional
 
     Returns
     -------
@@ -204,13 +212,17 @@ def mag_to_flux(mag, mag_error, dfilter, system):
     flux = (mag * u.ABmag).to('mJy')
     flux_error = abs(((mag + mag_error) * u.ABmag).to('mJy') - flux)
 
+    # De-redden
+    if ebv is not None:
+        flux /= CCM89(Rv=3.1).extinguish(EFF_WL[dfilter], Ebv=ebv)
+
     # return flux and flux uncertainty
     return flux, flux_error
 
 
 if __name__ == '__main__':
 
-    event = '140506A'
+    event = '080319B_late'
 
     args = {
         'input_path':
@@ -222,8 +234,11 @@ if __name__ == '__main__':
         'output_path':
             rf"C:\Users\Dylan\Documents\GRB_DATA\{event}\{event}_out.csv",
 
-        'before':
-            u.Quantity(10.0, unit='d')
+        'before':  # Include data before this time
+            None,
+
+        'after':  # Include data after this time
+            u.Quantity(76075.0, unit='s')
     }
 
     main(**args)

@@ -9,7 +9,8 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -2.0
-    upper = 5.0
+    upper = 8.0
+
 #-------------- MODEL --------------
 #---------------- n ----------------
 [[model]]
@@ -29,7 +30,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -4.0
+    lower = -6.0
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -40,7 +41,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -9.0
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -64,7 +65,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
+    lower = -5.0
     upper = 3.0
 
 #-------------- MODEL --------------

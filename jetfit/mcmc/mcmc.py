@@ -5,7 +5,6 @@ import emcee
 import numpy as np
 
 from jetfit.core.utils import math_utils
-from jetfit.models2.basemodels import ObservedFluxModel
 
 
 class MCMC:
@@ -22,7 +21,7 @@ class MCMC:
     num_walkers : int
         Number of MCMC walkers.
 
-    intrinsic_model : ??
+    model : ObservedFluxModel
         The model to evaluate.
 
     observation : Observation
@@ -191,13 +190,12 @@ class MCMC:
 
         modeled = self.model(self.observation, params, **self.meta)
 
-        # Assume we only need shared parameters.
-        if params.get('shared') is not None:
-            params = params.get('shared')
-
         # Apply calibration offsets
+        offsets = params.get('shared').get('offsets') \
+            if params.get('shared') is not None else params.get('offsets')
+
         modeled = self.calibration_offsets(
-            modeled, params.get('offsets')
+            modeled, offsets
         )
 
         # Skip chi squared calculation since a nan will
@@ -206,34 +204,7 @@ class MCMC:
             return -np.inf
 
         # return log likelihood
-        return -0.5 * self.chi_squared(
-            modeled, params.get('slop').get('slop')
-        )
-
-    def calibration_offsets(self, modeled, offsets) -> np.array:
-        """
-        Applies calibration offsets to the modeled values.
-
-        Parameters
-        ----------
-        modeled : np.array
-            The modeled values.
-
-        offsets : dict
-            Key value pairs of `CalGroup` and offset values.
-
-        Returns
-        -------
-        np.array
-            The modeled values with applied offsets.
-        """
-        if offsets is not None:
-            cal_pos = self.observation.cal_offsets
-
-            for name, offset in offsets.items():
-                modeled[cal_pos[name]] *= 10.0 ** -(0.4 * offset)
-
-        return modeled
+        return -0.5 * self.chi_squared(modeled, self.slop(params))
 
     def log_posterior(self, theta: np.array) -> float:
         """
@@ -262,6 +233,62 @@ class MCMC:
 
         return -np.inf
 
+    def calibration_offsets(self, modeled, offsets) -> np.ndarray:
+        """
+        Applies calibration offsets to the modeled values.
+
+        Parameters
+        ----------
+        modeled : np.array
+            The modeled values.
+
+        offsets : dict
+            Key value pairs of `CalGroup` and offset values.
+
+        Returns
+        -------
+        np.array
+            The modeled values with applied offsets.
+        """
+        if offsets is not None:
+            cal_pos = self.observation.cal_offsets
+
+            for name, offset in offsets.items():
+                modeled[cal_pos[name]] *= 10.0 ** -(0.4 * offset)
+
+        return modeled
+
+    def slop(self, params) -> float | np.ndarray:
+        """
+        Formats the slop according to data groups.
+
+        Parameters
+        ----------
+        params : dict
+            The dict returned from `Parameters.samples_to_dict`.
+
+        Returns
+        -------
+        float or np.array of float
+            The slop value(s).
+        """
+
+        # No data groups
+        if params.get('shared') is None:
+            return params.get('slop').get('slop')
+
+        # Multiple data groups, but only one slop
+        if params.get('shared').get('slop') is not None:
+            return params.get('shared').get('slop').get('slop')
+
+        # Multiple slops
+        s = np.empty(self.observation.length)
+
+        for group, pos in self.observation.data_groups.items():
+            s[pos] = params.get(group).get('slop').get('slop')
+
+        return s
+
     def chi_squared(self, modeled, slop=None) -> float:
         """
         Calculates the combined chi-squared between
@@ -275,10 +302,10 @@ class MCMC:
 
         Parameters
         ----------
-        modeled : np.ndarray of float
+        modeled : np.array of float
             The modeled or predicted values.
 
-        slop : float, optional, default=None
+        slop : float or np.array of float, optional
             The slop value.
 
         Returns
@@ -293,7 +320,7 @@ class MCMC:
             modeled[flux_mask],
             self.observation.as_arrays.values[flux_mask],
             self.observation.as_arrays.errors[flux_mask],
-            slop
+            slop if isinstance(slop, float) else slop[flux_mask]
         )
 
         # Chi-squared for spectral indices

@@ -1,116 +1,152 @@
 # MCMC Parameter Configuriation File
 
-# -----------------------------
-# ------- FREE PARAMS ---------
-#------------------------------
-[E]
-    scale = "log"
+#-------------- MODEL --------------
+#---------------- E ----------------
+[[model]]
+name  = "E"
+scale = "log"
 
-    [E.prior]
-        type  = "uniform"
-        lower = -2.0
-        upper = 3.0
+[model.prior]
+    type  = "uniform"
+    lower = -2.0
+    upper = 3.0
 
-[rho0]
-    scale = "log"
+#-------------- MODEL --------------
+#---------------- n ----------------
+[[model]]
+name  = "rho0"
+scale = "log"
 
-    [rho0.prior]
-        type  = "uniform"
-        lower = -6.0
-        upper = 9.0
+[model.prior]
+    type  = "uniform"
+    lower = -6.0
+    upper = 9.0
 
-[eps_e]
-    scale = "log"
+#-------------- MODEL --------------
+#-------------- eps_e --------------
+[[model]]
+name  = "eps_e"
+scale = "log"
 
-    [eps_e.prior]
-        type  = "uniform"
-        lower = -4.0
-        upper = 0.0
+[model.prior]
+    type  = "uniform"
+    lower = -6.0
+    upper = 0.0
 
-[eps_b]
-    scale = "log"
+#-------------- MODEL --------------
+#-------------- eps_b --------------
+[[model]]
+name  = "eps_b"
+scale = "log"
 
-    [eps_b.prior]
-        type  = "uniform"
-        lower = -6.0
-        upper = 0.0
+[model.prior]
+    type  = "uniform"
+    lower = -8.0
+    upper = 0.0
 
-[p]
-    scale = "linear"
+#-------------- MODEL --------------
+#---------------- p ----------------
+[[model]]
+name  = "p"
+scale = "linear"
 
-    [p.prior]
-        type  = "uniform"
-        lower = 1.5
-        upper = 3.5
-        initial_guess = 2.25
-        initial_sigma = 0.25
+[model.prior]
+    type  = "uniform"
+    lower = 1.5
+    upper = 3.5
+    initial_guess = 2.25
+    initial_sigma = 0.25
 
-[k]
-    scale = "linear"
+#-------------- MODEL --------------
+#---------------- k ----------------
+[[model]]
+name  = "k"
+scale = "linear"
 
-    [k.prior]
-        type  = "uniform"
-        lower = -1.0
-        upper = 3.0
+[model.prior]
+    type  = "uniform"
+    lower = -1.0
+    upper = 3.0
 
-[ebv_sf]
-    scale = "linear"
+#-------------- MODEL --------------
+#---------------- X ----------------
+[[model]]
+name  = "X"
+scale = "linear"
+value = 0.7
 
-    [ebv_sf.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 1.0
+#-------------- MODEL --------------
+#---------------- z ----------------
+[[model]]
+name  = "z"
+scale = "linear"
+value = 2.006
 
-# -----------------------------
-# ------- FIXED PARAMS --------
-#------------------------------
-[X]
-    scale = "linear"
-    value = 0.7
+#-------------- MODEL --------------
+#---------------- dL ---------------
+[[model]]
+name  = "dL"
+scale = "linear"
+value = 4.94
 
-[z]
-    scale = "linear"
-    value = 2.006
+#----------- EXTINCTION ------------
+#---------- source_frame -----------
+[[extinction]]
+name  = "ebv_source_frame"
+scale = "linear"
 
-[dL]
-    scale = "linear"
-    value = 4.94
+[extinction.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 1.0
 
-[ebv_mw]
-    scale = "linear"
-    value = 0.0647
+#----------- EXTINCTION ------------
+#------------ milky_way ------------
+[[extinction]]
+name  = "ebv_milky_way"
+scale = "linear"
+value = 0.0647
 
-# -----------------------------
-# ---- CALIBRATION OFFSETS ----
-#------------------------------
-[V_offset]
-    scale = "linear"
+#----------- CALIBRATION -----------
+#-------------- V-band -------------
+[[offsets]]
+name  = "V_offset"
+scale = "linear"
 
-    [V_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.3
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.3
 
-[R_offset]
-    scale = "linear"
+#----------- CALIBRATION -----------
+#-------------- R-band -------------
+[[offsets]]
+name  = "R_offset"
+scale = "linear"
 
-    [R_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.3
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.3
 
-[I_offset]
-    scale = "linear"
+#----------- CALIBRATION -----------
+#-------------- I-band -------------
+[[offsets]]
+name  = "I_offset"
+scale = "linear"
 
-    [I_offset.prior]
-        type  = "gaussian"
-        mu = 0.0
-        sigma = 0.3
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.3
 
-[slop]
-    scale = "linear"
+#--------------- SLOP --------------
+#--------------- slop --------------
+[[slop]]
+name  = "slop"
+scale = "linear"
 
-    [slop.prior]
-        type  = "uniform"
-        lower = 0.0
-        upper = 0.3
+[slop.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 0.3

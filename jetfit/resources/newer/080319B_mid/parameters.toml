@@ -9,7 +9,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -2.0
-    upper = 5.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -30,7 +30,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.4
+    lower = -4.0
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -60,34 +60,12 @@ scale = "linear"
 #-------------- MODEL --------------
 #---------------- k ----------------
 [[model]]
-    name  = "k"
-    scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#------------ tj (days) ------------
-[[model]]
-name  = "tj"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 1.0
-
-#-------------- MODEL --------------
-#---------------- sj ---------------
-[[model]]
-name  = "sj"
+name  = "k"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 0.0
+    lower = -1.0
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -102,14 +80,14 @@ value = 0.7
 [[model]]
 name  = "z"
 scale = "linear"
-value = 0.97
+value = 0.94
 
 #-------------- MODEL --------------
 #---------------- dL ---------------
 [[model]]
 name  = "dL"
 scale = "linear"
-value = 2.02
+value = 1.9418
 
 #----------- EXTINCTION ------------
 #---------- source_frame -----------
@@ -127,12 +105,12 @@ scale = "linear"
 [[extinction]]
 name  = "ebv_milky_way"
 scale = "linear"
-value = 0.093
+value = 0.0095
 
 #----------- CALIBRATION -----------
-#-------------- g-band -------------
+#------------- R1-band -------------
 [[offsets]]
-name  = "g_offset"
+name  = "R1_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -141,9 +119,9 @@ scale = "linear"
     sigma = 0.03
 
 #----------- CALIBRATION -----------
-#-------------- r-band -------------
+#------------- R2-band -------------
 [[offsets]]
-name  = "r_offset"
+name  = "R2_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -152,9 +130,9 @@ scale = "linear"
     sigma = 0.03
 
 #----------- CALIBRATION -----------
-#-------------- i-band -------------
+#-------------- I2-band ------------
 [[offsets]]
-name  = "i_offset"
+name  = "I2_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -163,9 +141,31 @@ scale = "linear"
     sigma = 0.03
 
 #----------- CALIBRATION -----------
-#-------------- z-band -------------
+#-------------- r2-band ------------
 [[offsets]]
-name  = "z_offset"
+name  = "r2_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- i2-band ------------
+[[offsets]]
+name  = "i2_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- J2-band ------------
+[[offsets]]
+name  = "J2_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -174,48 +174,136 @@ scale = "linear"
     sigma = 0.04
 
 #----------- CALIBRATION -----------
-#------------ uvm2-band ------------
+#-------------- H2-band ------------
 [[offsets]]
-name  = "uvm2_offset"
-scale = "log"
-
-[offsets.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 1.0
-
-#----------- CALIBRATION -----------
-#------------ uvw1-band ------------
-[[offsets]]
-name  = "uvw1_offset"
-scale = "log"
-
-[offsets.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 1.0
-
-#----------- CALIBRATION -----------
-#----------- uvot-b-band -----------
-[[offsets]]
-name  = "uvot-b_offset"
+name  = "H2_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
-    mu = 0.0
-    sigma = 0.02
+    mu    = 0.0
+    sigma = 0.05
 
 #----------- CALIBRATION -----------
-#----------- uvot-v-band -----------
+#------------- uvm22-band ----------
 [[offsets]]
-name  = "uvot-v_offset"
+name  = "uvm22_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
-    mu = 0.0
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#------------ uvw12-band -----------
+[[offsets]]
+name  = "uvw12_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#----------- uvot-b2-band -----------
+[[offsets]]
+name  = "uvot-b2_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
     sigma = 0.02
+
+#----------- CALIBRATION -----------
+#------------ uvot-v2-band ----------
+[[offsets]]
+name  = "uvot-v2_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.02
+
+#----------- CALIBRATION -----------
+#-------------- B3-band ------------
+[[offsets]]
+name  = "B3_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#-------------- V3-band ------------
+[[offsets]]
+name  = "V3_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#------------- R3-band -------------
+[[offsets]]
+name  = "R3_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- I3-band ------------
+[[offsets]]
+name  = "I3_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- J3-band ------------
+[[offsets]]
+name  = "J3_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#-------------- H3-band ------------
+[[offsets]]
+name  = "H3_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.05
+
+#----------- CALIBRATION -----------
+#-------------- K3-band ------------
+[[offsets]]
+name  = "K3_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.06
 
 #--------------- SLOP --------------
 #--------------- slop --------------

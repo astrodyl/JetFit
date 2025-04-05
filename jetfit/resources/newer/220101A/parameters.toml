@@ -69,6 +69,28 @@ scale = "linear"
         upper = 3.0
 
 #-------------- MODEL --------------
+#------------ tj (days) ------------
+[[model]]
+name  = "tj"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -1.0
+    upper = 1.0
+
+#-------------- MODEL --------------
+#---------------- sj ---------------
+[[model]]
+name  = "sj"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 3.0
+
+#-------------- MODEL --------------
 #---------------- X ----------------
 [[model]]
 name  = "X"
@@ -127,7 +149,7 @@ scale = "linear"
 [offsets.prior]
     type  = "uniform"
     lower = -1.0
-    upper = 1.0
+    upper = 4.0
 
 #----------- CALIBRATION -----------
 #-------------- J-band -------------
