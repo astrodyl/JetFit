@@ -58,11 +58,10 @@ scale = "linear"
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#------------ k (early) ------------
+#---------------- k ----------------
 [[model]]
 name  = "k"
 scale = "linear"
-group = "early"
 
 [model.prior]
     type  = "uniform"
@@ -198,39 +197,6 @@ scale = "linear"
     mu    = 0.0
     sigma = 0.03
 
-#----------- CALIBRATION -----------
-#-------------- J-band -------------
-[[offsets]]
-name  = "J_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#-------------- H-band -------------
-[[offsets]]
-name  = "H_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.05
-
-#----------- HOST GALAXY -----------
-#------------ uvw2-band ------------
-[[host]]
-name  = "uvw2_host"
-scale = "log"
-
-[host.prior]
-    type = "uniform"
-    lower = -3.0
-    upper = 0.0
-
 #----------- HOST GALAXY -----------
 #------------ uvm2-band ------------
 [[host]]
@@ -257,28 +223,6 @@ scale = "log"
 #----------- uvot-u-band -----------
 [[host]]
 name  = "uvot-u_host"
-scale = "log"
-
-[host.prior]
-    type = "uniform"
-    lower = -3.0
-    upper = 0.0
-
-#----------- HOST GALAXY -----------
-#----------- uvot-b-band -----------
-[[host]]
-name  = "uvot-b_host"
-scale = "log"
-
-[host.prior]
-    type = "uniform"
-    lower = -3.0
-    upper = 0.0
-
-#----------- HOST GALAXY -----------
-#----------- uvot-v-band -----------
-[[host]]
-name  = "uvot-v_host"
 scale = "log"
 
 [host.prior]

@@ -7,23 +7,6 @@ from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
 from jetfit.mcmc.parameters.parameters import Parameters
 
 
-class ExtrinsicFlux:
-    """
-    Extinction
-        Milky Way
-        Source Frame
-
-    Calibration Offsets
-
-    Host Galaxy Correction
-    """
-    def __init__(self, ext_model):
-        self.ext_model = ext_model
-        self.ebv_mw = None
-        self.ebv_sf = None
-
-
-
 class BaseFluxModel:
     """
 
@@ -349,8 +332,8 @@ class SpectralIndexModel(BaseFluxModel):
 
         # return spectral index [dimension less]
         return (
-            np.log(model(upper) / model(lower)) /
-            np.log(upper / lower)
+            np.log10(model(upper) / model(lower)) /
+            np.log10(upper / lower)
         )
 
 
@@ -362,7 +345,7 @@ class BaseSpectralModel:
     ----------
     E : float or u.Quantity['energy']
         The explosion energy. If a float is provided, assumes
-        that the value is already normalized to 1e52 ergs. If
+        that the value is already normalized to 1e52 erg. If
         passing a `Quantity`, it will be normalized before
         storing it as a float.
 
@@ -395,20 +378,20 @@ class BaseSpectralModel:
     # noinspection PyPep8Naming
     @property
     def E(self) -> float:
-        """ Returns the explosion energy normalized to 10e52 ergs. """
+        """ Returns the explosion energy normalized to 10e52 erg. """
         return self._E
 
     # noinspection PyPep8Naming
     @E.setter
     def E(self, e: float | u.Quantity) -> None:
         """
-        Sets the explosion energy normalized to 10e52 ergs.
+        Sets the explosion energy normalized to 10e52 erg.
 
         Parameters
         ----------
         e : float or astropy.units.Quantity
             The explosion energy. If a float is provided, assumes
-            that the value is already normalized to 1e52 ergs.
+            that the value is already normalized to 1e52 erg.
         """
         if isinstance(e, u.Quantity):
             e = e.to_value('erg') / 1e52
@@ -418,11 +401,13 @@ class BaseSpectralModel:
     @property
     def alpha(self) -> float:
         """ Returns the temporal coefficient. """
+        # return 8 / 9
         return 16 / (17 - 4 * self.k)
 
     @property
     def beta(self) -> float:
         """ Returns the spectral coefficient. """
+        # return 8
         return 4 - self.k
 
     def evaluate(self, t):
@@ -455,13 +440,13 @@ class PeakFluxModel(BaseSpectralModel):
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
+        t : float or np.array of float or u.Quantity['time']
             The time to evaluate. If `t` is a float, must
             be measured in days since trigger.
 
         Returns
         -------
-        float or np.ndarray of u.Quantity['time']
+        float or np.array of u.Quantity['time']
             The peak flux at time `t` measured in mJy.
         """
         if isinstance(t, u.Quantity):
@@ -471,7 +456,7 @@ class PeakFluxModel(BaseSpectralModel):
         k, x = self.k, 4 - self.k
 
         # Evaluate exponents once
-        exp_z   = (0.5 * (8 - self.k) / x)
+        exp_z   = 0.5 * (8 - k) / x
         exp_c   = -0.5 * (24 - 7 * k) / x
         exp_en  = 0.5 * (8 - 3 * k) / x
         exp_t   = -0.5 * k / x
@@ -507,13 +492,13 @@ class PeakFluxModel(BaseSpectralModel):
             ((1 + self.z) ** exp_z) *   # redshift
             (self.E ** exp_en) *        # explosion energy / 1e52 erg
             self.n_p *                  # particle density
-            (self.rho0 ** exp_rho) *    # number density / m_p / R_*
+            (self.rho0 ** exp_rho) *    # number density / R_*
             (self.dL ** -2) *           # luminosity distance / 1e28 cm
             (t ** exp_t) *              # time in days
 
             # exponents in linear-space
             (10 ** log_pot)
-        )
+        )  # * (8 * np.pi / 9)
 
 
 class CoolingFrequencyModel(BaseSpectralModel):
@@ -535,13 +520,13 @@ class CoolingFrequencyModel(BaseSpectralModel):
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
+        t : float or np.array of float or u.Quantity['time']
             The time to evaluate. If `t` is a float, must
             be measured in days since trigger.
 
         Returns
         -------
-        float or np.ndarray of float
+        float or np.array of float
             The cooling frequency at time `t` measured in Hz.
         """
         if isinstance(t, u.Quantity):
@@ -636,13 +621,13 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
+        t : float or np.array of float or u.Quantity['time']
             The time to evaluate. If `t` is a float, must
             be measured in days since trigger.
 
         Returns
         -------
-        float or np.ndarray of float
+        float or np.array of float
             The cooling frequency at time `t` measured in Hz.
         """
         if isinstance(t, u.Quantity):
@@ -705,11 +690,11 @@ class ObservedFluxModel:
             f'ext={self.extinction_model})'
         )
 
-    def __call__(self, *args, **kwargs) -> np.array:
+    def __call__(self, *args, **kwargs):
         """ Calls the `model` method. """
         return self.model(*args, **kwargs)
 
-    def model(self, obs, params, **kwargs) -> np.array:
+    def model(self, obs, params, **kwargs):
         """
         Models the observed GRB afterglow flux.
 
@@ -727,7 +712,7 @@ class ObservedFluxModel:
 
         Returns
         -------
-        np.array
+        np.ndarray of float
             The modeled observed GRB afterglow flux.
         """
 
@@ -741,7 +726,7 @@ class ObservedFluxModel:
 
         return modeled
 
-    def model_afterglow(self, obs, params, **kwargs) -> np.array:
+    def model_afterglow(self, obs, params, **kwargs):
         """
         Models the GRB afterglow flux.
 
@@ -759,7 +744,7 @@ class ObservedFluxModel:
 
         Returns
         -------
-        np.array
+        np.ndarray of float
             The modeled GRB afterglow flux.
         """
         if params.get('shared') is not None:
@@ -783,7 +768,7 @@ class ObservedFluxModel:
     def model_extinction(
         self, modeled, wn, z=None, ebv_sf=None,
         ebv_mw=None, host_pos=None, host_vals=None
-    ) -> np.array:
+    ):
         """
         Corrects the intrinsic flux, `modeled`, for
         dust extinction and host galaxy contributions.
@@ -820,7 +805,7 @@ class ObservedFluxModel:
 
         Returns
         -------
-        np.array
+        np.ndarray of float
             The extinguished and host galaxy corrected flux.
         """
 

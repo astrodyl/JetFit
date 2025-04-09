@@ -1,9 +1,5 @@
-import math
-
 import astropy.units as u
-import astropy.constants as const
 import numpy as np
-from matplotlib import pyplot as plt
 
 from jetfit.core.input import Observation
 from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel
@@ -323,7 +319,7 @@ class FireballModel:
         jet_flux = jet_model(**kwargs)
 
         return (
-            f ** (-self.sj) + (jet_flux * (t / self.tj) ** -self.p) ** -self.sj
+            f ** -self.sj + (jet_flux * (t / self.tj) ** -self.p) ** -self.sj
         ) ** -(1 / self.sj)
 
     def f_peak(self, t):
@@ -385,77 +381,3 @@ class FireballModel:
         """
         return SynchrotronFrequencyModel(
             self.E, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p)(t)
-
-
-if __name__ == '__main__':
-    m_p = const.m_p.cgs  # Proton mass [g]
-    m_e = const.m_e.cgs  # Election mass [g]
-    q_e = u.Quantity(4.8032e-10 * u.g**0.5 * u.cm**1.5 / u.s)  # Electron charge [g1/2 cm3/2 s-1]
-    c = const.c.cgs  # Speed of light [cm / s]
-
-    # Check derivation
-    A = (4/3) * np.sqrt(2*math.pi) * (q_e**3) * (m_e**-1) * 17 * ((4*math.pi)**-.75) * ((1024*math.pi)**-0.25)
-
-    def vdh_flux(X, n, dL, E, eps_b):
-        F = A
-        F *= (1 + X) / 2
-        F *= m_p ** -0.5
-        F *= c ** -3
-        F *= n ** 0.5
-        F *= eps_b ** 0.5
-        F *= dL ** -2
-        F *= E
-        return F
-
-    # F_vdh_mjy = vdh_flux(0.7, 1 / (u.cm ** 3), 1e28 * u.cm, 1e52 * u.erg, 0.1).to('mJy')
-    F_sp_mjy = vdh_flux(1.0, 1 / (u.cm ** 3), 1e28 * u.cm, 1e52 * u.erg, 1.0).to('mJy')
-
-    rhoW = 5e11 / m_p.cgs.value
-
-    # <editor-fold desc="TEST VDH">
-    # Test VDH values for k = 0
-    vdh = FireballModel(1,2.2,.1,.1,0.0,1., 1.,0.0, 0.7)
-
-    if not math.isclose(vdh.f_peak(1 * u.d) / 0.5, 21.3, abs_tol=0.1):
-        raise ValueError('Peak Flux does not match Van Der Horst value.')
-
-    if not math.isclose(vdh.nu_c(1 * u.d) / (0.5**-0.5), 5.98e13, abs_tol=1e12):
-        raise ValueError('Cooling Frequency does not match Van Der Horst value.')
-
-    if not math.isclose(vdh.nu_m(1 * u.d) / (0.5**0.5), 8.98e11, abs_tol=1e10):
-        raise ValueError('Synchrotron Frequency does not match Van Der Horst value.')
-    # </editor-fold>
-
-    # Test SP values for k = 0
-    ism = FireballModel(1.,2.5,1,1,0.0,1., 10.,0.0, 1.0)
-
-    nus = np.logspace(10, 18, 100)
-    density_model = SpectralFluxModel(nu_m=10**11, nu_c=3*10**12, f_peak=10**1.5, p=2.5, k=0.0)
-
-    fluxes = np.empty(nus.size)
-    for i, nu in enumerate(nus):
-        fluxes[i] = density_model(nu)
-
-    plt.loglog(nus, fluxes)
-    plt.axhline(y=10**1.5, color='black', linestyle=':', alpha=0.3)
-    # plt.show()
-
-    if not math.isclose(ism.nu_c(1 * u.d), 2.7e12, abs_tol=1e11):
-        raise ValueError(
-            f'Cooling Frequency does not match Sari piran value: '
-            f'{round(ism.nu_c(1 * u.d) / 1e12, 3)}e12 Hz != 2.7e12 Hz'
-        )
-
-    if not math.isclose(ism.nu_m(1 * u.d), 5.7e14, abs_tol=1e13):
-        raise ValueError(
-            'Synchrotron Frequency does not match Sari piran value: '
-            f'{ism.nu_m(1 * u.d)} Hz != 5.7e14 Hz'
-        )
-
-    if not math.isclose(ism.f_peak(1 * u.d), 110, abs_tol=15):
-        raise ValueError(
-            'Peak Flux does not match Sari piran value: '
-            f'{ism.f_peak(1 * u.d)} mJy != 110 mJy'
-        )
-
-    print()

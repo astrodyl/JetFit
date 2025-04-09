@@ -36,15 +36,16 @@ class PosteriorPlot:
             param_pos[name] = i
 
         for p in self.params:
+            name = p.name if p.group is None else f'{p.name}_{p.group}'
+
             # Non-physical parameters
-            if '_offset' in p.name or '_host' in p.name or p.name == 'slop':
+            if '_offset' in name or '_host' in name or 'slop' in name:
                 np_ranges.append((p.prior.lower, p.prior.upper))
-                np_labels.append(self.get_pretty_label(p.name))
-                np_pos.append(param_pos[p.name])
+                np_labels.append(self.get_pretty_label(name))
+                np_pos.append(param_pos[name])
                 np_bins.append(50)
 
             else:  # Physical parameters
-                name = p.name if p.group is None else f'{p.name}_{p.group}'
                 ranges.append((p.prior.lower, p.prior.upper))
                 labels.append(self.get_pretty_label(name))
                 pos.append(param_pos[name])

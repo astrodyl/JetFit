@@ -8,14 +8,27 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
-    upper = 5.0
+    lower = -1.0
+    upper = 1.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
 [[model]]
 name  = "rho0"
 scale = "log"
+group = "early"
+
+[model.prior]
+    type  = "uniform"
+    lower = -3.0
+    upper = 2.0
+
+#-------------- MODEL --------------
+#---------------- n ----------------
+[[model]]
+name  = "rho0"
+scale = "log"
+group = "late"
 
 [model.prior]
     type  = "uniform"
@@ -30,7 +43,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -4.0
+    lower = -1.0
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -41,7 +54,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -2.0
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -53,7 +66,7 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 1.5
-    upper = 3.5
+    upper = 2.5
     initial_guess = 2.25
     initial_sigma = 0.25
 
@@ -66,8 +79,8 @@ group = "early"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
-    upper = 1.5
+    lower = 2.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #------------- k (late) ------------
@@ -89,7 +102,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
+    lower = 0.0
     upper = 1.0
 
 #-------------- MODEL --------------
@@ -100,7 +113,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 0.0
+    lower = 1.0
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -133,7 +146,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 1.0
+    upper = 0.1
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------

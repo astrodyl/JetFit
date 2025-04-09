@@ -3,6 +3,7 @@ import json
 import os.path
 from pathlib import Path
 
+import numpy as np
 from dust_extinction.parameter_averages import CCM89
 from matplotlib import pyplot as plt
 
@@ -17,7 +18,6 @@ from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel
 from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
 from jetfit.plot.posterior import PosteriorPlot
-from jetfit.plot.spectral import CriticalFrequenciesPlot
 
 
 def main(
@@ -84,7 +84,7 @@ def main(
     # -----------------------------------------------------------------
     # Define a filename to save the sampler to disk.
     # Warning: The sampler files are very large ~1 GB each.
-    filename = None  # str(results_dir / f'{event}_chain.h5')
+    filename = str(results_dir / f'{event}_chain.h5')
 
     # Create the MCMC object and run. See you in a few hours!
     mcmc = MCMC(
@@ -102,6 +102,7 @@ def main(
     # Plot the light curves
     best_params = mcmc.get_best_params()
 
+    # Plot frequencies
     fp = FrequencyPlot(mcmc.sampler, parameters)
     fp.plot(
         model=observed_flux_model.afterglow_model,
@@ -114,6 +115,7 @@ def main(
         out_dir=results_dir
     )
 
+    # Plot light curve
     lc = LightCurvePlot(
         model=observed_flux_model.afterglow_model,
         params=best_params,
@@ -125,42 +127,59 @@ def main(
         ext_model=observed_flux_model.extinction_model,
     )
 
-    # Plot the critical frequencies
-    # cf = CriticalFrequenciesPlot(
-    #     mcmc.model.afterglow_model(**best_params.get('model')),
-    #     observation.as_arrays.times[observation.flux_loc].min(),
-    #     observation.as_arrays.times[observation.flux_loc].max()
-    # )
-    # cf.plot(out_dir=results_dir, title=f'{event} Critical Frequencies')
+    # Plot chi squared
+    # _, ax = plt.subplots()
+    #
+    # cs_vals = -2 * mcmc.sampler.get_log_prob(flat=False)
+    #
+    # for i in range(len(cs_vals[0])):
+    #     plt.plot(np.log10(cs_vals[:, i]), alpha=0.4)
+    #
+    # plt.xlabel("Step")
+    # plt.ylabel(r"$\chi^2$")
+    # plt.title("Chi-squared traces per walker")
+    # plt.savefig(results_dir / 'chi-squared.png')
 
-    # Plot the corner plot
+    # Plot corner
     corner = PosteriorPlot(mcmc.sampler, mcmc.params.fitting, mcmc.param_pos)
     corner.plot(out_dir=results_dir)
 
-    # -------- LOGGING ---------
-    with open(results_dir / "best_fit.json", "w") as jf:
-        json.dump(mcmc.get_best_params(), jf, indent=4)
+    # -----------------------------------------------------------------
+    # ---------------------------- LOGGING ----------------------------
+    # -----------------------------------------------------------------
+    out_params = mcmc.get_best_params()
+    out_params['chi_squared'] = -2 * mcmc.sampler.get_log_prob(flat=True).max()
 
-    # -------- DIAGNOSTICS ---------
+    with open(results_dir / "best_fit.json", "w") as jf:
+        json.dump(out_params, jf, indent=4)
+
+    # -----------------------------------------------------------------
+    # -------------------------- DIAGNOSTICS --------------------------
+    # -----------------------------------------------------------------
     import arviz as az
 
     az.style.use("arviz-darkgrid")
-    idata = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.params.fitting])
-    idata_burnin = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.params.fitting])
+    inf_data = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.params.fitting])
+    inf_data_burn = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.params.fitting])
 
     # Save summary statistics to a csv
-    # az.summary(idata).to_csv(results_dir / "summary.csv")
+    az.summary(inf_data).to_csv(results_dir / "summary.csv")
 
     # Plot the trace plot
-    az.plot_trace(idata)
+    az.plot_trace(inf_data)
     plt.savefig(results_dir / "trace.png")
 
-    # Plot the burn trace plot
-    az.plot_trace(idata_burnin)
+    # Plot the burn-in trace plot
+    az.plot_trace(inf_data_burn)
     plt.savefig(results_dir / "trace_burn.png")
 
-    # print(f"Autocorrelation........{mcmc.sampler.acor}\n")
-    # print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
+    try:  # Optional stats
+        print(f"Autocorrelation........{mcmc.sampler.acor}\n")
+        print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
+    except Exception as e:
+        pass
+
+    print('AMPy completed successfully.')
 
 
 if __name__ == "__main__":
@@ -181,8 +200,12 @@ if __name__ == "__main__":
     if args.event is None:
         # Specify the events to run
         events = [
+            '050525A',
             # '050922C',
-            '080413B',
+            # '080413B',
+            # '080319B_early',
+            # '080319B_mid',
+            # '080319B_late',
             # '080413B_early',
             # '080413B_late',
             # '090424',

@@ -100,13 +100,16 @@ class MCMC:
             backend=backend  # type: ignore
         )
 
-    def get_best_params(self, **kwargs) -> dict:
+    def get_best_params(self, as_dict=True,**kwargs):
         """
         Returns the sampled values from the chain with the highest
         likelihood.
 
         Parameters
         ----------
+        as_dict : bool, optional, default=True
+            If True, return the sampled values as a dictionary.
+
         kwargs : dict
             cat : str, optional
                 Limit the params to the `cat` categories.
@@ -119,11 +122,12 @@ class MCMC:
 
         Returns
         -------
-        dict
+        dict or np.ndarray
             The values from the highest likelihood chain.
         """
         max_index = np.nanargmax(self.sampler.get_log_prob(flat=True))
-        return self.params.samples_to_dict(self.sampler.get_chain(flat=True)[max_index], **kwargs)
+        params = self.sampler.get_chain(flat=True)[max_index]
+        return self.params.samples_to_dict(params, **kwargs) if as_dict else params
     # </editor-fold>
 
     # <editor-fold desc="Sampling Routine">
@@ -204,7 +208,7 @@ class MCMC:
             return -np.inf
 
         # return log likelihood
-        return -0.5 * self.chi_squared(modeled, self.slop(params))
+        return -0.5 * self.chi_squared(modeled, self.slop(params))  # type: ignore
 
     def log_posterior(self, theta: np.array) -> float:
         """
@@ -239,7 +243,7 @@ class MCMC:
 
         Parameters
         ----------
-        modeled : np.array
+        modeled : np.ndarray
             The modeled values.
 
         offsets : dict
@@ -247,7 +251,7 @@ class MCMC:
 
         Returns
         -------
-        np.array
+        np.ndarray
             The modeled values with applied offsets.
         """
         if offsets is not None:
@@ -269,7 +273,7 @@ class MCMC:
 
         Returns
         -------
-        float or np.array of float
+        float or np.ndarray of float
             The slop value(s).
         """
 
@@ -302,10 +306,10 @@ class MCMC:
 
         Parameters
         ----------
-        modeled : np.array of float
+        modeled : np.ndarray of float
             The modeled or predicted values.
 
-        slop : float or np.array of float, optional
+        slop : float or np.ndarray of float, optional
             The slop value.
 
         Returns
@@ -313,6 +317,15 @@ class MCMC:
         float
             The combined chi-squared value.
         """
+
+        # Handle flux and indices the same
+        if slop is None:
+            return math_utils.chi_squared(
+                modeled,
+                self.observation.as_arrays.values,
+                self.observation.as_arrays.errors,
+            )
+
         # Chi-squared for flux
         flux_mask = self.observation.flux_loc
 
@@ -325,6 +338,9 @@ class MCMC:
 
         # Chi-squared for spectral indices
         index_mask = self.observation.sindex_loc
+
+        if not index_mask.any():
+            return cs_flux
 
         cs_indices = math_utils.chi_squared(
             modeled[index_mask],

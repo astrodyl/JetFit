@@ -248,7 +248,7 @@ if __name__ == "__main__":
     import astropy.cosmology.units as cu
     from astropy.cosmology import Planck18
 
-    z = 0.889 * cu.redshift
+    z = 0.94 * cu.redshift
     d = z.to(u.cm, cu.redshift_distance(Planck18, kind='luminosity')) / 1e28
 
     # Paths to input files

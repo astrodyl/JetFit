@@ -152,17 +152,6 @@ scale = "linear"
     sigma = 0.04
 
 #----------- CALIBRATION -----------
-#------------- g2-band -------------
-[[offsets]]
-name  = "g2_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- CALIBRATION -----------
 #------------- r2-band -------------
 [[offsets]]
 name  = "r2_offset"

@@ -6,10 +6,10 @@ from jetfit.core.defns.enums import ScaleType
 
 # <editor-fold desc="Calculations">
 def chi_squared(
-        f: np.ndarray[float],
-        y: np.ndarray[float],
-        e: np.ndarray[float],
-        s: float = None,
+    f: np.ndarray[float],
+    y: np.ndarray[float],
+    e: np.ndarray[float],
+    s: float = None,
 ) -> float:
     """
     Calculates the chi-squared value.
@@ -40,10 +40,10 @@ def chi_squared(
 
 
 def chi_squared_eff(
-        f: np.ndarray[float],
-        y: np.ndarray[float],
-        e: np.ndarray[float],
-        s: float,
+    f: np.ndarray[float],
+    y: np.ndarray[float],
+    e: np.ndarray[float],
+    s: float,
 ) -> float:
     """
     When the slop parameter, `s`, is provided, the chi-squared
@@ -65,7 +65,7 @@ def chi_squared_eff(
         The uncertainty in the observed values.
 
     s : float
-        The slop parameter.
+        The log slop parameter.
 
     Returns
     -------

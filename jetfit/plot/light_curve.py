@@ -20,7 +20,10 @@ COLOR_MAP = {
     # Swift Optical/UV/XRAY
     'uvot-u': 'cyan', 'uvot-b': 'lightblue', 'uvot-v': 'lightgreen',
     'uvw2': 'pink', 'uvm2': 'darkblue', 'uvw1': 'green',
-    'xray': 'black'
+    'xray': 'black',
+
+    # HST
+    'F775W': 'yellow', 'F125W': 'grey',
 }
 
 # Aliases
@@ -309,17 +312,8 @@ class LightCurvePlot:
         show : bool, optional
             If `True`, calls `plt.show()`.
 
-        host_corr : dict, optional
-            Key value pairs of 'filter' : value
-
         ext_model : dust_extinction model, optional
             Extinction model to use.
-
-        ebv_mw : float, optional
-            The E(B - V) Milky Way value.
-
-        ebv_sf : float, optional
-            The E(B - V) source frame value.
 
         ndata : int, optional
             The number of data points to plot.
@@ -384,8 +378,6 @@ class LightCurvePlot:
             wavelength = sdata.wavelength.to_value('um')
 
             # Model the spectral flux
-            # model = self.model(**self.params)
-            # sflux = model.evaluate_spectral_flux(times, frequency)
             sflux = model_spectral_fluxes(self.params, frequency)
 
             if 'shared' in self.params:
@@ -421,7 +413,6 @@ class LightCurvePlot:
             upper = idata.int_range.upper.to_value('Hz')
 
             # Model the integrated flux
-            # iflux = model.evaluate_integrated_flux(times, lower, upper)
             iflux = model_integrated_fluxes(self.params, lower, upper)
 
             # Convert to flux density [mJy]

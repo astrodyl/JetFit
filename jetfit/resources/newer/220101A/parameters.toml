@@ -9,7 +9,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -2.0
-    upper = 5.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -62,22 +62,14 @@ scale = "linear"
 [[model]]
 name  = "k"
 scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-        lower = -6.0
-        upper = 3.0
+value = 0.0
 
 #-------------- MODEL --------------
 #------------ tj (days) ------------
 [[model]]
 name  = "tj"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 1.0
+scale = "linear"
+value = 4.897
 
 #-------------- MODEL --------------
 #---------------- sj ---------------
@@ -216,6 +208,28 @@ scale = "linear"
     type  = "gaussian"
     mu    = 0.0
     sigma = 0.04
+
+#----------- CALIBRATION -----------
+#------------- HST-band ------------
+[[offsets]]
+name  = "F775W_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#------------- HST-band ------------
+[[offsets]]
+name  = "F125W_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
 
 #--------------- SLOP --------------
 #--------------- slop --------------

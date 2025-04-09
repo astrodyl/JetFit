@@ -266,6 +266,17 @@ scale = "linear"
 [[slop]]
 name  = "slop"
 scale = "linear"
+group = "optical"
+
+[slop.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 0.3
+
+[[slop]]
+name  = "slop"
+scale = "linear"
+group = "xray"
 
 [slop.prior]
     type  = "uniform"
