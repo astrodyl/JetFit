@@ -1,11 +1,166 @@
 import unittest
 
 import numpy as np
+import astropy.units as u
+import astropy.constants as const
+from matplotlib import pyplot as plt
 
+from jetfit.models2.basemodels import PeakFluxModel, SynchrotronFrequencyModel, CoolingFrequencyModel, \
+    AbsorptionFrequencyModel
 from jetfit.models2.fireball import FireballModel
 
 
+# Constants in cgs units
+m_p = const.m_p.cgs  # noqa
+m_e = const.m_e.cgs  # noqa
+q_e = u.Quantity(4.8032e-10 * u.g**0.5 * u.cm**1.5 / u.s)
+c = const.c.cgs  # noqa
+
+
 class TestCharacteristicModels(unittest.TestCase):
+    """"""
+    def test_nu_a(self):
+        """"""
+        # ISM
+        af_ism = AbsorptionFrequencyModel(
+            E=1.0, rho0=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=0.0, X=0.7, p=2.2
+        )(1.0, regime='slow') / (0.5 ** -1)
+
+        # Wind
+        af_wind = AbsorptionFrequencyModel(
+            E=1.0, rho0=5e11 / m_p.value / 1e34, eps_e=0.1, eps_b=0.1, k=2.0, z=0.0, X=0.7, p=2.2
+        )(1.0, regime='slow') / (0.5 ** (-2 / 5))
+
+        af_ism_true = 7.75e10
+        af_wind_true = 5.16e11
+
+        # Assert equal within 1%
+        self.assertAlmostEqual(af_ism / af_ism_true, 1.0, delta=0.01)
+        self.assertAlmostEqual(af_wind / af_wind_true, 1.0, delta=0.01)
+
+    def test_linsolve_cl(self):
+        """"""
+
+        a = np.array([
+            [0.5,   1.0,    0.5,    0.0],   # log(F_nu_max)
+            [-0.4,  1.2,    0.2,    -1.0],  # log(nu_a)
+            [0.5,   0.0,    0.5,    2.0],   # log(nu_m)
+            [0.5,   -2.0,   -1.5,   0.0]    # log(nu_c)
+        ])
+
+        f_nu_max_mjy = 1.0
+        nu_a_hz = 1e9
+        nu_m_hz = 1e12
+        nu_c_hz = 1e14
+
+        b = np.array([
+            np.log10(f_nu_max_mjy) - np.log10(20),
+            np.log10(nu_a_hz) - np.log10(1e11),
+            np.log10(nu_m_hz) - np.log10(5e12),
+            np.log10(nu_c_hz) - np.log10(2e12)
+        ])
+
+        x = np.linalg.solve(a, b)
+        y = 10 ** x
+
+    def test_linsolve_vdh(self):
+        """"""
+
+        # k-values to evaluate
+        # ks = np.linspace(-3.0, 3.0, 100)
+        ks = np.linspace(0.0, 2.0, 100)
+
+        # Define necessary params for evaluating models
+        t = 1.0     # observing time in days
+        p = 2.5     # electron energy index
+        hmf = 0.7   # hydrogen mass fraction
+                    #   ~1.0 for ISM
+                    #   ~0.0 for wind
+        z = 0.0     # redshift
+        d = 1.0     # luminosity distance
+        n = 5e11 / m_p.value / 1e34
+
+        # Define reference characteristic values
+        f_nu_max_mjy = 1.0  # peak flux [mJy]
+        nu_a_hz = 1e9       # absorption frequency [Hz]
+        nu_m_hz = 1e12      # synchrotron frequency [Hz]
+        nu_c_hz = 1e14      # cooling frequency [Hz]
+
+        # Define the characteristic models with all physical parameters
+        # of interest set to unity. When evaluating the model, this will
+        # return only the pre-factor that we need to solve the system of
+        # equations.
+        peak_flux_model = PeakFluxModel(
+            E=1.0, rho0=n, eps_b=0.1, dL=d, z=z, k=0.0, X=hmf)
+        nu_m_model = SynchrotronFrequencyModel(
+            E=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=z, X=hmf, p=p)
+        nu_c_model = CoolingFrequencyModel(
+            E=1.0, rho0=n, eps_b=0.1, k=0.0, z=z)
+        nu_a_model = AbsorptionFrequencyModel(
+            E=1.0, rho0=n, eps_e=0.1, eps_b=1.0, k=0.0, z=z, X=hmf, p=p
+        )
+
+        # For each value of k, construct and solve a system of equations for:
+        # (1) energy (normalized to 1/52),
+        # (2) the number density (normalized to m_p and 1e17cm),
+        # (3) the electric field energy fraction, and
+        # (4) the magnetic field energy fraction.
+
+        sols = []
+        for k in ks:
+
+            # System of equations for slow cooling (nu_a < nu_m < nu_c)
+            a_slow = np.array([
+                # E                             rho                 eps_e       eps_b
+                [0.5 * (8 - 3*k) / (4 - k),     2 / (4 - k),        0.0,        0.5 ],  # log(F_nu_max)
+                [-0.5 * (4 - 3*k) / (4 - k),   -4 / (4 - k),        0.0,       -1.5 ],  # log(nu_c)
+                [0.5,                           0.0,                2.0,        0.5 ],  # log(nu_m)
+                [0.8 * (1 - k) / (4 - k),       2.4 / (4 - k),     -1.0,        0.2 ]   # log(nu_a_slow)
+            ])
+
+            # Update the models with the new k value
+            peak_flux_model.k = nu_m_model.k = nu_c_model.k = k
+
+            # log(characteristics) minus log(pre-factors)
+            b_slow = np.array([
+                np.log10(f_nu_max_mjy) - np.log10(peak_flux_model(t=t)),
+                np.log10(nu_m_hz) - np.log10(nu_m_model(t=t)),
+                np.log10(nu_c_hz) - np.log10(nu_c_model(t=t)),
+                np.log10(nu_a_hz) - np.log10(nu_a_model(t=t, regime='slow'))
+            ])
+
+            sols.append(10 ** np.linalg.solve(a_slow, b_slow))
+
+        sols = np.asarray(sols)
+
+        titles = (
+            r'Energy ($E_{52}$)',
+            r'Density ($n_{0}$)',
+            r'Electric Field Fraction ($\epsilon_{E}$)',
+            r'Magnetic Field Fraction ($\epsilon_{B}$)'
+        )
+        y_labels = (r'$E_{52}$', r'$n_{0}$', r'$\epsilon_{E}$', r'$\epsilon_{B}$')
+        colors = ('red', 'green', 'blue', 'purple')
+
+        for i, title in enumerate(titles):
+
+            # Add reference values to labels
+            plt.plot([], [], alpha=0, label=r'$F_{peak}$ = ' + f'1 mJy')
+            plt.plot([], [], alpha=0, label=r'$\nu_{c}$ = ' + r'$10^{14}$ Hz')
+            plt.plot([], [], alpha=0, label=r'$\nu_{m}$ = ' + r'$10^{12}$ Hz')
+            plt.plot([], [], alpha=0, label=r'$\nu_{a}$ = ' + r'$10^{9}$ Hz')
+
+            # Plot the data
+            plt.plot(ks, sols[:,i], linewidth=0.75, color=colors[i])
+
+            # Configure the plot
+            plt.title(title)
+            plt.xlabel('k')
+            plt.ylabel(y_labels[i])
+            plt.grid(alpha=0.4)
+            plt.legend()
+            plt.show()
+
     def test_param_relationships(self):
         """"""
         for k in (0.0, 1.0, 1.333, 2.0):
@@ -173,7 +328,9 @@ class TestCharacteristicModels(unittest.TestCase):
         # Modeled values
         nu_c = model.nu_c(1.0)
         nu_m = model.nu_m(1.0)
-        f_peak = model.f_peak(1.0) * (8 * np.pi / 9)
+
+        # Derivation of the peak flux differs by 8pi/9
+        f_peak = model.f_peak(1.0) * 8.0 * np.pi / 9
 
         # True values
         nu_c_true = 2.7e12

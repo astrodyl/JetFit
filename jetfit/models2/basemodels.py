@@ -1,6 +1,7 @@
 import math
 
 import astropy.units as u
+import astropy.constants as const
 import numpy as np
 
 from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
@@ -371,9 +372,9 @@ class BaseSpectralModel:
         name = self.__class__.__name__
         return f"{name}(E={self.E}, z={self.z}, k={self.k})"
 
-    def __call__(self, t):
+    def __call__(self, *args, **kwargs):
         """ Wrapper for the evaluate method. """
-        return self.evaluate(t)
+        return self.evaluate(*args, **kwargs)
 
     # noinspection PyPep8Naming
     @property
@@ -401,16 +402,14 @@ class BaseSpectralModel:
     @property
     def alpha(self) -> float:
         """ Returns the temporal coefficient. """
-        # return 8 / 9
         return 16 / (17 - 4 * self.k)
 
     @property
     def beta(self) -> float:
         """ Returns the spectral coefficient. """
-        # return 8
         return 4 - self.k
 
-    def evaluate(self, t):
+    def evaluate(self, *args, **kwargs):
         """ Placeholder evaluate method. """
         raise NotImplementedError(f'evaluate not implemented.')
 
@@ -498,7 +497,7 @@ class PeakFluxModel(BaseSpectralModel):
 
             # exponents in linear-space
             (10 ** log_pot)
-        )  # * (8 * np.pi / 9)
+        )
 
 
 class CoolingFrequencyModel(BaseSpectralModel):
@@ -652,6 +651,109 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
             ((self.p - 1) ** -2) *  # electron energy index
             (t ** -1.5)             # time in days
         )
+
+
+class AbsorptionFrequencyModel(BaseSpectralModel):
+    """
+    Absorption frequency model. Assumes an ultra-relativistic
+    shock moving through an external medium with rho = rho0
+    * R^-k density.
+
+    Attributes
+    ----------
+    eps_e : float
+        The fraction of thermal energy carried by relativistic
+        electrons, unit=None.
+
+    X : float
+        The hydrogen mass fraction, unit=None.
+
+    p : float
+        The electron energy power-law index, unit=None.
+    """
+
+    # noinspection PyPep8Naming
+    def __init__(self, E, rho0, eps_e, eps_b, k, z, X, p):
+        super().__init__(E, eps_b, k, z)
+        self.eps_e = eps_e
+        self.rho0 = rho0
+        self.X = X
+        self.p = p
+
+    def evaluate(self, t, regime):
+        """
+        ??
+
+        Parameters
+        ----------
+        t : float or np.array of float or u.Quantity['time']
+            The time to evaluate. If `t` is a float, must
+            be measured in days since trigger.
+
+        regime : str, {'slow', 'fast'}
+            Indicates whether to evaluate the fast or slow
+            cooling model.
+
+        Returns
+        -------
+        float or np.array of float
+            The self-absorption frequency at time `t` measured in Hz.
+        """
+        return getattr(self, f'evaluate_{regime}')(t)
+
+    def evaluate_slow(self, t):
+        """"""
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
+
+        # convenience variables
+        k, x = self.k, 4 - self.k
+        c = const.c.cgs.value      # noqa
+        m_p = const.m_p.cgs.value  # noqa
+        q_e = 4.8032e-10           # [g1/2 cm3/2 s-1]
+
+        # exponents for readability
+        e_alpha = -(0.8 * (1 - k) / x)
+        e_beta = -(0.6*k / x)
+        e_pi = (0.2 * (4 + 2*k) / x)
+        e_c = -0.8 * ((5 - 2*k) / x)
+        e_rho = (2.4 / x)
+        e_en = (0.8 * (1 - k) / x)
+        e_z = -(0.8 * (5 - 2*k) / x)
+
+        # return self-absorption frequency [Hz]
+        return 10 ** (
+
+            # Dimension-less quantities
+            np.log10(2 * 3 ** 0.8) +
+            e_alpha * np.log10(self.alpha) +        # hydrodynamics coefficient
+            e_beta * np.log10(self.beta) +          # hydrodynamics coefficient
+            e_pi * np.log10(np.pi) +                # pi
+            (1.6 * np.log10(0.5 * (1 + self.X))) +  # hydrogen mass fraction
+            -np.log10(self.p - 2) +                 # electron energy index
+            1.6 * np.log10(self.p - 1) +            # electron energy index
+            -0.6 * np.log10(self.p + 2/3) +         # electron energy index
+            0.6 * np.log10(self.p + 2) +            # electron energy index
+
+            # Dimensional quantities
+            1.6 * np.log10(q_e) +   # electron charge [g1/2 cm3/2 s-1]
+            -1.6 * np.log10(m_p) +  # proton mass [g]
+            e_c * np.log10(c) +     # speed of light [cm s-1]
+
+            # Model parameters
+            -np.log10(self.eps_e) +                       # electron field energy fraction
+            0.2 * np.log10(self.eps_b) +                  # magnetic field electron fraction
+            e_rho * (17*k + np.log10(m_p * self.rho0)) +  # density [g cm-3]
+            e_en * (52 + np.log10(self.E)) +              # energy [erg]
+            e_z * np.log10(1 + self.z) +                  # redshift
+
+            # Evaluated at time, `t`
+            -0.6 * (k / x) * np.log10(86_400 * t)  # time [s]
+        )
+
+    def evaluate_fast(self, t):
+        """"""
+        raise NotImplementedError('Not yet implemented.')
 
 
 class ObservedFluxModel:
