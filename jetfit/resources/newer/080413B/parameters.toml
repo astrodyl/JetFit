@@ -33,7 +33,7 @@ group = "late"
 [model.prior]
     type  = "uniform"
     lower = -6.0
-    upper = 9.0
+    upper = 6.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------

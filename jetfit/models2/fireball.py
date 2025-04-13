@@ -2,7 +2,7 @@ import astropy.units as u
 import numpy as np
 
 from jetfit.core.input import Observation
-from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel
+from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel, AbsorptionFrequencyModel
 from jetfit.models2.basemodels import SynchrotronFrequencyModel, SpectralFluxModel
 from jetfit.models2.basemodels import CoolingFrequencyModel, PeakFluxModel
 
@@ -381,3 +381,28 @@ class FireballModel:
         """
         return SynchrotronFrequencyModel(
             self.E, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p)(t)
+
+    def nu_a(self, t, regime: str):
+        """
+        Calculates the self-absorption frequency in the case of
+        an ultra-relativistic shock moving into an external medium
+        with density rho = rho_0 * R^-k.
+
+        Parameters
+        ----------
+        t : float or np.ndarray of float or u.Quantity['time']
+            The time to evaluate. If `t` is a float, must
+            be measured in days since trigger.
+
+        regime : str, {'slow', 'fast'}
+            The regime to evaluate the self-absorption frequency
+            model.
+
+        Returns
+        -------
+        float or np.ndarray of float or u.Quantity['time']
+            The synchrotron frequency in Hz at time `t`.
+        """
+        return AbsorptionFrequencyModel(
+            self.E, self.rho0, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p
+        )(t, regime)

@@ -54,10 +54,10 @@ class TestCharacteristicModels(unittest.TestCase):
         nu_c_hz = 1e14
 
         b = np.array([
-            np.log10(f_nu_max_mjy) - np.log10(20),
-            np.log10(nu_a_hz) - np.log10(1e11),
-            np.log10(nu_m_hz) - np.log10(5e12),
-            np.log10(nu_c_hz) - np.log10(2e12)
+            np.log10(f_nu_max_mjy)  - np.log10(20),
+            np.log10(nu_a_hz)       - np.log10(1e11),
+            np.log10(nu_m_hz)       - np.log10(5e12),
+            np.log10(nu_c_hz)       - np.log10(2e12)
         ])
 
         x = np.linalg.solve(a, b)
@@ -67,38 +67,37 @@ class TestCharacteristicModels(unittest.TestCase):
         """"""
 
         # k-values to evaluate
-        # ks = np.linspace(-3.0, 3.0, 100)
-        ks = np.linspace(0.0, 2.0, 100)
+        ks = np.linspace(-3.0, 3.0, 100)
+        # ks = np.linspace(0.0, 2.0, 100)
 
         # Define necessary params for evaluating models
         t = 1.0     # observing time in days
-        p = 2.5     # electron energy index
+        p = 2.2     # electron energy index
         hmf = 0.7   # hydrogen mass fraction
                     #   ~1.0 for ISM
                     #   ~0.0 for wind
         z = 0.0     # redshift
         d = 1.0     # luminosity distance
-        n = 5e11 / m_p.value / 1e34
+        n = 1.0     # 5e11 / m_p.value / 1e34
 
         # Define reference characteristic values
-        f_nu_max_mjy = 1.0  # peak flux [mJy]
-        nu_a_hz = 1e9       # absorption frequency [Hz]
-        nu_m_hz = 1e12      # synchrotron frequency [Hz]
-        nu_c_hz = 1e14      # cooling frequency [Hz]
+        f_p_mjy = 1.0   # peak flux [mJy]
+        nu_a_hz = 1e9   # absorption frequency [Hz]
+        nu_m_hz = 1e12  # synchrotron frequency [Hz]
+        nu_c_hz = 1e14  # cooling frequency [Hz]
 
         # Define the characteristic models with all physical parameters
         # of interest set to unity. When evaluating the model, this will
         # return only the pre-factor that we need to solve the system of
         # equations.
         peak_flux_model = PeakFluxModel(
-            E=1.0, rho0=n, eps_b=0.1, dL=d, z=z, k=0.0, X=hmf)
+            E=1.0, rho0=n, eps_b=1.0, dL=d, z=z, k=0.0, X=hmf)
         nu_m_model = SynchrotronFrequencyModel(
-            E=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=z, X=hmf, p=p)
+            E=1.0, eps_e=1.0, eps_b=1.0, k=0.0, z=z, X=hmf, p=p)
         nu_c_model = CoolingFrequencyModel(
-            E=1.0, rho0=n, eps_b=0.1, k=0.0, z=z)
+            E=1.0, rho0=n, eps_b=1.0, k=0.0, z=z)
         nu_a_model = AbsorptionFrequencyModel(
-            E=1.0, rho0=n, eps_e=0.1, eps_b=1.0, k=0.0, z=z, X=hmf, p=p
-        )
+            E=1.0, rho0=n, eps_e=1.0, eps_b=1.0, k=0.0, z=z, X=hmf, p=p)
 
         # For each value of k, construct and solve a system of equations for:
         # (1) energy (normalized to 1/52),
@@ -109,23 +108,23 @@ class TestCharacteristicModels(unittest.TestCase):
         sols = []
         for k in ks:
 
+            # Update the models with the new k value
+            peak_flux_model.k = nu_m_model.k = nu_c_model.k = nu_a_model.k = k
+
             # System of equations for slow cooling (nu_a < nu_m < nu_c)
             a_slow = np.array([
-                # E                             rho                 eps_e       eps_b
+                # E                             n0                  eps_e       eps_b
                 [0.5 * (8 - 3*k) / (4 - k),     2 / (4 - k),        0.0,        0.5 ],  # log(F_nu_max)
                 [-0.5 * (4 - 3*k) / (4 - k),   -4 / (4 - k),        0.0,       -1.5 ],  # log(nu_c)
                 [0.5,                           0.0,                2.0,        0.5 ],  # log(nu_m)
                 [0.8 * (1 - k) / (4 - k),       2.4 / (4 - k),     -1.0,        0.2 ]   # log(nu_a_slow)
             ])
 
-            # Update the models with the new k value
-            peak_flux_model.k = nu_m_model.k = nu_c_model.k = k
-
             # log(characteristics) minus log(pre-factors)
             b_slow = np.array([
-                np.log10(f_nu_max_mjy) - np.log10(peak_flux_model(t=t)),
-                np.log10(nu_m_hz) - np.log10(nu_m_model(t=t)),
+                np.log10(f_p_mjy) - np.log10(peak_flux_model(t=t)),
                 np.log10(nu_c_hz) - np.log10(nu_c_model(t=t)),
+                np.log10(nu_m_hz) - np.log10(nu_m_model(t=t)),
                 np.log10(nu_a_hz) - np.log10(nu_a_model(t=t, regime='slow'))
             ])
 
@@ -151,7 +150,7 @@ class TestCharacteristicModels(unittest.TestCase):
             plt.plot([], [], alpha=0, label=r'$\nu_{a}$ = ' + r'$10^{9}$ Hz')
 
             # Plot the data
-            plt.plot(ks, sols[:,i], linewidth=0.75, color=colors[i])
+            plt.plot(ks, sols[:, i], linewidth=0.75, color=colors[i])
 
             # Configure the plot
             plt.title(title)
@@ -276,24 +275,32 @@ class TestCharacteristicModels(unittest.TestCase):
         f_peak = model.f_peak(1.0)
         nu_m = model.nu_m(1.0)
         nu_c = model.nu_c(1.0)
+        nu_a = model.nu_a(1.0, 'slow')
 
         # True values
         f_peak_true = 21.3 * 0.5
         nu_m_true = 8.98e11 * (0.5**0.5)
         nu_c_true = 5.98e13 * (0.5**-0.5)
+        nu_a_slow_true = 7.75e10 * (0.5**-1)
 
         # Assert equal within 1%
         self.assertAlmostEqual(f_peak / f_peak_true, 1.0, delta=0.01)
         self.assertAlmostEqual(nu_m / nu_m_true, 1.0, delta=0.01)
         self.assertAlmostEqual(nu_c / nu_c_true, 1.0, delta=0.01)
+        self.assertAlmostEqual(nu_a / nu_a_slow_true, 1.0, delta=0.01)
 
     def test_vdh_wind(self):
         """
         Test that the general k-model reduces to the wind
         (k=2) case when k is set to 2.
         """
+
+        # Correct for the different normalizations. We use a
+        # number density referenced to 1e17cm.
+        n0 = 5e11 / 1.67e-24 / 1e34
+
         model = FireballModel(
-            E=1.0, rho0=1.0, p=2.2, k=2.0, z=0.0, dL=1.0,
+            E=1.0, rho0=n0, p=2.2, k=2.0, z=0.0, dL=1.0,
             eps_e=0.1, eps_b=0.1, X=0.7
         )
 
@@ -301,20 +308,19 @@ class TestCharacteristicModels(unittest.TestCase):
         f_peak = model.f_peak(1.0)
         nu_m = model.nu_m(1.0)
         nu_c = model.nu_c(1.0)
-
-        # Normalization since we normalize density to 1e17cm,
-        # but for k=2, VDH normalizes to A=5e11 * A_x,
-        norm = (1 / 5e11) * 1e34 * 1.67e-24
+        nu_a = model.nu_a(1.0, 'slow')
 
         # True values
-        f_peak_true = 60.8 * (0.5**1.5) * norm
+        f_peak_true = 60.8 * (0.5**1.5)
         nu_m_true = 1.85e12 * (0.5 ** 0.5)
-        nu_c_true = 9.97e11 * (0.5 ** -1.5) / norm**2
+        nu_c_true = 9.97e11 * (0.5 ** -1.5)
+        nu_a_slow_true = 5.16e11 * (0.5 ** -0.4)
 
         # Assert equal within 1%
         self.assertAlmostEqual(f_peak / f_peak_true, 1.0, delta=0.01)
         self.assertAlmostEqual(nu_m / nu_m_true, 1.0, delta=0.01)
         self.assertAlmostEqual(nu_c / nu_c_true, 1.0, delta=0.01)
+        self.assertAlmostEqual(nu_a / nu_a_slow_true, 1.0, delta=0.01)
 
     def test_spn_ism(self):
         """

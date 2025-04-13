@@ -1,5 +1,8 @@
+import os
+
 import astropy.units as u
 import numpy as np
+from matplotlib import pyplot as plt
 
 
 def q_e():
@@ -65,3 +68,28 @@ def ipl(amplitude, lower, upper, x_0, beta):
     """
     constant = amplitude * np.power(x_0, -beta) / (beta + 1)
     return constant * (np.power(upper, beta + 1) - np.power(lower, beta + 1))
+
+
+def save_plot_unique(filename_base, ext, directory):
+    """
+    Save a matplotlib plot to disk, adding a suffix if the file exists.
+
+    Parameters
+    ----------
+    filename_base: str
+        base name without extension
+
+    ext: str
+        file extension (default 'png')
+
+    directory: str
+        directory to save in (default current directory)
+    """
+    i = 0
+    while True:
+        filename = f"{filename_base}.{ext}" if i == 0 else f"{filename_base}_{i}.{ext}"
+        filepath = os.path.join(directory, filename)
+        if not os.path.exists(filepath):
+            plt.savefig(filepath, dpi=300)
+            return
+        i += 1

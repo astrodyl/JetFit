@@ -8,6 +8,79 @@ from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
 from jetfit.mcmc.parameters.parameters import Parameters
 
 
+# noinspection PyPep8Naming
+class OpeningAngleModel:
+    """
+    Jet opening angle model.
+
+    Parameters
+    ----------
+    E : float
+        The isotropic energy normalized to 1e52 erg.
+
+    rho0 : float
+        The number density. Normalized to the proton
+        mass and (1e17cm)^k such that the units are
+        1 / cm^3.
+
+    k : float
+        The density power-law index.
+    """
+    def __init__(self, E, rho0, k):
+        self.rho0 = rho0
+        self.E = E
+        self.k = k
+
+    def __repr__(self):
+        """ Human-readable string """
+        return f'OpeningAngle(E={self.E}, rho0={self.rho0}, k={self.k})'
+
+    def __call__(self, *args, **kwargs):
+        """ Calls the evaluate method. """
+        return self.evaluate(*args, **kwargs)
+
+    @property
+    def alpha(self) -> float:
+        """ Returns the hydrodynamic coefficient. """
+        return 16 / (17 - 4 * self.k)
+
+    @property
+    def beta(self) -> float:
+        """ Returns the hydrodynamic coefficient. """
+        return 4 - self.k
+
+    def evaluate(self, t):
+        """
+        Evaluates the jet opening angle at the jet break
+        time `t`.
+
+        Parameters
+        ----------
+        t : float or np.ndarray of float
+            The jet break time in days since trigger.
+
+        Returns
+        -------
+        float or np.ndarray of float
+            The jet opening angle.
+        """
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
+
+        c = 2.99e10
+        rho_norm = 1.67e-24 * (1e17 ** self.k)
+
+        # return the jet opening angle
+        return (
+            np.pi * self.alpha *
+            (self.beta ** (3 - self.k)) *
+            (c ** (5 - self.k)) *           # [cm s-1] ^ (5-k)
+            (rho_norm * self.rho0) *        # [g cm(k-3)]
+            ((1e52 * self.E) **-1) *        # [g cm2 s-2] ^ -1
+            ((86_400 * t) ** (3 - self.k))  # [s] ^ (3 - k)
+        ) ** (0.5 / (4 - self.k))
+
+
 class BaseFluxModel:
     """
 
@@ -491,7 +564,7 @@ class PeakFluxModel(BaseSpectralModel):
             ((1 + self.z) ** exp_z) *   # redshift
             (self.E ** exp_en) *        # explosion energy / 1e52 erg
             self.n_p *                  # particle density
-            (self.rho0 ** exp_rho) *    # number density / R_*
+            (self.rho0 ** exp_rho) *    # number density
             (self.dL ** -2) *           # luminosity distance / 1e28 cm
             (t ** exp_t) *              # time in days
 

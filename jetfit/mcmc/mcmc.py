@@ -100,7 +100,7 @@ class MCMC:
             backend=backend  # type: ignore
         )
 
-    def get_best_params(self, as_dict=True,**kwargs):
+    def get_best_params(self, as_dict=True, **kwargs):
         """
         Returns the sampled values from the chain with the highest
         likelihood.

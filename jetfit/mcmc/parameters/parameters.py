@@ -110,6 +110,21 @@ class Parameters:
 
         return cls(np.asarray(params, dtype=object))
 
+    def has(self, name):
+        """
+        Determines if `name` is in the parameter list.
+
+        Parameters
+        ----------
+        name : str
+            The name of the parameter to check.
+
+        Returns
+        -------
+            True if `name` is in the parameter list.
+        """
+        return True if name in [p.name for p in self.all] else False
+
     def samples_to_dict(self, theta, cat=None, group=None, scale='linear'):
         """
         Maps MCMC samples to a dictionary.
@@ -167,7 +182,9 @@ class Parameters:
                     if p.group is None or p.group == g:
                         params[g][p.category][p.name] = val
 
-        return params if self.data_groups else params['shared']
+        if self.data_groups:
+            return params[group] if group else params
+        return params['shared']
 
     @staticmethod
     def extrinsic(obs, params) -> dict:

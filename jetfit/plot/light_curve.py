@@ -1,4 +1,3 @@
-from collections import defaultdict
 from pathlib import Path
 
 import astropy.units as u
@@ -9,7 +8,7 @@ from jetfit.core.defns.enums import DataType
 
 
 COLOR_MAP = {
-    # JC Optical
+    # JC Optical/NIR
     'U': '#8601AF', 'B': '#0247FE', 'V': '#66B032', 'R': '#FE2712',
     'I': '#4424D6', 'J': '#66B032', 'H': '#FC600A', 'K': '#FE2712',
 
@@ -202,15 +201,9 @@ class FrequencyPlot:
         best_params = get_best_params(self.sampler, self.parameters, cat='model')
         nu_ms, nu_cs = model_frequencies(best_params)
 
-        # Calculate the temporal indices
-        slope_nu_m, _ = np.polyfit(np.log10(times), np.log10(nu_ms), 1)
-        slope_nu_c, _ = np.polyfit(np.log10(times), np.log10(nu_cs), 1)
-
         # Include indices in label
-        ax.loglog(times, nu_ms, color='blue',
-                  label=r'$\nu_{m},  \alpha = $' + f'{round(slope_nu_m, 3)}')
-        ax.loglog(times, nu_cs, color='orange',
-                  label=r'$\nu_{c},  \alpha = $' + f'{round(slope_nu_c, 3)}')
+        ax.loglog(times, nu_ms, color='blue', label=r'$\nu_{m}')
+        ax.loglog(times, nu_cs, color='orange', label=r'$\nu_{c}')
 
         # Plot horizontal lines roughly corresponding to optical/xray
         plt.axhline(y=5e14, color='green', linewidth=10, alpha=0.2)

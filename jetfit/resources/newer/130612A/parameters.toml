@@ -20,7 +20,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -6.0
-    upper = 9.0
+    upper = 6.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -41,7 +41,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -8.0
+    lower = -6.0
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -142,11 +142,11 @@ scale = "linear"
 
 #--------------- SLOP --------------
 #--------------- slop --------------
-[[slop]]
-name  = "slop"
-scale = "linear"
-
-[slop.prior]
-    type  = "uniform"
-    lower = 0.0
-    upper = 0.3
+#[[slop]]
+#name  = "slop"
+#scale = "linear"
+#
+#[slop.prior]
+#    type  = "uniform"
+#    lower = 0.0
+#    upper = 0.3

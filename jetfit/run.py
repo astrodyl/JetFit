@@ -16,6 +16,7 @@ from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSi
 from jetfit.models2.basemodels import ObservedFluxModel
 from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel
+from jetfit.plot.dist import DistributionPlot
 from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
 from jetfit.plot.posterior import PosteriorPlot
 
@@ -84,7 +85,7 @@ def main(
     # -----------------------------------------------------------------
     # Define a filename to save the sampler to disk.
     # Warning: The sampler files are very large ~1 GB each.
-    filename = str(results_dir / f'{event}_chain.h5')
+    filename = None  # str(results_dir / f'{event}_chain.h5')
 
     # Create the MCMC object and run. See you in a few hours!
     mcmc = MCMC(
@@ -101,6 +102,18 @@ def main(
     # -----------------------------------------------------------------
     # Plot the light curves
     best_params = mcmc.get_best_params()
+
+    # Plot distributions
+    dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
+
+    # Plot the spectral index distribution
+    dist_plotter.spectral_index(
+        observation.data[observation.sindex_loc], out_dir=results_dir
+    )
+
+    # Plot the opening angle and energy distribution
+    if parameters.has('tj'):
+        dist_plotter.beaming(out_dir=results_dir)
 
     # Plot frequencies
     fp = FrequencyPlot(mcmc.sampler, parameters)
@@ -166,20 +179,21 @@ def main(
     az.summary(inf_data).to_csv(results_dir / "summary.csv")
 
     # Plot the trace plot
-    az.plot_trace(inf_data)
-    plt.savefig(results_dir / "trace.png")
+    # az.plot_trace(inf_data)
+    # plt.savefig(results_dir / "trace.png")
 
     # Plot the burn-in trace plot
-    az.plot_trace(inf_data_burn)
-    plt.savefig(results_dir / "trace_burn.png")
+    # az.plot_trace(inf_data_burn)
+    # plt.savefig(results_dir / "trace_burn.png")
 
-    try:  # Optional stats
-        print(f"Autocorrelation........{mcmc.sampler.acor}\n")
-        print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
-    except Exception as e:
-        pass
+    # try:  # Optional stats
+    #     print(f"Autocorrelation........{mcmc.sampler.acor}\n")
+    #     print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
+    # except Exception as e:
+    #     pass
 
-    print('AMPy completed successfully.')
+    plt.close()
+    print(f'AMPy completed modeling of {event} successfully.')
 
 
 if __name__ == "__main__":
@@ -200,7 +214,7 @@ if __name__ == "__main__":
     if args.event is None:
         # Specify the events to run
         events = [
-            '050525A',
+            # '050525A',
             # '050922C',
             # '080413B',
             # '080319B_early',
@@ -213,13 +227,13 @@ if __name__ == "__main__":
             # '111228A',
             # '111228A_early',
             # '111228A_late',
-            # '140506A',
             # '130612A',
             # '131030A',
+            # '140506A',
             # '160131A',
             # '171010A',
-            # '220101A',
             # '210905A',
+            # '220101A',
             # '221009A',
             # '231118A',
         ]
