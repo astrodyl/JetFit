@@ -25,11 +25,15 @@ class OpeningAngleModel:
 
     k : float
         The density power-law index.
+
+    z : float
+        The redshift.
     """
-    def __init__(self, E, rho0, k):
+    def __init__(self, E, rho0, k, z):
         self.rho0 = rho0
         self.E = E
         self.k = k
+        self.z = z
 
     def __repr__(self):
         """ Human-readable string """
@@ -69,11 +73,13 @@ class OpeningAngleModel:
 
         c = 2.99e10
         rho_norm = 1.67e-24 * (1e17 ** self.k)
+        exp_z = -0.5 * (3 - self.k) / (4 - self.k)
 
         # return the jet opening angle
         return (
             np.pi * self.alpha *
             (self.beta ** (3 - self.k)) *
+            ((1 + self.z) ** exp_z) *
             (c ** (5 - self.k)) *           # [cm s-1] ^ (5-k)
             (rho_norm * self.rho0) *        # [g cm(k-3)]
             ((1e52 * self.E) **-1) *        # [g cm2 s-2] ^ -1
@@ -896,7 +902,7 @@ class ObservedFluxModel:
 
         # Apply dust extinction and host galaxy corrections
         modeled[obs.sflux_loc] = self.model_extinction(
-            modeled[obs.sflux_loc], **Parameters.extrinsic(obs, params)
+            modeled[obs.sflux_loc], **Parameters.extinction(obs, params)
         )
 
         return modeled

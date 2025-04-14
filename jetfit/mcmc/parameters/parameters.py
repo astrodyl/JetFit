@@ -125,6 +125,11 @@ class Parameters:
         """
         return True if name in [p.name for p in self.all] else False
 
+    @staticmethod
+    def get(p: dict, cat: str):
+        """"""
+        return p.get('shared').get(cat) if p.get('shared') else p.get(cat)
+
     def samples_to_dict(self, theta, cat=None, group=None, scale='linear'):
         """
         Maps MCMC samples to a dictionary.
@@ -187,9 +192,9 @@ class Parameters:
         return params['shared']
 
     @staticmethod
-    def extrinsic(obs, params) -> dict:
+    def extinction(obs, params) -> dict:
         """
-        Formats the arguments for `ExtrinsicFluxModel.extinguish`.
+        Formats the arguments for `ObservedFluxModel.model_extinction`.
 
         Parameters
         ----------
@@ -202,7 +207,7 @@ class Parameters:
         Returns
         -------
         dict
-            `ExtrinsicFluxModel.extinguish` parameters.
+            `ObservedFluxModel.model_extinction` parameters.
         """
 
         # dict of data groups

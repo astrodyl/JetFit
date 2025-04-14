@@ -85,7 +85,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.0
+    lower = 2.3
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -179,7 +179,7 @@ scale = "log"
 
 [offsets.prior]
     type  = "uniform"
-    lower = -1.0
+    lower = -1.4
     upper = 1.0
 
 #----------- CALIBRATION -----------

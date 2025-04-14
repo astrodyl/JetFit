@@ -202,8 +202,8 @@ class FrequencyPlot:
         nu_ms, nu_cs = model_frequencies(best_params)
 
         # Include indices in label
-        ax.loglog(times, nu_ms, color='blue', label=r'$\nu_{m}')
-        ax.loglog(times, nu_cs, color='orange', label=r'$\nu_{c}')
+        ax.loglog(times, nu_ms, color='blue', label=r'$\nu_{m}$')
+        ax.loglog(times, nu_cs, color='orange', label=r'$\nu_{c}$')
 
         # Plot horizontal lines roughly corresponding to optical/xray
         plt.axhline(y=5e14, color='green', linewidth=10, alpha=0.2)

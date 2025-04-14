@@ -629,7 +629,7 @@ class IntegratedFlux(FluxBase, Integrable):
         self._value = value
 
     @property
-    def frequency(self) -> float:
+    def frequency(self):
         """ Returns the log average of the integration frequency. """
         return (10 ** (0.5 * (np.log10(self.int_range.lower.value) + np.log10(self.int_range.upper.value)))) * self.int_range.lower.unit
 

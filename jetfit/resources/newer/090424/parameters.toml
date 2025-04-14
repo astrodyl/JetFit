@@ -9,7 +9,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -2.0
-    upper = 3.0
+    upper = 6.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -198,28 +198,6 @@ scale = "linear"
     sigma = 0.03
 
 #----------- HOST GALAXY -----------
-#------------ uvm2-band ------------
-[[host]]
-name  = "uvm2_host"
-scale = "log"
-
-[host.prior]
-    type = "uniform"
-    lower = -3.0
-    upper = 0.0
-
-#----------- HOST GALAXY -----------
-#------------ uvw1-band ------------
-[[host]]
-name  = "uvw1_host"
-scale = "log"
-
-[host.prior]
-    type = "uniform"
-    lower = -3.0
-    upper = 0.0
-
-#----------- HOST GALAXY -----------
 #----------- uvot-u-band -----------
 [[host]]
 name  = "uvot-u_host"
@@ -227,7 +205,7 @@ scale = "log"
 
 [host.prior]
     type = "uniform"
-    lower = -3.0
+    lower = -4.0
     upper = 0.0
 
 #----------- HOST GALAXY -----------

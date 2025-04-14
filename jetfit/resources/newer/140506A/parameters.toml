@@ -114,9 +114,9 @@ name  = "R_offset"
 scale = "linear"
 
 [offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
+    type  = "uniform"
+    lower = -1.0
+    upper = 1.0
 
 #----------- CALIBRATION -----------
 #-------------- J-band -------------
@@ -266,17 +266,6 @@ scale = "linear"
 [[slop]]
 name  = "slop"
 scale = "linear"
-group = "optical"
-
-[slop.prior]
-    type  = "uniform"
-    lower = 0.0
-    upper = 0.3
-
-[[slop]]
-name  = "slop"
-scale = "linear"
-group = "xray"
 
 [slop.prior]
     type  = "uniform"

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import corner
+import numpy as np
 from matplotlib import pyplot as plt
 
 
@@ -13,8 +14,9 @@ class PosteriorPlot:
         self.params = params
         self.param_pos = param_pos
 
-    def plot(self, show: bool = False, out_dir: str | Path = None) -> None:
+    def plot(self, show: bool = False, out_dir: str | Path = None):
         """
+        Creates the corner plot of 1D and 2D posteriors.
 
         Parameters
         ----------
@@ -26,66 +28,68 @@ class PosteriorPlot:
         """
         chain = self.sampler.get_chain(flat=True)
 
+        plot_kw = {
+            'label_size': 16, 'show_titles': True,
+            'plot_datapoints': False, 'quantiles': [0.16, 0.5, 0.84],
+            'label_kwargs': {'fontsize': 14}, 'title_kwargs': {"fontsize": 14},
+            'fill_contours': True, 'smooth': 0.75, 'smooth1d': 0.75,
+        }
+
         # Split parameters into physical and non-physical
-        ranges, bins, labels, np_pos = [], [], [], []
-        np_ranges, np_bins, np_labels, pos = [], [], [], []
+        ranges, bins, labels, pos = [], [], [], []
+        h_ranges, h_bins, h_labels, h_pos = [], [], [], []
+        np_ranges, np_bins, np_labels, np_pos = [], [], [], []
 
         param_pos = {}
         for i, p in enumerate(self.params):
             name = p.name if p.group is None else f'{p.name}_{p.group}'
             param_pos[name] = i
 
+        # Split the parameters into groups (GRB physics, statistical, host)
         for p in self.params:
-            name = p.name if p.group is None else f'{p.name}_{p.group}'
+            name = p.name if p.group is None else f'{p.name} ({p.group})'
 
-            # Non-physical parameters
-            if '_offset' in name or '_host' in name or 'slop' in name:
+            if '_offset' in name or 'slop' in name:
                 np_ranges.append((p.prior.lower, p.prior.upper))
                 np_labels.append(self.get_pretty_label(name))
                 np_pos.append(param_pos[name])
                 np_bins.append(50)
 
-            else:  # Physical parameters
+            elif '_host' in name:
+                h_ranges.append((p.prior.lower, p.prior.upper))
+                h_labels.append(self.get_pretty_label(name))
+                h_pos.append(param_pos[name])
+                h_bins.append(50)
+
+            else:
                 ranges.append((p.prior.lower, p.prior.upper))
                 labels.append(self.get_pretty_label(name))
                 pos.append(param_pos[name])
                 bins.append(50)
 
-        # Plot for physical parameters
-        fig = corner.corner(
-            chain[:, pos],
-            bins=bins,
-            color='mediumblue',
-            labels=labels,
-            label_size=16,
-            show_titles=True,
-            plot_datapoints=False,
-            quantiles=[0.16, 0.5, 0.84],
-            label_kwargs={'fontsize': 14},
-            title_kwargs={"fontsize": 14},
-            fill_contours=True,
-            smooth=0.75,
-            smooth1d=0.75,
-            range=ranges
-        )
+        if ranges:
+            fig = corner.corner(
+                chain[:, pos], bins=bins, color='mediumblue',
+                labels=labels, range=ranges, **plot_kw,
+            )
+            if out_dir:
+                fig.savefig(out_dir / 'corner.png')
 
-        # Plot non-physical parameters
-        np_fig = corner.corner(
-            chain[:, np_pos],
-            bins=np_bins,
-            color='mediumblue',
-            labels=np_labels,
-            label_size=16,
-            show_titles=True,
-            plot_datapoints=False,
-            quantiles=[0.16, 0.5, 0.84],
-            label_kwargs={'fontsize': 14},
-            title_kwargs={"fontsize": 14},
-            fill_contours=True,
-            smooth=0.75,
-            smooth1d=0.75,
-            range=np_ranges
-        )
+        if np_ranges:
+            np_fig = corner.corner(
+                chain[:, np_pos], bins=np_bins, color='mediumblue',
+                labels=np_labels, range=np_ranges, **plot_kw
+            )
+            if out_dir:
+                np_fig.savefig(out_dir / 'corner_np.png')
+
+        if h_ranges:
+            h_fig = corner.corner(
+                chain[:, h_pos], bins=h_bins, color='mediumblue',
+                labels=h_labels, range=h_ranges, **plot_kw
+            )
+            if out_dir:
+                h_fig.savefig(out_dir / 'corner_host.png')
 
         # Plot dashed lines corresponding to the median for the 2D plots
         # medians = [np.median(chain[:, i]) for i in range(len(chain[0]))]
@@ -93,10 +97,6 @@ class PosteriorPlot:
 
         if show:
             plt.show()
-
-        if out_dir is not None:
-            fig.savefig(out_dir / 'corner.png')
-            np_fig.savefig(out_dir / 'corner_np.png')
 
     @staticmethod
     def get_pretty_label(key: str):
@@ -108,6 +108,9 @@ class PosteriorPlot:
         """
         if '_offset' in key:
             return r'$\delta_{' + f'{key.split('_')[0]}' r'}$'
+
+        if 'rho0' in key:
+            return key.replace('rho0', r'$log_{10}n_{17}$')
 
         try:
             return {

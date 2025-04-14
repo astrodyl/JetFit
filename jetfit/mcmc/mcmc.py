@@ -192,14 +192,18 @@ class MCMC:
         """
         params = self.params.samples_to_dict(theta)
 
+        # Temp enforce condition
+        eps_b = self.params.get(params, 'model').get('eps_b')
+        eps_e = self.params.get(params, 'model').get('eps_e')
+
+        if eps_b + eps_e >= 1.0:
+            return -np.inf
+
         modeled = self.model(self.observation, params, **self.meta)
 
         # Apply calibration offsets
-        offsets = params.get('shared').get('offsets') \
-            if params.get('shared') is not None else params.get('offsets')
-
         modeled = self.calibration_offsets(
-            modeled, offsets
+            modeled, self.params.get(params, 'offsets')
         )
 
         # Skip chi squared calculation since a nan will
@@ -255,7 +259,7 @@ class MCMC:
             The modeled values with applied offsets.
         """
         if offsets is not None:
-            cal_pos = self.observation.cal_offsets
+            cal_pos = self.observation.cal_groups
 
             for name, offset in offsets.items():
                 modeled[cal_pos[name]] *= 10.0 ** -(0.4 * offset)
@@ -282,7 +286,7 @@ class MCMC:
             return params.get('slop').get('slop')
 
         # Multiple data groups, but only one slop
-        if params.get('shared').get('slop') is not None:
+        if params.get('shared').get('slop'):
             return params.get('shared').get('slop').get('slop')
 
         # Multiple slops

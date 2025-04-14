@@ -9,7 +9,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -2.0
-    upper = 3.0
+    upper = 4.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -80,14 +80,14 @@ value = 0.7
 [[model]]
 name  = "z"
 scale = "linear"
-value = 2.006
+value = 0.151
 
 #-------------- MODEL --------------
 #---------------- dL ---------------
 [[model]]
 name  = "dL"
 scale = "linear"
-value = 4.94
+value = 0.229
 
 #----------- EXTINCTION ------------
 #---------- source_frame -----------
@@ -105,48 +105,92 @@ scale = "linear"
 [[extinction]]
 name  = "ebv_milky_way"
 scale = "linear"
-value = 0.0647
+value = 1.3021
 
 #----------- CALIBRATION -----------
-#-------------- V-band -------------
+#------------- g1-band -------------
 [[offsets]]
-name  = "V_offset"
+name  = "g1_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
-    sigma = 0.3
+    sigma = 0.03
 
 #----------- CALIBRATION -----------
-#-------------- R-band -------------
+#------------- r1-band -------------
 [[offsets]]
-name  = "R_offset"
+name  = "r1_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
-    sigma = 0.3
+    sigma = 0.03
 
 #----------- CALIBRATION -----------
-#-------------- I-band -------------
+#------------- i1-band -------------
 [[offsets]]
-name  = "I_offset"
+name  = "i1_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
-    sigma = 0.3
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#------------- z1-band -------------
+[[offsets]]
+name  = "z1_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#------------- r2-band -------------
+[[offsets]]
+name  = "r2_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#------------- i2-band -------------
+[[offsets]]
+name  = "i2_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#------------- z2-band -------------
+[[offsets]]
+name  = "z2_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
 
 #--------------- SLOP --------------
 #--------------- slop --------------
-#[[slop]]
-#name  = "slop"
-#scale = "linear"
-#
-#[slop.prior]
-#    type  = "uniform"
-#    lower = 0.0
-#    upper = 0.3
+[[slop]]
+name  = "slop"
+scale = "linear"
+
+[slop.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 0.3

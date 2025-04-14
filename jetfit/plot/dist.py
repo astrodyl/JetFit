@@ -39,6 +39,71 @@ def model_spectral_index(index, p):
     return index_model.model(index)
 
 
+# class Distribution:
+#     """"""
+#     def __init__(self, sampler):
+#         self.sampler = sampler
+#
+#     def sample(self, thin=1, nsamps=100):
+#         """
+#         Randomly draws `nsamps` sets of samples from
+#         the `sampler`.
+#
+#         Parameters
+#         ----------
+#         thin : int, optional, default=1
+#             Take only every `thin` steps from the chain.
+#
+#         nsamps : int, optional, default=100
+#             Number of samples to draw.
+#
+#         Returns
+#         -------
+#         np.ndarray
+#             The randomly drawn sets of sampled values.
+#         """
+#         flat_chain = self.sampler.get_chain(flat=True, thin=thin)
+#         indices = np.random.randint(len(flat_chain), size=nsamps)
+#         return flat_chain[indices]
+#
+#     def get_group(self, t):
+#         """
+#         Return the group name that the time `t` is in.
+#
+#         Parameters
+#         ----------
+#         t : float
+#             The time measured in days since trigger.
+#
+#         Returns
+#         -------
+#         str or None
+#             The group name or None.
+#         """
+#         if self.obs.data_groups is None:
+#             return
+#
+#         for group, pos in self.obs.data_groups.items():
+#             group_times = self.obs.as_arrays.times[pos]
+#
+#             if (group_times.min() - 1e-6) <= t <= (group_times.max() + 1e-6):
+#                 return group
+#
+#     def spectral_index(self):
+#         """"""
+#         samples = self.sample(thin=10, nsamps=200)
+#
+#         # Calculate the distribution of values
+#         for i, samp in enumerate(samples):
+#             samp = self.params.samples_to_dict(
+#                 samp, group=self.get_group(time)
+#             )
+#             modeled[i] = model_spectral_index(
+#                 index, samp['model']
+#             )
+
+
+
 class DistributionPlot:
     """"""
     def __init__(self, sampler, params, obs):
@@ -268,7 +333,7 @@ class DistributionPlot:
 
             # Model the jet opening angle
             angles[i] = OpeningAngleModel(
-                samp['rho0'], samp['E'], samp['k']
+                samp['E'], samp['rho0'], samp['k'], samp['z']
             )(tj)
 
             # Calculate the beaming-corrected energy
@@ -280,7 +345,7 @@ class DistributionPlot:
         )['model']
 
         best_ang = OpeningAngleModel(
-            best_samp['rho0'], best_samp['E'], best_samp['k']
+            best_samp['E'], best_samp['rho0'], best_samp['k'], best_samp['z']
         )(tj)
 
         # Calculate the most likely energy

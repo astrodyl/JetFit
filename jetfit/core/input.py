@@ -61,6 +61,7 @@ class ObsArray:
     if_units = 'erg cm-2 s-1'
     sf_units = 'mJy'
     time_units = 'd'
+    freq_units = 'Hz'
 
     def __init__(
             self,
@@ -141,20 +142,20 @@ class ObsArray:
             if f.type == DataType.SPECTRAL_FLUX:
                 values[i] = f.value.to_value(cls.sf_units)
                 errors[i] = f.avg_uncertainty.to_value(cls.sf_units)
-                frequencies[i] = f.frequency.to_value('Hz')
+                frequencies[i] = f.frequency.to_value(cls.freq_units)
                 wave_numbers[i] = 1 / f.wavelength.to_value('um')
 
             elif f.type == DataType.INTEGRATED_FLUX:
                 values[i] = f.value.to_value(cls.if_units)
                 errors[i] = f.avg_uncertainty.to_value(cls.if_units)
-                if_lower_freqs[i] = f.int_range.lower.to_value('Hz')
-                if_upper_freqs[i] = f.int_range.upper.to_value('Hz')
+                if_lower_freqs[i] = f.int_range.lower.to_value(cls.freq_units)
+                if_upper_freqs[i] = f.int_range.upper.to_value(cls.freq_units)
 
             elif f.type == DataType.SPECTRAL_INDEX:
                 values[i] = f.value.value
                 errors[i] = f.avg_uncertainty.value
-                si_lower_freqs[i] = f.int_range.lower.to_value('Hz')
-                si_upper_freqs[i] = f.int_range.upper.to_value('Hz')
+                si_lower_freqs[i] = f.int_range.lower.to_value(cls.freq_units)
+                si_upper_freqs[i] = f.int_range.upper.to_value(cls.freq_units)
 
         # return ObsArray
         return cls(
@@ -181,11 +182,10 @@ class Observation:
     ??
     """
     def __init__(self, data, offsets=None, host=None, groups=None):
-        self._data = data
         self._as_arrays = ObsArray.from_data(data)
 
-        #
-        self.cal_offsets = offsets
+        self._data = data
+        self.cal_groups = offsets
         self.data_groups = groups
         self.host_groups = host
 
