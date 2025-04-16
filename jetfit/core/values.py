@@ -664,13 +664,13 @@ class SpectralIndex(Integrable):
 
     Parameters
     ----------
-    value : float
+    value : u.Quantity['dimensionless']
         The spectral index value.
 
-    lower : float
+    lower : u.Quantity['dimensionless']
         The lower uncertainty of the spectral index.
 
-    upper : float
+    upper : u.Quantity['dimensionless']
         The upper uncertainty of the spectral index.
 
     int_lower : astropy.units.Quantity
@@ -683,16 +683,15 @@ class SpectralIndex(Integrable):
     ----------
     int_range : Bound
         The lower and upper bounds of the integration range.
-
     """
     type = DataType.SPECTRAL_INDEX
     _int_type = u.Hz.physical_type
 
     def __init__(
             self,
-            value: float,
-            lower: float,
-            upper: float,
+            value: u.Quantity,
+            lower: u.Quantity,
+            upper: u.Quantity,
             time: u.Quantity,
             int_lower: u.Quantity,
             int_upper: u.Quantity

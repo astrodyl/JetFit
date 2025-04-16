@@ -8,6 +8,100 @@ from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
 from jetfit.mcmc.parameters.parameters import Parameters
 
 
+class ShockRadius:
+    """
+    The shock radius, R(t).
+
+    Parameters
+    ----------
+    E : float or u.Quantity['energy']
+        The energy / 1e52.
+
+    rho0 : float or u.Quantity[??]
+        density / m_p / 1e17^k
+
+    k : float
+        The density power-law index.
+
+    z : float
+        The redshift.
+    """
+    c = const.c.cgs.value  # type: ignore
+    m_p = const.m_p.cgs.value  # type: ignore
+
+    # noinspection PyPep8Naming
+    def __init__(self, E, rho0, k, z):
+        self.E = E
+        self.rho0 = rho0
+        self.k = k
+        self.z = z
+
+    def __call__(self, *args, **kwargs):
+        """ Calls the evaluate method. """
+        return self.evaluate(*args, **kwargs)
+
+    @property
+    def alpha(self) -> float:
+        """ Returns the hydrodynamic coefficient. """
+        return 16 / (17 - 4 * self.k)
+
+    @property
+    def beta(self) -> float:
+        """ Returns the hydrodynamic coefficient. """
+        return 4 - self.k
+
+    def evaluate(self, t):
+        """
+        The shock radius, R(t).
+
+        Parameters
+        ----------
+        t : float or u.Quantity['time'] or np.ndarray
+            The observer time in days.
+
+        Returns
+        -------
+        float or u.Quantity['length'] or np.ndarray
+            The shock radius evaluated at `t`.
+        """
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
+
+        return (
+            self.beta * self.lorentz_factor(t) ** 2 *
+            self.c * (86_400 * t) / (1 + self.z)
+        )
+
+    # noinspection PyPep8Naming
+    def lorentz_factor(self, t):
+        """
+        The Lorentz factor of the shocked fluid, gamma.
+
+        Parameters
+        ----------
+        t : float or u.Quantity['time'] or np.ndarray
+            The observer time in days.
+
+        Returns
+        -------
+        float or u.Quantity['dimensionless'] or np.ndarray
+            The Lorentz factor of the shocked fluid.
+        """
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
+
+        k = self.k
+
+        # Convert to density from number density
+        rho0 = self.rho0 * self.m_p * (1e17 ** k)
+
+        return (
+            self.alpha * self.beta ** (3 - k) *
+            np.pi * self.c ** (5 - k) * rho0 *
+            (1e52 * self.E) ** -1 * (86_400 * t) ** (3 - k)
+        ) ** -(0.5 / (4 - k))
+
+
 # noinspection PyPep8Naming
 class OpeningAngleModel:
     """
@@ -71,16 +165,14 @@ class OpeningAngleModel:
         if isinstance(t, u.Quantity):
             t = t.to_value('d')
 
-        c = 2.99e10
         rho_norm = 1.67e-24 * (1e17 ** self.k)
-        exp_z = -0.5 * (3 - self.k) / (4 - self.k)
 
         # return the jet opening angle
         return (
             np.pi * self.alpha *
             (self.beta ** (3 - self.k)) *
-            ((1 + self.z) ** exp_z) *
-            (c ** (5 - self.k)) *           # [cm s-1] ^ (5-k)
+            ((1 + self.z) ** -(3 - self.k)) *
+            (2.99e10 ** (5 - self.k)) *     # [cm s-1] ^ (5-k)
             (rho_norm * self.rho0) *        # [g cm(k-3)]
             ((1e52 * self.E) **-1) *        # [g cm2 s-2] ^ -1
             ((86_400 * t) ** (3 - self.k))  # [s] ^ (3 - k)
@@ -283,12 +375,15 @@ class SpectralFluxModel(BaseFluxModel):
             nu23[fast_regime] = nu_m[fast_regime]
             s23[fast_regime] = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
 
-        # return spectral flux smoothed across segments [mJy]
-        return self.f_peak * (
+        # Smooth the flux across the spectral segments
+        flux = self.f_peak * (
             (((nu / nu12) ** -(s12 * (b1 - b2)) + 1) ** (s23 / s12)) *
             ((nu / nu12) ** -(s23 * b2)) +
             (((nu23 / nu12) ** -(s23 * b2)) * ((nu/nu23) ** -(s23 * b3)))
         ) ** -(1 / s23)
+
+        # return spectral flux smoothed across segments [mJy]
+        return flux[0] if flux.size == 1 else flux
 
 
 class IntegratedFluxModel(BaseFluxModel):
@@ -325,7 +420,7 @@ class IntegratedFluxModel(BaseFluxModel):
             upper=val.int_range.upper.value
         )
 
-    def evaluate(self, lower: float, upper: float):
+    def evaluate(self, lower, upper):
         """
         Evaluates the integrated flux model using the
         `lower` and `upper` integration limits.
@@ -829,10 +924,6 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
             # Evaluated at time, `t`
             -0.6 * (k / x) * np.log10(86_400 * t)  # time [s]
         )
-
-    def evaluate_fast(self, t):
-        """"""
-        raise NotImplementedError('Not yet implemented.')
 
 
 class ObservedFluxModel:

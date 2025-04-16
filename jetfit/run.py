@@ -17,6 +17,7 @@ from jetfit.models2.basemodels import ObservedFluxModel
 from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel
 from jetfit.plot.dist import DistributionPlot
+from jetfit.plot.dist2 import SpectralIndexPlot
 from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
 from jetfit.plot.posterior import PosteriorPlot
 
@@ -103,13 +104,15 @@ def main(
     # Plot the light curves
     best_params = mcmc.get_best_params()
 
+    # Plot the spectral index distribution
+    spectral_index_plotter = SpectralIndexPlot(
+        mcmc.sampler, parameters, FireballModel, observation.data_regimes)
+
+    spectral_index_plotter.model(
+        observation.data[observation.sindex_loc], out_dir=results_dir)
+
     # Plot distributions
     dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
-
-    # Plot the spectral index distribution
-    dist_plotter.spectral_index(
-        observation.data[observation.sindex_loc], out_dir=results_dir
-    )
 
     # Plot the opening angle and energy distribution
     if parameters.has('tj'):
@@ -222,7 +225,7 @@ if __name__ == "__main__":
             # '080319B_late',
             # '080413B_early',
             # '080413B_late',
-            # '090424',
+            '090424',
             # '090618',
             # '111228A',
             # '111228A_early',

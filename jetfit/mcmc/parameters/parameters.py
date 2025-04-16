@@ -34,7 +34,7 @@ class Parameters:
     Parameters
     ----------
     params : array_like
-        The fixed and fitting parameters.
+        The fixed and fitting MCMC parameters.
     """
 
     # Nyaa :3
@@ -64,7 +64,7 @@ class Parameters:
 
         # Determine positions of the categories
         # Stored once here instead of in a prop
-        # to spead up MCMC as much as possible.
+        # to speed up MCMC as much as possible.
         for i, p in enumerate(params):
             self.pos['fixed'][i] = p.fixed
             self.pos['fitting'][i] = not p.fixed

@@ -2,6 +2,7 @@ import astropy.units as u
 import astropy.constants as const
 import numpy as np
 
+from jetfit.models2.basemodels import OpeningAngleModel, ShockRadius
 
 # Constants in cgs units
 m_p = const.m_p.cgs  # noqa
@@ -9,6 +10,16 @@ m_e = const.m_e.cgs  # noqa
 q_e = u.Quantity(4.8032e-10 * u.g**0.5 * u.cm**1.5 / u.s)
 c = const.c.cgs  # noqa
 tcs = const.sigma_T.cgs  # noqa
+
+
+def a(k):
+    """"""
+    return 16 / (17 - k)
+
+
+def b(k):
+    """"""
+    return 4 - k
 
 
 # noinspection PyPep8Naming
@@ -45,28 +56,32 @@ def characteristic_frequency(gamma, gamma_e, B) -> float | u.Quantity:
     return gamma * gamma_e**2 * q_e * B / (2 * np.pi * m_e * c)
 
 
-def shock_radius(gamma, beta, t) -> float | u.Quantity:
+def shock_radius(gamma, beta, t, z) -> float | u.Quantity:
     """
     The shock radius, R(t).
 
     Parameters
     ----------
     gamma : float or u.Quantity
-        The Lorentz factor of the shocked fluid.
+        The Lorentz factor of the shocked fluid evaluated
+        using the observer time, `t`.
 
     beta : float
         The numerical constant that varies depending on the
         details of the hydrodynamic evolution and the spectrum.
 
     t : float or u.Quantity['time']
-        The time to evaluate.
+        The observer time to evaluate.
+
+    z : float
+        The redshift.
 
     Returns
     -------
     float or u.Quantity['length']
         The shock radius evaluated at `t`.
     """
-    return beta * gamma**2 * c * t
+    return beta * gamma**2 * c * t / (1 + z)
 
 
 # noinspection PyPep8Naming
@@ -174,6 +189,79 @@ def cooling_lorentz_factor(gamma, B, t):
     )
 
 
+def trans_radius(n1, n2, k1, k2, ref=1e17):
+    """
+    Calculates the transition radius of the stratified
+    density.
+
+    Parameters
+    ----------
+    n1 : float or u.Quantity
+        The density before the transition.
+
+    n2 : float or u.Quantity
+        The density after the transition.
+
+    k1 : float
+        The density power-law index for `n1`.
+
+    k2 : float
+        The density power-law index for `n2`.
+
+    ref : float or u.Quantity['length'], optional, default=1e17
+        The characteristic radius.
+
+    Returns
+    -------
+    u.Quantity['cm']
+        The transition radius.
+    """
+    return u.Quantity(ref * (n2 / n1) ** (1/(k2 - k1)), unit='cm')
+
+
+# noinspection PyPep8Naming
+def trans_time(E, n, r, k, z):
+    """
+    Calculates the transition time of the stratified
+    density.
+
+    Parameters
+    ----------
+    E : float or u.Quantity['energy']
+        The isotropic explosion energy.
+
+    n : float or u.Quantity
+        The density before the transition with units
+        of g cm^(3-k)
+
+    r : float or u.Quantity['length']
+        The transition radius.
+
+    k : float
+        The density power-law index for `n`.
+
+    z : float
+        The redshift
+
+    Returns
+    -------
+    u.Quantity['s']
+        The transition time in seconds.
+    """
+    if isinstance(E, float):
+        E = u.Quantity(E, unit='erg')
+
+    if isinstance(r, float):
+        r = u.Quantity(r, unit='cm')
+
+    if isinstance(n, float):
+        n = u.Quantity(n, unit=u.g * u.cm ** (k-3))
+
+    return ((1 + z) * (
+        (a(k) * b(k) ** (3 - k) * np.pi * c ** (5 - k) * n / E)
+    ) * ((r / (b(k) * c)) ** (4 - k))).to('s')
+
+
 class SPN98:
     """
     Sari, Piran, & Narayan 1998
@@ -212,4 +300,23 @@ if __name__ == '__main__':
 
     # Chevalier & LI 2000 values
     g = lorentz_factor(energy, density, CL00.k, time, CL00.alpha, CL00.beta)
-    r = shock_radius(g, CL00.beta, time)
+    r_shock = shock_radius(g, CL00.beta, time, 0.0)
+
+    # Transitions for GRB 080413B
+    r_trans = trans_radius(0.3968, 1.182e-6, 2.3182, -4.736)
+
+    k_trans = 2.3182
+    e_trans = u.Quantity(0.25890738 * 1e52, unit='erg')
+    n_trans = u.Quantity(
+        0.3968289 * m_p.value * (1e17 ** k_trans),
+        unit=u.g * u.cm ** (k_trans-3)
+    )
+
+    t_trans = trans_time(e_trans, n_trans, r_trans, k_trans, 1.1)
+
+    # tests
+    theta = OpeningAngleModel(1.0, 1, k=0.0, z=5.0)(1.0)
+    r_sh2 = ShockRadius(1.0, 1.0, 0.0, 0.0)(1.0)
+
+    print('R (transition): ', r_trans)
+    print('t (transition): ', t_trans)

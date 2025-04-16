@@ -42,7 +42,7 @@ class PosteriorPlot:
 
         param_pos = {}
         for i, p in enumerate(self.params):
-            name = p.name if p.group is None else f'{p.name}_{p.group}'
+            name = p.name if p.group is None else f'{p.name} ({p.group})'
             param_pos[name] = i
 
         # Split the parameters into groups (GRB physics, statistical, host)

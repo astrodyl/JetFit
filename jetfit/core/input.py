@@ -1,11 +1,11 @@
-from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
+import astropy.units as u
 
 from jetfit.core.defns.enums import DataType
 from jetfit.core.utils.csv_utils import CSVReader
-from jetfit.core.values import IntegratedFlux, SpectralFlux, SpectralIndex
+from jetfit.core.values import IntegratedFlux, SpectralFlux, SpectralIndex, Bound
 
 
 class ObsArray:
@@ -183,11 +183,24 @@ class Observation:
     """
     def __init__(self, data, offsets=None, host=None, groups=None):
         self._as_arrays = ObsArray.from_data(data)
-
         self._data = data
+
+        # Groups
         self.cal_groups = offsets
         self.data_groups = groups
         self.host_groups = host
+
+        self.data_regimes = {}
+
+        # Set the valid time bounds for each data group
+        if groups is not None:
+            for group, pos in groups.items():
+                times = self._as_arrays.times[pos]
+
+                self.data_regimes[group] = Bound(
+                    times.min() * u.d,  # type: ignore
+                    times.max() * u.d,  # type: ignore
+                )
 
         self.length = len(data)
 
