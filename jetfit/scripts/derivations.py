@@ -2,7 +2,7 @@ import astropy.units as u
 import astropy.constants as const
 import numpy as np
 
-from jetfit.models2.basemodels import OpeningAngleModel, ShockRadius
+from jetfit.models2.basemodels import OpeningAngleModel, BlastWaveModel
 
 # Constants in cgs units
 m_p = const.m_p.cgs  # noqa
@@ -245,7 +245,7 @@ def trans_time(E, n, r, k, z):
 
     Returns
     -------
-    u.Quantity['s']
+
         The transition time in seconds.
     """
     if isinstance(E, float):
@@ -294,6 +294,9 @@ class CL00:
 
 if __name__ == '__main__':
 
+
+    flux_density = u.Quantity(16.3, unit='erg cm-2 s-1 AA-1')
+
     energy  = u.Quantity(1e52, unit='erg')
     time    = u.Quantity(1.0, unit='d')
     density = u.Quantity(5e11, unit='g cm-1')
@@ -316,7 +319,31 @@ if __name__ == '__main__':
 
     # tests
     theta = OpeningAngleModel(1.0, 1, k=0.0, z=5.0)(1.0)
-    r_sh2 = ShockRadius(1.0, 1.0, 0.0, 0.0)(1.0)
+    bw_model = BlastWaveModel(1.0, 1.0, 0.0)
 
     print('R (transition): ', r_trans)
     print('t (transition): ', t_trans)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

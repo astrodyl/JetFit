@@ -96,7 +96,7 @@ class MCMC:
             nwalkers=self.num_walkers,
             ndim=self.num_dims,
             log_prob_fn=self.log_posterior,
-            # moves=emcee.moves.DEMove(),
+            # moves=emcee.moves.DEMove(),  # type: ignore
             backend=backend  # type: ignore
         )
 

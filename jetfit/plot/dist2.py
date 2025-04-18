@@ -5,7 +5,8 @@ import astropy.constants as const
 
 from jetfit.core.core import save_plot_unique
 from jetfit.core.values import SpectralIndex
-from jetfit.models2.basemodels import SpectralIndexModel, ShockRadius
+from jetfit.models2.basemodels import SpectralIndexModel, BlastWaveModel
+from jetfit.scripts.derivations import trans_radius, trans_time
 
 # Constants in cgs units
 m_p = const.m_p.cgs  # noqa
@@ -352,22 +353,112 @@ class SpectralIndexPlot(Distribution):
 
 class DensityProfilePlot(Distribution):
     """
-
-    Parameters
-    ----------
-
+    Plots n(r / r17) vs. r / r17
     """
     def __init__(self, sampler, params, regimes=None):
         super().__init__(sampler, params, regimes)
 
-    def evaluate(self, start, stop, thin=10, nsamps=100):
+    @staticmethod
+    def model_stratified(p_early, p_late, start, stop):
         """
-        Evaluates the spectral index model for each
-        randomly drawn set of parameters from the
-        sampler.
+        Models stratified density profiles.
 
         Parameters
         ----------
+        p_early : dict
+
+        p_late : dict
+
+        start : float
+
+        stop : float
+
+        Returns
+        -------
+        tuple of length 3
+        """
+        times = np.geomspace(start, stop, 200)
+
+        # Initialize return arrays
+        ks = np.full(len(times), np.nan)
+        radii = np.full(len(times), np.nan)
+        modeled = np.full(len(times), np.nan)
+
+        # Calculate the transition radius [cm]
+        r_trans = trans_radius(
+            n1=p_early['rho0'], n2=p_late['rho0'],
+            k1=p_early['k'], k2=p_late['k']
+        )
+
+        # Calculate the observer frame transition time [d]
+        t_trans = trans_time(
+            E=1e52 * p_early['E'],
+            n=m_p.value * p_early['rho0'] * 1e17 ** p_early['k'],
+            r=r_trans, k=p_early['k'], z=p_early['z']
+        ).to_value('d')
+
+        # Define the early time model
+        early_model = BlastWaveModel(
+            E=p_early['E'], n0=p_early['rho0'], k=p_early['k']
+        )
+
+        # Calculate the (observer frame) deceleration time [d]
+        t_dec = early_model.decel_time(gamma=300) / 86_400
+
+        # Make sure units in [cm] and is a float
+        r_trans = r_trans.to_value('cm')
+
+        for i, t_obs in enumerate(times):
+            if t_obs < t_trans:  # noqa
+                r = early_model.shock_radius(p_early['z'], t_obs, t_dec) / 1e17
+                rho = p_early['rho0'] * r ** -p_early['k']
+                ks[i] = p_early['k']
+            else:
+                r = r_trans * ((t_dec + t_obs) / t_trans) ** (1 / (4 - p_late['k'])) / 1e17 # noqa
+                rho = p_late['rho0'] * r ** -p_late['k']
+                ks[i] = p_late['k']
+
+            radii[i], modeled[i] = r, rho
+
+        return radii, modeled, ks
+
+    @staticmethod
+    def model_single(p, start, stop):
+        """"""
+        times = np.geomspace(start, stop, 200)
+
+        # Initialize return arrays
+        ks = np.full(len(times), np.nan)
+        radii = np.full(len(times), np.nan)
+        modeled = np.full(len(times), np.nan)
+
+        # Create the blast wave model
+        model = BlastWaveModel(p['E'], p['rho0'], p['k'])
+
+        # Calculate the deceleration time [d]
+        t_dec = model.decel_time(gamma=300) / 86_400
+
+        for i, t_obs in enumerate(times):
+            ks[i] = p['k']
+
+            # Calculate the shock radius
+            radii[i] = model.shock_radius(p['z'], t_obs, t_dec) / 1e17
+
+            # Calculate the density [cm-3]
+            modeled[i] = p['rho0'] * (radii[i] ** -p['k'])
+
+        return radii, modeled, ks
+
+    def plot(self, start, stop, thin=10, nsamps=100, out_dir=None):
+        """
+
+        Parameters
+        ----------
+        start : float
+            The start time measured in days.
+
+        stop : float
+            The stop time measured in days.
 
         thin : int, optional, default=1
             Take only every `thin` steps from the chain.
@@ -375,97 +466,174 @@ class DensityProfilePlot(Distribution):
         nsamps : int, optional, default=100
             Number of samples to draw.
 
-        Returns
-        -------
-        np.ndarray
-            The evaluated spectral index values.
+        out_dir : Path, optional
+            The output directory to save the figures.
         """
+        self.plot_dist(start, stop, thin, nsamps)
+        self.plot_best(start, stop)
+
+        # Configure the plot
+        plt.title('Density Profile')
+        plt.xlabel(r'Shock Radius $R / R_{17}$')
+        plt.ylabel(r'Number Density [$cm^{-3}$]')
+        plt.legend(loc='best')
+        plt.grid(alpha=0.3)
+
+        if out_dir is not None:
+            save_plot_unique('density_dist', 'png', str(out_dir))
+        else:
+            plt.show()
+        plt.close()
+
+        # Plots the k distributions
+        self.plot_ks(start, stop, thin, nsamps)
+        self.plot_ks_best(start, stop)
+
+        # Configure the plot
+        plt.title('Density Power Law Index')
+        plt.xscale('log')
+        plt.xlabel(r'Shock Radius $R / R_{17}$')
+        plt.ylabel('k')
+        plt.legend(loc='best')
+        plt.grid(alpha=0.3)
+
+        if out_dir is not None:
+            save_plot_unique('k_dist', 'png', str(out_dir))
+        else:
+            plt.show()
+        plt.close()
+
+    def plot_dist(self, start, stop, thin=10, nsamps=100, **kwargs):
+        """
+
+        Parameters
+        ----------
+        start : float
+            The start time measured in days.
+
+        stop : float
+            The stop time measured in days.
+
+        thin : int, optional, default=1
+            Take only every `thin` steps from the chain.
+
+        nsamps : int, optional, default=100
+            Number of samples to draw.
+
+        kwargs
+            Any optional args accepted by `plt.loglog`.
+        """
+
+        options = {
+            'alpha': 0.3,
+            'linewidth': 0.5,
+            'linestyle': '-',
+            'color': 'tab:purple'
+        } | kwargs
+
+        # Draw the samples
         samples = self.draw(thin, nsamps)
-        modeled = np.full(len(samples), np.nan)
-        times = np.logspace(start, stop, 100)
 
-        for i, s in enumerate(samples):
+        for s in samples:
 
-            for time in times:
+            if self.regimes and 'early' in self.regimes.keys():
+                p_early = self.params.samples_to_dict(s, group='early').get('model')
+                p_late = self.params.samples_to_dict(s, group='late').get('model')
+                radii, modeled, _ = self.model_stratified(p_early, p_late, start, stop)
 
-                # Get the model parameters
-                p = self.params.samples_to_dict(
-                    s, group=self.group(time)
-                ).get('model')
+            else:
+                p = self.params.samples_to_dict(s).get('model')
+                radii, modeled, _ = self.model_single(p, start, stop)
 
-                modeled[i] = ShockRadius(
-                    p['E'], p['rho0'], p['k'], p['z']
-                )(time)
+            # Plot rho(R / R17) vs. R / R17
+            plt.loglog(radii, modeled, **options)
 
-        return modeled
-
-    def evaluate_best(self, time, lower, upper):
+    def plot_best(self, start, stop, **kwargs):
         """
         Evaluates the spectral index model using the
         maximum likelihood values.
 
         Parameters
         ----------
-        time : float
-            The time to evaluate.
+        start : float
+            The start time measured in days.
 
-        lower : float
-            The lower integration bound.
+        stop : float
+            The stop time measured in days.
 
-        upper : float
-            The upper integration bound.
-
-        Returns
-        -------
-        float
-            The most likely spectral index value.
+        kwargs
+            Any optional args accepted by `plt.loglog`.
         """
-        best = self.best(group=self.group(time)).get('model')
-        model = self.afterglow_model(**best)
 
-        return SpectralIndexModel(
-            model.nu_m(time), model.nu_c(time),
-            model.f_peak(time), model.p, model.k
-        )(lower, upper)
+        options = {
+            'linewidth': 2,
+            'linestyle': '-',
+            'color': 'tab:orange',
+        } | kwargs
 
-    def model(self, indices, out_dir=None):
-        """
-        Calculates and plots the spectral index distribution
-        for each provided spectral index.
+        if self.regimes and 'early' in self.regimes.keys():
+            p_early = self.best(group='early').get('model')
+            p_late  = self.best(group='late').get('model')
 
-        Parameters
-        ----------
-        indices : array_like of `SpectralIndex`
-            The `SpectralIndex` objects to model using
-            the randomly sampled values.
+            radii, modeled, _ = self.model_stratified(
+                p_early, p_late, start, stop
+            )
 
-        out_dir : Path, optional
-            The output directory to save the figures.
-        """
-        for index in indices:
+        else:
+            p = self.best().get('model')
+            radii, modeled, _ = self.model_single(p, start, stop)
 
-            # Convert to floats with expected units
-            time = index.time.to_value('d')
-            lower = index.int_range.lower.to_value('Hz')
-            upper = index.int_range.upper.to_value('Hz')
+        # Plot best rho(R / R17) vs. R / R17
+        plt.loglog(radii, modeled, label='Best n', **options)
 
-            # Get a distribution of values and the best value
-            best = self.evaluate_best(time, lower, upper)
-            distribution = self.evaluate(time, lower, upper)
+    def plot_ks(self, start, stop, thin, nsamps, **kwargs):
+        """"""
+        options = {
+            'alpha': 0.3,
+            'linewidth': 0.5,
+            'linestyle': '-',
+            'color': 'tab:purple'
+        } | kwargs
 
-            # Create the various AMAZING plots
-            title = f"Spectral Index Distribution"
-            if self.group(time) is not None:
-                title += f" (DataGroup='{self.group(time)}')"
+        # Draw the samples
+        samples = self.draw(thin, nsamps)
 
-            self.plot(distribution, best, index, title, out_dir)
+        for s in samples:
 
+            if self.regimes and 'early' in self.regimes.keys():
+                p_early = self.params.samples_to_dict(s, group='early').get('model')
+                p_late = self.params.samples_to_dict(s, group='late').get('model')
+                radii, _, ks = self.model_stratified(p_early, p_late, start, stop)
 
+            else:
+                p = self.params.samples_to_dict(s).get('model')
+                radii, _, ks = self.model_single(p, start, stop)
 
+            # Plot k vs. R / R17
+            plt.plot(radii, ks, **options)
 
+    def plot_ks_best(self, start, stop, **kwargs):
+        """"""
+        options = {
+              'linewidth': 2,
+              'linestyle': '-',
+              'color': 'tab:orange',
+          } | kwargs
 
+        if self.regimes and 'early' in self.regimes.keys():
+            p_early = self.best(group='early').get('model')
+            p_late = self.best(group='late').get('model')
 
+            radii, _, ks = self.model_stratified(
+                p_early, p_late, start, stop
+            )
 
+        else:
+            p = self.best().get('model')
+            radii, _, ks = self.model_single(p, start, stop)
+
+        # Plot best k vs. R / R17
+        plt.plot(radii, ks, label='Best n', **options)
 
 
 class JetBeamingPlot(Distribution):
@@ -480,6 +648,7 @@ class JetBeamingPlot(Distribution):
     def plot(self):
         """"""
         pass
+
 
 class FrequencyDistribution(Distribution):
     """"""

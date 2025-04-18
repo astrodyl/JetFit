@@ -8,37 +8,78 @@ from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
 from jetfit.mcmc.parameters.parameters import Parameters
 
 
-class ShockRadius:
+# noinspection PyPep8Naming
+class BaseBlastWaveModel:
     """
-    The shock radius, R(t).
+    Base BlastWaveModel. Not intended for direct use.
 
     Parameters
     ----------
     E : float or u.Quantity['energy']
         The energy / 1e52.
 
-    rho0 : float or u.Quantity[??]
-        density / m_p / 1e17^k
+    n0 : float
+        The density / m_p / 1e17^k
 
     k : float
         The density power-law index.
-
-    z : float
-        The redshift.
     """
     c = const.c.cgs.value  # type: ignore
     m_p = const.m_p.cgs.value  # type: ignore
 
-    # noinspection PyPep8Naming
-    def __init__(self, E, rho0, k, z):
-        self.E = E
-        self.rho0 = rho0
+    def __init__(self, E, n0, k):
+        self._E = E
+        self._n0 = n0
         self.k = k
-        self.z = z
 
-    def __call__(self, *args, **kwargs):
-        """ Calls the evaluate method. """
-        return self.evaluate(*args, **kwargs)
+    @property
+    def E(self) -> float:
+        """ Returns the energy normalized to 1e52 ergs. """
+        return self._E
+
+    @E.setter
+    def E(self, e: float | u.Quantity):
+        """
+        Sets the explosion energy normalized to 1e52 ergs.
+
+        Parameters
+        ----------
+        e : float or astropy.units.Quantity['energy']
+            The explosion energy. If a float is provided, assumes
+            that the value is already normalized to 1e52 ergs.
+        """
+        if isinstance(e, u.Quantity):
+            e = e.to_value('erg') / 1e52
+        self._E = e
+
+    @property
+    def n0(self) -> float:
+        """ Returns the density normalization. """
+        return self._n0
+
+    @n0.setter
+    def n0(self, n0) -> None:
+        """
+        Sets the density normalization as a simple float.
+
+        Define rho as:
+
+        rho = rho_x * R^-k = rho_0 * (R/R_0)^-k
+
+        such that:
+
+        rho_x = rho_0 * R_0^k = n0 * m_p * R_0^k
+
+        where R_0 is the characteristic radius which I take to
+        be 1e17 cm. Then, `n0` is defined as the number density
+        with respect to 1e17.
+
+        Parameters
+        ----------
+        n0 : float
+            The density normalization.
+        """
+        self._n0 = n0
 
     @property
     def alpha(self) -> float:
@@ -50,35 +91,28 @@ class ShockRadius:
         """ Returns the hydrodynamic coefficient. """
         return 4 - self.k
 
-    def evaluate(self, t):
-        """
-        The shock radius, R(t).
+    @property
+    def rho0(self):
+        return self.n0 * self.m_p * (1e17 ** self.k)
 
-        Parameters
-        ----------
-        t : float or u.Quantity['time'] or np.ndarray
-            The observer time in days.
 
-        Returns
-        -------
-        float or u.Quantity['length'] or np.ndarray
-            The shock radius evaluated at `t`.
-        """
-        if isinstance(t, u.Quantity):
-            t = t.to_value('d')
+# noinspection PyPep8Naming
+class BlastWaveModel(BaseBlastWaveModel):
+    """
+    Models a self-similar, ultra-relativistic blast wave.
+    """
+    def __init__(self, E, n0, k):
+        super().__init__(E, n0, k)
 
-        return (
-            self.beta * self.lorentz_factor(t) ** 2 *
-            self.c * (86_400 * t) / (1 + self.z)
-        )
-
-    # noinspection PyPep8Naming
-    def lorentz_factor(self, t):
+    def lorentz_factor(self, z, t):
         """
         The Lorentz factor of the shocked fluid, gamma.
 
         Parameters
         ----------
+        z : float
+            The redshift.
+
         t : float or u.Quantity['time'] or np.ndarray
             The observer time in days.
 
@@ -92,14 +126,86 @@ class ShockRadius:
 
         k = self.k
 
-        # Convert to density from number density
-        rho0 = self.rho0 * self.m_p * (1e17 ** k)
+        # Convert number density to density [g cm-3]
+        rho0 = self.n0 * self.m_p * (1e17 ** k)
+
+        # Convert to source frame time [s]
+        t = t * 86_400 / (1 + z)
 
         return (
             self.alpha * self.beta ** (3 - k) *
             np.pi * self.c ** (5 - k) * rho0 *
-            (1e52 * self.E) ** -1 * (86_400 * t) ** (3 - k)
+            (1e52 * self.E) ** -1 * t ** (3 - k)
         ) ** -(0.5 / (4 - k))
+
+    def shock_radius(self, z, t, t_decel=0.0):
+        """
+        The shock radius, R(t).
+
+        Parameters
+        ----------
+        z : float
+            The redshift.
+
+        t : float or u.Quantity['time'] or np.ndarray
+            The observer time in days.
+
+        t_decel : float or u.Quantity['time'] or np.ndarray
+            The deceleration time of the blast wave in days.
+
+        Returns
+        -------
+        float or u.Quantity['length'] or np.ndarray
+            The shock radius evaluated at `t`.
+        """
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
+
+        # Add the deceleration time
+        t = 86_400 * (t + t_decel) / (1 + z)
+
+        return (
+            self.beta * 1e52 * self.E * t /
+            (self.alpha * np.pi * self.rho0 * self.c)
+        ) ** (1 / (4 - self.k))
+
+    def decel_radius(self, gamma=300):
+        """
+        The deceleration radius.
+
+        Parameters
+        ----------
+        gamma : float or np.ndarray, default=300
+            The initial Lorentz factor.
+
+        Returns
+        -------
+        float or np.ndarray
+            The deceleration radius.
+        """
+        return (
+            ((3 - self.k) * 1e52 * self.E) /
+            (4 * np.pi * self.rho0 * self.c ** 2 * gamma ** 2)
+        ) ** (1 / (3 - self.k))
+
+    def decel_time(self, gamma=300):
+        """
+        The deceleration time.
+
+        Parameters
+        ----------
+        gamma : float or np.ndarray, default=300
+            The initial Lorentz factor.
+
+        Returns
+        -------
+        float or np.ndarray
+            The deceleration time.
+        """
+        return (
+            self.decel_radius(gamma) /
+            ((4 - self.k) * gamma ** 2 * self.c)
+        )
 
 
 # noinspection PyPep8Naming
@@ -570,7 +676,6 @@ class BaseSpectralModel:
         """
         if isinstance(e, u.Quantity):
             e = e.to_value('erg') / 1e52
-
         self._E = e
 
     @property

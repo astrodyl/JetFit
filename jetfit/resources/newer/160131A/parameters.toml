@@ -179,7 +179,7 @@ scale = "log"
 
 [offsets.prior]
     type  = "uniform"
-    lower = -1.4
+    lower = -2.0
     upper = 1.0
 
 #----------- CALIBRATION -----------
@@ -192,6 +192,17 @@ scale = "log"
     type  = "uniform"
     lower = -1.0
     upper = 1.0
+
+#----------- CALIBRATION -----------
+#----------- uvot-u-band -----------
+[[offsets]]
+name  = "uvot-u_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu = 0.0
+    sigma = 0.03
 
 #----------- CALIBRATION -----------
 #----------- uvot-b-band -----------

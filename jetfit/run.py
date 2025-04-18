@@ -17,7 +17,7 @@ from jetfit.models2.basemodels import ObservedFluxModel
 from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel
 from jetfit.plot.dist import DistributionPlot
-from jetfit.plot.dist2 import SpectralIndexPlot
+from jetfit.plot.dist2 import SpectralIndexPlot, DensityProfilePlot
 from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
 from jetfit.plot.posterior import PosteriorPlot
 
@@ -111,6 +111,16 @@ def main(
     spectral_index_plotter.model(
         observation.data[observation.sindex_loc], out_dir=results_dir)
 
+    # Plot the density profiles
+    density_plotter = DensityProfilePlot(
+        mcmc.sampler, parameters, observation.data_regimes)
+
+    density_plotter.plot(
+        observation.as_arrays.times.min(),
+        observation.as_arrays.times.max(),
+        out_dir=results_dir
+    )
+
     # Plot distributions
     dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
 
@@ -172,14 +182,14 @@ def main(
     # -----------------------------------------------------------------
     # -------------------------- DIAGNOSTICS --------------------------
     # -----------------------------------------------------------------
-    import arviz as az
+    # import arviz as az
 
-    az.style.use("arviz-darkgrid")
-    inf_data = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.params.fitting])
-    inf_data_burn = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.params.fitting])
+    # az.style.use("arviz-darkgrid")
+    # inf_data = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.params.fitting])
+    # inf_data_burn = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.params.fitting])
 
     # Save summary statistics to a csv
-    az.summary(inf_data).to_csv(results_dir / "summary.csv")
+    # az.summary(inf_data).to_csv(results_dir / "summary.csv")
 
     # Plot the trace plot
     # az.plot_trace(inf_data)
@@ -222,7 +232,7 @@ if __name__ == "__main__":
             # '080413B',
             # '080319B_early',
             # '080319B_mid',
-            # '080319B_late',
+            # '080319B',
             # '080413B_early',
             # '080413B_late',
             '090424',
