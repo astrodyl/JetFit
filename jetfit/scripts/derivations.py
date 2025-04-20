@@ -14,7 +14,7 @@ tcs = const.sigma_T.cgs  # noqa
 
 def a(k):
     """"""
-    return 16 / (17 - k)
+    return 16 / (17 - 4 * k)
 
 
 def b(k):
@@ -293,9 +293,6 @@ class CL00:
 
 
 if __name__ == '__main__':
-
-
-    flux_density = u.Quantity(16.3, unit='erg cm-2 s-1 AA-1')
 
     energy  = u.Quantity(1e52, unit='erg')
     time    = u.Quantity(1.0, unit='d')

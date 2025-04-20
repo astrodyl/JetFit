@@ -16,10 +16,11 @@ class BaseBlastWaveModel:
     Parameters
     ----------
     E : float or u.Quantity['energy']
-        The energy / 1e52.
+        If a float is provided, assumes the energy is
+        normalized to 1e52 ergs.
 
-    n0 : float
-        The density / m_p / 1e17^k
+    n17 : float or u.Quantity['number density']
+        The number density at 1e17 cm.
 
     k : float
         The density power-law index.
@@ -27,9 +28,9 @@ class BaseBlastWaveModel:
     c = const.c.cgs.value  # type: ignore
     m_p = const.m_p.cgs.value  # type: ignore
 
-    def __init__(self, E, n0, k):
+    def __init__(self, E, n17, k):
         self._E = E
-        self._n0 = n0
+        self._n17 = n17
         self.k = k
 
     @property
@@ -40,25 +41,25 @@ class BaseBlastWaveModel:
     @E.setter
     def E(self, e: float | u.Quantity):
         """
-        Sets the explosion energy normalized to 1e52 ergs.
+        Sets the energy normalized to 1e52 ergs.
 
         Parameters
         ----------
         e : float or astropy.units.Quantity['energy']
-            The explosion energy. If a float is provided, assumes
-            that the value is already normalized to 1e52 ergs.
+            The explosion energy. If a float is provided,
+            assumes the energy is normalized to 1e52 ergs.
         """
         if isinstance(e, u.Quantity):
             e = e.to_value('erg') / 1e52
         self._E = e
 
     @property
-    def n0(self) -> float:
+    def n17(self) -> float:
         """ Returns the density normalization. """
-        return self._n0
+        return self._n17
 
-    @n0.setter
-    def n0(self, n0) -> None:
+    @n17.setter
+    def n17(self, n17) -> None:
         """
         Sets the density normalization as a simple float.
 
@@ -70,16 +71,23 @@ class BaseBlastWaveModel:
 
         rho_x = rho_0 * R_0^k = n0 * m_p * R_0^k
 
-        where R_0 is the characteristic radius which I take to
-        be 1e17 cm. Then, `n0` is defined as the number density
-        with respect to 1e17.
+        where R_0 is the characteristic radius which is
+        taken to be 1e17 cm. Then, `n17` is defined as
+        the number density with respect to 1e17 cm.
 
         Parameters
         ----------
-        n0 : float
-            The density normalization.
+        n17 : float or u.Quantity['number density', 'density']
+            The number density at 1e17 cm.
         """
-        self._n0 = n0
+        if isinstance(n17, u.Quantity):
+            if n17.physical_type == 'number density':
+                n17 = n17.to_value('cm')
+
+            elif n17.physical_type == 'density':
+                n17 = n17.to_value('cm') / self.m_p
+
+        self._n17 = n17
 
     @property
     def alpha(self) -> float:
@@ -92,8 +100,9 @@ class BaseBlastWaveModel:
         return 4 - self.k
 
     @property
-    def rho0(self):
-        return self.n0 * self.m_p * (1e17 ** self.k)
+    def rho17(self):
+        """ Returns the density normalization. """
+        return self.n17 * self.m_p * (1e17 ** self.k)
 
 
 # noinspection PyPep8Naming
@@ -101,8 +110,8 @@ class BlastWaveModel(BaseBlastWaveModel):
     """
     Models a self-similar, ultra-relativistic blast wave.
     """
-    def __init__(self, E, n0, k):
-        super().__init__(E, n0, k)
+    def __init__(self, E, n17, k):
+        super().__init__(E, n17, k)
 
     def lorentz_factor(self, z, t):
         """
@@ -126,15 +135,12 @@ class BlastWaveModel(BaseBlastWaveModel):
 
         k = self.k
 
-        # Convert number density to density [g cm-3]
-        rho0 = self.n0 * self.m_p * (1e17 ** k)
-
         # Convert to source frame time [s]
         t = t * 86_400 / (1 + z)
 
         return (
             self.alpha * self.beta ** (3 - k) *
-            np.pi * self.c ** (5 - k) * rho0 *
+            np.pi * self.c ** (5 - k) * self.rho17 *
             (1e52 * self.E) ** -1 * t ** (3 - k)
         ) ** -(0.5 / (4 - k))
 
@@ -148,10 +154,11 @@ class BlastWaveModel(BaseBlastWaveModel):
             The redshift.
 
         t : float or u.Quantity['time'] or np.ndarray
-            The observer time in days.
+            The observer time measured in days.
 
         t_decel : float or u.Quantity['time'] or np.ndarray
-            The deceleration time of the blast wave in days.
+            The source frame (z=0) deceleration time
+            of the blast wave measured in days.
 
         Returns
         -------
@@ -161,17 +168,17 @@ class BlastWaveModel(BaseBlastWaveModel):
         if isinstance(t, u.Quantity):
             t = t.to_value('d')
 
-        # Add the deceleration time
-        t = 86_400 * (t + t_decel) / (1 + z)
+        # Add the deceleration time [s]
+        t = 86_400 * (t_decel + (t / (1 + z)))
 
         return (
             self.beta * 1e52 * self.E * t /
-            (self.alpha * np.pi * self.rho0 * self.c)
+            (self.alpha * np.pi * self.rho17 * self.c)
         ) ** (1 / (4 - self.k))
 
     def decel_radius(self, gamma=300):
         """
-        The deceleration radius.
+        The burst-frame deceleration radius measured in cm.
 
         Parameters
         ----------
@@ -181,28 +188,34 @@ class BlastWaveModel(BaseBlastWaveModel):
         Returns
         -------
         float or np.ndarray
-            The deceleration radius.
+            The deceleration radius measured in cm.
         """
         return (
             ((3 - self.k) * 1e52 * self.E) /
-            (4 * np.pi * self.rho0 * self.c ** 2 * gamma ** 2)
+            (4 * np.pi * self.rho17 * self.c ** 2 * gamma ** 2)
         ) ** (1 / (3 - self.k))
 
-    def decel_time(self, gamma=300):
+    def decel_time(self, gamma=300, z=0.0):
         """
-        The deceleration time.
+        Calculates the deceleration time of the shock
+        measured in seconds. If the redshift, `z`, is
+        provided, returns the observer-frame time. Else,
+        returns the burst frame time (i.e., z=0.0).
 
         Parameters
         ----------
         gamma : float or np.ndarray, default=300
             The initial Lorentz factor.
 
+        z : float, optional, default=0.0
+            The redshift.
+
         Returns
         -------
         float or np.ndarray
-            The deceleration time.
+            The deceleration time measured in seconds.
         """
-        return (
+        return (1 + z) * (
             self.decel_radius(gamma) /
             ((4 - self.k) * gamma ** 2 * self.c)
         )
@@ -475,11 +488,14 @@ class SpectralFluxModel(BaseFluxModel):
         fast_regime = nu_m > nu_c
 
         if fast_regime.any():
-            b2[fast_regime] = -0.5
-            s12[fast_regime] = 0.597
-            nu12[fast_regime] = nu_c[fast_regime]
-            nu23[fast_regime] = nu_m[fast_regime]
-            s23[fast_regime] = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
+            try:
+                b2[fast_regime] = -0.5
+                s12[fast_regime] = 0.597
+                nu12[fast_regime] = nu_c[fast_regime]
+                nu23[fast_regime] = nu_m[fast_regime]
+                s23[fast_regime] = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
+            except IndexError as e:
+                print()
 
         # Smooth the flux across the spectral segments
         flux = self.f_peak * (
@@ -1052,12 +1068,24 @@ class ObservedFluxModel:
 
     ext_mw : np.array, optional
         The pre-computed milky way extinction values.
+
+    dynamic : bool, optional, default=False
+        Whether to determine the transition time in
+        a stratified medium during runtime.
     """
-    def __init__(self, afterglow_model, extinction_model, ext_sf=None, ext_mw=None):
+    def __init__(
+            self,
+            afterglow_model,
+            extinction_model,
+            ext_sf=None,
+            ext_mw=None,
+            dynamic=False
+    ):
         self.afterglow_model = afterglow_model
         self.extinction_model = extinction_model
         self.ext_sf = ext_sf
         self.ext_mw = ext_mw
+        self.dynamic = dynamic
 
     def __repr__(self):
         """ Human-readable representation. """
@@ -1105,7 +1133,7 @@ class ObservedFluxModel:
 
     def model_afterglow(self, obs, params, **kwargs):
         """
-        Models the GRB afterglow flux.
+        Models the unextinguished GRB afterglow flux.
 
         Parameters
         ----------
@@ -1125,21 +1153,139 @@ class ObservedFluxModel:
             The modeled GRB afterglow flux.
         """
         if params.get('shared') is not None:
-            modeled = np.full(obs.length, np.nan, dtype=float)
 
-            # Model each data group separately
-            for group in obs.data_groups.keys():
-                model_params = params.get(group).get('model')
+            if self.dynamic:
+                # Model the afterglow flux in a stratified density
+                # using a dynamically determined transition time.
+                modeled = self.model_stratified_afterglow(
+                    obs, params, **kwargs
+                )
 
-                modeled[obs.data_groups[group]] = self.afterglow_model(
-                    **model_params, **kwargs).model(obs, group)
+            else:
+                # Model the afterglow flux with sets of parameters
+                # applied to different subsets of the data.
+                modeled = self.model_segmented_afterglow(
+                    obs, params, **kwargs
+                )
 
         else:
-            # No data groups, model all together
+            # Model the afterglow flux all together. Nice and simple.
             model = self.afterglow_model(**params.get('model'), **kwargs)
             modeled = model.model(obs)
 
-        # return GRB afterglow flux
+        # return the unextinguished GRB afterglow flux
+        return modeled
+
+    def model_segmented_afterglow(self, obs, params, **kwargs):
+        """
+        Models the unextinguished GRB afterglow flux divided
+        into an arbitrarily defined number of subsets.
+
+        This method is useful for light curves that display
+        different behaviors in different temporal regimes.
+        Note that it is up to the user to determine whether
+        fitting multiple sets of parameters is physically
+        meaningful or not. This method simply provides the
+        ability to do so.
+
+        Parameters
+        ----------
+        obs : Observation
+            The `Observation` object to model.
+
+        params : dict
+            The dict returned from `Parameters.samples_to_dict`.
+
+        kwargs : optional
+            Any additional arguments needed to instantiate
+            the flux model.
+
+        Returns
+        -------
+        np.ndarray of float
+            The modeled unextinguished GRB afterglow flux.
+        """
+        modeled = np.full(obs.length, np.nan, dtype=float)
+
+        for group, mask in obs.data_groups.items():
+            model_params = params.get(group).get('model')
+
+            modeled[mask] = self.afterglow_model(
+                **model_params, **kwargs).model(obs, mask)
+
+        return modeled
+
+    def model_stratified_afterglow(self, obs, params, **kwargs):
+        """
+        Models the unextinguished GRB afterglow flux in
+        a stratified medium.
+
+        Requires that the data groups are defined as `pre`
+        and `post`. By extension, this means that I only
+        model a stratified medium with a single transition.
+
+        To model the data using an arbitrary number of subsets,
+        use the `model_segmented_afterglow` method instead.
+        Keep in mind that the segmented afterglow model does
+        not allow for dynamically changing the transition position.
+        Instead, the positions are pre-determined and fixed.
+
+        It is important to note that changing the subsets of data
+        that the parameters are fit to can cause discontinuities
+        in the likelihood. This can cause the walkers to become
+        stuck and cause issues with convergence. As a result, this
+        method is generally not recommended but available anyway.
+
+        Parameters
+        ----------
+        obs : Observation
+            The `Observation` object to model.
+
+        params : dict
+            The dict returned from `Parameters.samples_to_dict`.
+
+        kwargs : optional
+            Any additional arguments needed to instantiate the
+            flux model.
+
+        Returns
+        -------
+        np.ndarray of float
+            The modeled unextinguished GRB afterglow flux.
+        """
+        modeled = np.full(obs.length, np.nan, dtype=float)
+
+        # Params to use pre- and post-transition
+        all_params = params.get('shared').get('model')
+        pre_params = params.get('early').get('model')
+        post_params = params.get('late').get('model')
+
+        # Observer-frame transition time [days]
+        t_trans = StratifiedMediumModel(
+            all_params['E'],
+            pre_params['rho0'], post_params['rho0'],
+            pre_params['k'], post_params['k']
+        ).transition_time(z=all_params['z']) / 86_400
+
+        # Observer-frame blast wave deceleration time [days]
+        t_decel = BlastWaveModel(
+            all_params['E'], pre_params['rho0'], pre_params['k']
+        ).decel_time(z=all_params['z']) / 86_400
+
+        # Observer-frame time [days]
+        # Correct for the frame and add to the observation time.
+        t_obs = obs.as_arrays.times + t_decel
+
+        # Model the pre-transition flux, indices
+        if (early_mask := t_obs < t_trans).any():
+            early_model = self.afterglow_model(**pre_params, **kwargs)
+            modeled[early_mask] = early_model.model(obs, early_mask)
+
+        # Model the post-transition flux, indices
+        if (late_mask := ~early_mask).any():
+            early_model = self.afterglow_model(**post_params, **kwargs)
+            modeled[late_mask] = early_model.model(obs, late_mask)
+
         return modeled
 
     def model_extinction(
@@ -1147,7 +1293,7 @@ class ObservedFluxModel:
         ebv_mw=None, host_pos=None, host_vals=None
     ):
         """
-        Corrects the intrinsic flux, `modeled`, for
+        Corrects the afterglow flux, `modeled`, for
         dust extinction and host galaxy contributions.
 
         Parameters
@@ -1203,3 +1349,95 @@ class ObservedFluxModel:
 
         # return (afterglow_flux * ext_sf + host_correction) * ext_mw
         return modeled
+
+
+# noinspection PyPep8Naming
+class StratifiedMediumModel:
+    """
+
+    Parameters
+    ----------
+    E : float
+        The energy normalized to 1e52 ergs.
+
+    n17_1 : float
+        The density before the transition.
+
+    n17_2 : float
+        The density after the transition.
+
+    k1 : float
+        The density power-law index for `n1`.
+
+    k2 : float
+        The density power-law index for `n2`.
+    """
+    m_p = const.m_p.cgs.value  # type: ignore
+    c = const.c.cgs.value  # type: ignore
+    r_ref = 1e17
+
+    def __init__(self, E, n17_1, n17_2, k1, k2):
+        self.E = E
+        self.n17_1 = n17_1
+        self.n17_2 = n17_2
+        self.k1 = k1
+        self.k2 = k2
+
+    @staticmethod
+    def alpha(k) -> float:
+        """ Returns the hydrodynamic coefficient. """
+        return 16 / (17 - 4 * k)
+
+    @staticmethod
+    def beta(k) -> float:
+        """ Returns the hydrodynamic coefficient. """
+        return 4 - k
+
+    def rho17(self, n17, k) -> float:
+        """ Returns the density at 1e17cm. """
+        return n17 * self.m_p * (self.r_ref ** k)
+
+    def transition_radius(self):
+        """
+        Calculates the transition radius in a stratified
+        density.
+
+        Returns
+        -------
+        float
+            The transition radius measured in cm.
+        """
+        # Evaluate in log space to prevent overflow when k1 ~= k2
+        return 10 ** (17 + np.log10(self.n17_2 / self.n17_1) / (self.k2 - self.k1))
+
+    def transition_time(self, z):
+        """
+        Calculates the observer-frame transition time
+        in a stratified density.
+
+        Uses the relation R = beta * gamma ** 2 * c * t and
+        the definition of gamma to solve for t.
+
+        Parameters
+        ----------
+        z : float
+            The redshift.
+
+        Returns
+        -------
+        float
+            The observer-frame transition time in seconds.
+
+        See Also
+        --------
+        `models2.basemodels.BlastWaveModel.lorentz_factor`
+            See for the definition of gamma.
+        """
+        r = self.transition_radius()
+        a, b = self.alpha(self.k1), self.beta(self.k1)
+        rho17 = self.rho17(self.n17_1, self.k1)
+
+        return (1 + z) * (
+            (a * b ** (3 - self.k1) * np.pi *
+            self.c ** (5 - self.k1) * rho17 / (1e52 * self.E))
+        ) * (r / (b * self.c)) ** (4 - self.k1)

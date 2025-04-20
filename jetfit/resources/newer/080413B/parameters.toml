@@ -156,6 +156,28 @@ scale = "linear"
 value = 0.0315
 
 #----------- CALIBRATION -----------
+#-------------- R-band -------------
+[[offsets]]
+name  = "R_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.3
+
+#----------- CALIBRATION -----------
+#-------------- I-band -------------
+[[offsets]]
+name  = "I_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.3
+
+#----------- CALIBRATION -----------
 #-------------- g-band -------------
 [[offsets]]
 name  = "g_offset"

@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import corner
-import numpy as np
 from matplotlib import pyplot as plt
 
 

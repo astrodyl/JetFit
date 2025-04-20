@@ -5,8 +5,7 @@ import astropy.constants as const
 
 from jetfit.core.core import save_plot_unique
 from jetfit.core.values import SpectralIndex
-from jetfit.models2.basemodels import SpectralIndexModel, BlastWaveModel
-from jetfit.scripts.derivations import trans_radius, trans_time
+from jetfit.models2.basemodels import SpectralIndexModel, BlastWaveModel, StratifiedMediumModel
 
 # Constants in cgs units
 m_p = const.m_p.cgs  # noqa
@@ -32,10 +31,11 @@ class Distribution:
         The data groups dict that maps the group
         name it's valid temporal regime.
     """
-    def __init__(self, sampler, params, regimes=None):
+    def __init__(self, sampler, params, regimes=None, dynamic=False):
         self.sampler = sampler
         self.params  = params
         self.regimes = regimes
+        self.dynamic = dynamic
 
     def draw(self, thin=1, nsamps=100):
         """
@@ -65,7 +65,7 @@ class Distribution:
 
         Parameters
         ----------
-        t : float or astropy.Quantity[time']
+        t : float or astropy.Quantity['time']
             The time to check.
 
         Returns
@@ -102,9 +102,29 @@ class Distribution:
 
         return params
 
+    @staticmethod
+    def stratified_group(p_early, p_late, time):
+        """"""
+        stratified_model = StratifiedMediumModel(
+            n17_1=p_early['rho0'], n17_2=p_late['rho0'],
+            k1=p_early['k'], k2=p_late['k'], E=p_early['E'],
+        )
+
+        # Calculate the observer-frame transition time [d]
+        t_trans = stratified_model.transition_time(p_early['z']) / 86_400
+
+        # Define the early time model
+        early_model = BlastWaveModel(
+            E=p_early['E'], n17=p_early['rho0'], k=p_early['k'])
+
+        # Calculate the observer-frame deceleration time [d]
+        t_dec = early_model.decel_time(z=p_early['z']) / 86_400
+
+        # Correct the observation time to transition time
+        return 'early' if (time + t_dec) < t_trans else 'late'
+
 
 class SpectralIndexPlot(Distribution):
-    # TODO: Split this into plotting and modeling class
     """
     Models a distribution of spectral indexes and provides
     methods to generates plots.
@@ -154,11 +174,19 @@ class SpectralIndexPlot(Distribution):
         modeled = np.full(len(samples), np.nan)
 
         for i, s in enumerate(samples):
-            p = self.params.samples_to_dict(
-                s, group=self.group(time))
 
+            if not self.dynamic:
+                group = self.group(time)
+
+            else:
+                p_early = self.params.samples_to_dict(s, group='early').get('model')
+                p_late = self.params.samples_to_dict(s, group='late').get('model')
+                group = self.stratified_group(p_early, p_late, time)
+
+            p = self.params.samples_to_dict(s, group=group)
             model = self.afterglow_model(**p.get('model'))
 
+            # Model the spectral index
             modeled[i] = SpectralIndexModel(
                 model.nu_m(time), model.nu_c(time),
                 model.f_peak(time), model.p, model.k
@@ -187,9 +215,18 @@ class SpectralIndexPlot(Distribution):
         float
             The most likely spectral index value.
         """
-        best = self.best(group=self.group(time)).get('model')
+        if not self.dynamic:
+            group = self.group(time)
+
+        else:  # Handle stratified density
+            best_early = self.best(group='early').get('model')
+            best_late = self.best(group='late').get('model')
+            group = self.stratified_group(best_early, best_late, time)
+
+        best = self.best(group=group).get('model')
         model = self.afterglow_model(**best)
 
+        # Use the uncorrected obs time to eval model
         return SpectralIndexModel(
             model.nu_m(time), model.nu_c(time),
             model.f_peak(time), model.p, model.k
@@ -272,7 +309,7 @@ class SpectralIndexPlot(Distribution):
         plt.close()
 
     @staticmethod
-    def plot_truth(val, l, u, **kwargs):
+    def plot_truth(val, l, up, **kwargs):
         """
         Over-plots the accepted value.
 
@@ -284,7 +321,7 @@ class SpectralIndexPlot(Distribution):
         l: float
             The lower uncertainty range.
 
-        u: float
+        up: float
             The upper uncertainty range.
 
         kwargs
@@ -298,11 +335,11 @@ class SpectralIndexPlot(Distribution):
         } | kwargs
 
         plt.axvline(
-            val, label=f'True Value: {val} (+{u}, -{l})', **options
+            val, label=f'True Value: {val} (+{up}, -{l})', **options
         )
 
         # Plot the uncertainty as a shaded region
-        plt.axvspan(val - l, val + u, color=options.get('color'), alpha=0.2)
+        plt.axvspan(val - l, val + up, color=options.get('color'), alpha=0.2)
 
     @staticmethod
     def plot_best(val, **kwargs):
@@ -351,15 +388,20 @@ class SpectralIndexPlot(Distribution):
         cts, bins, _ = plt.hist(dist, **options)
 
 
-class DensityProfilePlot(Distribution):
+class StratifiedDensityProfilePlot(Distribution):
     """
     Plots n(r / r17) vs. r / r17
     """
     def __init__(self, sampler, params, regimes=None):
         super().__init__(sampler, params, regimes)
 
-    @staticmethod
-    def model_stratified(p_early, p_late, start, stop):
+        self.r = {'best': [], 'dist': []}
+        self.k = {'best': [], 'dist': []}
+        self.n17 = {'best': [], 'dist': []}
+        self.n017 = {'best': [], 'dist': []}
+        self.times = {'best': [], 'dist': []}
+
+    def model_stratified(self, p_early, p_late, start, stop, loc):
         """
         Models stratified density profiles.
 
@@ -373,6 +415,8 @@ class DensityProfilePlot(Distribution):
 
         stop : float
 
+        loc : str, {'best', 'dist'}
+
         Returns
         -------
         tuple of length 3
@@ -381,73 +425,119 @@ class DensityProfilePlot(Distribution):
 
         # Initialize return arrays
         ks = np.full(len(times), np.nan)
+        n017s = np.full(len(times), np.nan)
         radii = np.full(len(times), np.nan)
-        modeled = np.full(len(times), np.nan)
 
-        # Calculate the transition radius [cm]
-        r_trans = trans_radius(
-            n1=p_early['rho0'], n2=p_late['rho0'],
-            k1=p_early['k'], k2=p_late['k']
+        # Define the stratified medium model
+        stratified_model = StratifiedMediumModel(
+            n17_1=p_early['rho0'], n17_2=p_late['rho0'],
+            k1=p_early['k'], k2=p_late['k'], E=p_early['E'],
         )
 
-        # Calculate the observer frame transition time [d]
-        t_trans = trans_time(
-            E=1e52 * p_early['E'],
-            n=m_p.value * p_early['rho0'] * 1e17 ** p_early['k'],
-            r=r_trans, k=p_early['k'], z=p_early['z']
-        ).to_value('d')
+        # Calculate the transition radius and time
+        r_trans = stratified_model.transition_radius()
+        t_trans = stratified_model.transition_time(p_early['z']) / 86_400
 
         # Define the early time model
         early_model = BlastWaveModel(
-            E=p_early['E'], n0=p_early['rho0'], k=p_early['k']
-        )
+            E=p_early['E'], n17=p_early['rho0'], k=p_early['k'])
 
-        # Calculate the (observer frame) deceleration time [d]
-        t_dec = early_model.decel_time(gamma=300) / 86_400
-
-        # Make sure units in [cm] and is a float
-        r_trans = r_trans.to_value('cm')
+        # Calculate the observer-frame deceleration time [d]
+        t_dec = early_model.decel_time(z=p_early['z']) / 86_400
 
         for i, t_obs in enumerate(times):
+
             if t_obs < t_trans:  # noqa
-                r = early_model.shock_radius(p_early['z'], t_obs, t_dec) / 1e17
-                rho = p_early['rho0'] * r ** -p_early['k']
-                ks[i] = p_early['k']
+                r = early_model.shock_radius(p_early['z'], t_obs, t_dec)
+                p = p_early
             else:
-                r = r_trans * ((t_dec + t_obs) / t_trans) ** (1 / (4 - p_late['k'])) / 1e17 # noqa
-                rho = p_late['rho0'] * r ** -p_late['k']
-                ks[i] = p_late['k']
+                r = r_trans * ((t_dec + t_obs) / t_trans) ** (1 / (4 - p_late['k'])) # noqa
+                p = p_late
 
-            radii[i], modeled[i] = r, rho
+            ks[i], n017s[i] = p['k'], p['rho0']
+            radii[i] = r
 
-        return radii, modeled, ks
+        # Store the things
+        self.n17[loc].append(n017s * (radii / 1e17) ** -ks)
+        self.n017[loc].append(n017s)
+        self.r[loc].append(radii)
+        self.k[loc].append(ks)
+        self.times[loc].append(t_trans)
 
-    @staticmethod
-    def model_single(p, start, stop):
+    def model_single(self, p, start, stop, loc):
         """"""
         times = np.geomspace(start, stop, 200)
 
         # Initialize return arrays
-        ks = np.full(len(times), np.nan)
-        radii = np.full(len(times), np.nan)
-        modeled = np.full(len(times), np.nan)
+        ks = np.full(len(times), p['k'])
+        n017s = np.full(len(times), p['rho0'])
 
         # Create the blast wave model
         model = BlastWaveModel(p['E'], p['rho0'], p['k'])
 
-        # Calculate the deceleration time [d]
+        # Calculate the burst-frame deceleration time [d]
         t_dec = model.decel_time(gamma=300) / 86_400
 
-        for i, t_obs in enumerate(times):
-            ks[i] = p['k']
+        # Calculate the shock radius [cm]
+        radii = model.shock_radius(p['z'], times, t_dec)
 
-            # Calculate the shock radius
-            radii[i] = model.shock_radius(p['z'], t_obs, t_dec) / 1e17
+        # Store the things
+        self.n17[loc].append(n017s * (radii / 1e17) ** -ks)
+        self.n017[loc].append(n017s)
+        self.r[loc].append(radii)
+        self.k[loc].append(ks)
 
-            # Calculate the density [cm-3]
-            modeled[i] = p['rho0'] * (radii[i] ** -p['k'])
+    def model_dist(self, start, stop, thin=10, nsamps=100):
+        """
 
-        return radii, modeled, ks
+        Parameters
+        ----------
+        start : float
+            The start time measured in days.
+
+        stop : float
+            The stop time measured in days.
+
+        thin : int, optional, default=1
+            Take only every `thin` steps from the chain.
+
+        nsamps : int, optional, default=100
+            Number of samples to draw.
+
+        """
+
+        # Draw the samples
+        samples = self.draw(thin, nsamps)
+
+        for s in samples:
+
+            if self.regimes and 'early' in self.regimes.keys():
+                p_early = self.params.samples_to_dict(s, group='early').get('model')
+                p_late = self.params.samples_to_dict(s, group='late').get('model')
+                self.model_stratified(p_early, p_late, start, stop, 'dist')
+
+            else:
+                p = self.params.samples_to_dict(s).get('model')
+                self.model_single(p, start, stop, 'dist')
+
+    def model_best(self, start, stop):
+        """
+
+        Parameters
+        ----------
+        start : float
+            The start time measured in days.
+
+        stop : float
+            The stop time measured in days.
+        """
+        if self.regimes and 'early' in self.regimes.keys():
+            p_early = self.best(group='early').get('model')
+            p_late = self.best(group='late').get('model')
+            self.model_stratified(p_early, p_late, start, stop, 'best')
+
+        else:
+            self.model_single(self.best().get('model'), start, stop, 'best')
 
     def plot(self, start, stop, thin=10, nsamps=100, out_dir=None):
         """
@@ -469,192 +559,54 @@ class DensityProfilePlot(Distribution):
         out_dir : Path, optional
             The output directory to save the figures.
         """
-        self.plot_dist(start, stop, thin, nsamps)
-        self.plot_best(start, stop)
+        self.model_dist(start, stop, thin, nsamps)
+        self.model_best(start, stop)
 
-        # Configure the plot
+        # Distribution plotting options
+        dist_options = {
+            'alpha': 0.3, 'linewidth': 0.5, 'linestyle': '-', 'color': 'tab:purple'}
+        best_options = {
+            'linewidth': 2, 'linestyle': '-', 'color': 'tab:orange'}
+
+        # Plot the density profile
+        for i, n17 in enumerate(self.n17['dist']):
+            plt.loglog(self.r['dist'][i], n17, **dist_options)
+        plt.loglog(self.r['best'][0], self.n17['best'][0], label=r'Best $n_{17}$', **best_options)
+
         plt.title('Density Profile')
-        plt.xlabel(r'Shock Radius $R / R_{17}$')
-        plt.ylabel(r'Number Density [$cm^{-3}$]')
+        plt.xlabel('Shock Radius R [cm]')
+        plt.ylabel(r'$n_{17}$ [$cm^{-3}$]')
         plt.legend(loc='best')
         plt.grid(alpha=0.3)
 
-        if out_dir is not None:
-            save_plot_unique('density_dist', 'png', str(out_dir))
-        else:
-            plt.show()
+        save_plot_unique('n17_profile', 'png', str(out_dir))
         plt.close()
 
-        # Plots the k distributions
-        self.plot_ks(start, stop, thin, nsamps)
-        self.plot_ks_best(start, stop)
+        # Plot the density normalization
+        for i, n017 in enumerate(self.n017['dist']):
+            plt.loglog(self.r['dist'][i], n017, **dist_options)
+        plt.loglog(self.r['best'][0], self.n017['best'][0], label=r'Best $n_{0,17}$', **best_options)
 
-        # Configure the plot
+        plt.title('Density Normalization Profile')
+        plt.xlabel(r'Shock Radius R [cm]')
+        plt.ylabel(r'$n_{0,17}$ [$cm^{-3}$]')
+        plt.legend(loc='best')
+        plt.grid(alpha=0.3)
+
+        save_plot_unique('n017_profile', 'png', str(out_dir))
+        plt.close()
+
+        # # Plot the density power law index
+        for i, k in enumerate(self.k['dist']):
+            plt.plot(self.r['dist'][i], k, **dist_options)
+        plt.plot(self.r['best'][0], self.k['best'][0], label=r'Best k', **best_options)
+
         plt.title('Density Power Law Index')
+        plt.xlabel(r'Shock Radius R [cm]')
         plt.xscale('log')
-        plt.xlabel(r'Shock Radius $R / R_{17}$')
         plt.ylabel('k')
         plt.legend(loc='best')
         plt.grid(alpha=0.3)
 
-        if out_dir is not None:
-            save_plot_unique('k_dist', 'png', str(out_dir))
-        else:
-            plt.show()
+        save_plot_unique('k_profile', 'png', str(out_dir))
         plt.close()
-
-    def plot_dist(self, start, stop, thin=10, nsamps=100, **kwargs):
-        """
-
-        Parameters
-        ----------
-        start : float
-            The start time measured in days.
-
-        stop : float
-            The stop time measured in days.
-
-        thin : int, optional, default=1
-            Take only every `thin` steps from the chain.
-
-        nsamps : int, optional, default=100
-            Number of samples to draw.
-
-        kwargs
-            Any optional args accepted by `plt.loglog`.
-        """
-
-        options = {
-            'alpha': 0.3,
-            'linewidth': 0.5,
-            'linestyle': '-',
-            'color': 'tab:purple'
-        } | kwargs
-
-        # Draw the samples
-        samples = self.draw(thin, nsamps)
-
-        for s in samples:
-
-            if self.regimes and 'early' in self.regimes.keys():
-                p_early = self.params.samples_to_dict(s, group='early').get('model')
-                p_late = self.params.samples_to_dict(s, group='late').get('model')
-                radii, modeled, _ = self.model_stratified(p_early, p_late, start, stop)
-
-            else:
-                p = self.params.samples_to_dict(s).get('model')
-                radii, modeled, _ = self.model_single(p, start, stop)
-
-            # Plot rho(R / R17) vs. R / R17
-            plt.loglog(radii, modeled, **options)
-
-    def plot_best(self, start, stop, **kwargs):
-        """
-        Evaluates the spectral index model using the
-        maximum likelihood values.
-
-        Parameters
-        ----------
-        start : float
-            The start time measured in days.
-
-        stop : float
-            The stop time measured in days.
-
-        kwargs
-            Any optional args accepted by `plt.loglog`.
-        """
-
-        options = {
-            'linewidth': 2,
-            'linestyle': '-',
-            'color': 'tab:orange',
-        } | kwargs
-
-        if self.regimes and 'early' in self.regimes.keys():
-            p_early = self.best(group='early').get('model')
-            p_late  = self.best(group='late').get('model')
-
-            radii, modeled, _ = self.model_stratified(
-                p_early, p_late, start, stop
-            )
-
-        else:
-            p = self.best().get('model')
-            radii, modeled, _ = self.model_single(p, start, stop)
-
-        # Plot best rho(R / R17) vs. R / R17
-        plt.loglog(radii, modeled, label='Best n', **options)
-
-    def plot_ks(self, start, stop, thin, nsamps, **kwargs):
-        """"""
-        options = {
-            'alpha': 0.3,
-            'linewidth': 0.5,
-            'linestyle': '-',
-            'color': 'tab:purple'
-        } | kwargs
-
-        # Draw the samples
-        samples = self.draw(thin, nsamps)
-
-        for s in samples:
-
-            if self.regimes and 'early' in self.regimes.keys():
-                p_early = self.params.samples_to_dict(s, group='early').get('model')
-                p_late = self.params.samples_to_dict(s, group='late').get('model')
-                radii, _, ks = self.model_stratified(p_early, p_late, start, stop)
-
-            else:
-                p = self.params.samples_to_dict(s).get('model')
-                radii, _, ks = self.model_single(p, start, stop)
-
-            # Plot k vs. R / R17
-            plt.plot(radii, ks, **options)
-
-    def plot_ks_best(self, start, stop, **kwargs):
-        """"""
-        options = {
-              'linewidth': 2,
-              'linestyle': '-',
-              'color': 'tab:orange',
-          } | kwargs
-
-        if self.regimes and 'early' in self.regimes.keys():
-            p_early = self.best(group='early').get('model')
-            p_late = self.best(group='late').get('model')
-
-            radii, _, ks = self.model_stratified(
-                p_early, p_late, start, stop
-            )
-
-        else:
-            p = self.best().get('model')
-            radii, _, ks = self.model_single(p, start, stop)
-
-        # Plot best k vs. R / R17
-        plt.plot(radii, ks, label='Best n', **options)
-
-
-class JetBeamingPlot(Distribution):
-    """
-    Models a distribution of jet-opening angles and
-    beam-corrected energies and provides methods to
-    generates their plots.
-    """
-    def __init__(self, sampler, params, regimes=None):
-        super().__init__(sampler, params, regimes)
-
-    def plot(self):
-        """"""
-        pass
-
-
-class FrequencyDistribution(Distribution):
-    """"""
-    def __init__(self, sampler):
-        super().__init__(sampler)
-
-    def plot(self):
-        """"""
-        pass

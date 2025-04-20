@@ -19,7 +19,7 @@ SYS_OFFSET = {
 }
 
 
-# Converts from Vega to AB for UVOT data
+# Converts from UVOT Vega to AB for UVOT data
 # https://swift.gsfc.nasa.gov/analysis/uvot_digest/zeropts.html
 UVOT_OFFSET = {
     'uvot-uvw2': 1.73,
@@ -224,6 +224,71 @@ if __name__ == '__main__':
 
     event = '080319B_late'
 
+    mags = [
+        19,
+        18.91,
+        19.15,
+        19.22,
+        17.64,
+        18.64,
+        18.82,
+        17.67,
+        17.42,
+        18.07,
+        17.92,
+
+    ]
+
+    mag_errs = [
+        0.15,
+        0.05,
+        0.05,
+        0.06,
+        0.1,
+        0.22,
+        0.71,
+        0.27,
+        0.27,
+        0.47,
+        0.36,
+
+    ]
+
+    filters = [
+        'R',
+        'I',
+        'I',
+        'I',
+        'uvot - v',
+        'uvot - v',
+        'uvot - b',
+        'uvot - u',
+        'uvot - uvw1',
+        'uvot - uvm2',
+        'uvot - uvw2',
+
+    ]
+
+    cal_sys = [
+        'vega',
+        'vega',
+        'vega',
+        'vega',
+        'uvot',
+        'uvot',
+        'uvot',
+        'uvot',
+        'uvot',
+        'uvot',
+        'uvot',
+    ]
+
+
+    for i in range(len(mags)):
+        f, fe = mag_to_flux(mags[i], mag_errs[i], filters[i], cal_sys[i])
+        print(f.to_value('mJy'), fe.to_value('mJy'))
+
+    exit()
     args = {
         'input_path':
             rf"C:\Users\Dylan\Documents\GRB_DATA\{event}\{event}_in.csv",

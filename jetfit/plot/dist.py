@@ -2,41 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from jetfit.core.core import save_plot_unique
-from jetfit.models2.basemodels import SpectralIndexModel, OpeningAngleModel
-from jetfit.models2.fireball import FireballModel
-
-
-def model_spectral_index(index, p):
-    """
-    Models a spectral index value.
-
-    Parameters
-    ----------
-    index : SpectralIndex
-        The spectral index to model.
-
-    p : dict
-        The `Fireball` model parameters.
-
-    Returns
-    -------
-    float
-        The modeled spectral index.
-    """
-
-    # Calculate the characteristics
-    t = index.time.to_value('d')
-
-    model = FireballModel(**p)
-    f_pk = model.f_peak(t)
-    nu_m = model.nu_m(t)
-    nu_c = model.nu_c(t)
-
-    # Model the spectral index
-    index_model = SpectralIndexModel(
-        nu_m, nu_c, f_pk, model.p, model.k)
-
-    return index_model.model(index)
+from jetfit.models2.basemodels import OpeningAngleModel
 
 
 class DistributionPlot:

@@ -158,9 +158,9 @@ name  = "J_offset"
 scale = "linear"
 
 [offsets.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 1.0
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
 
 #----------- CALIBRATION -----------
 #-------------- H-band -------------
@@ -235,9 +235,9 @@ name  = "F125W_offset"
 scale = "linear"
 
 [offsets.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 1.0
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
 
 #--------------- SLOP --------------
 #--------------- slop --------------

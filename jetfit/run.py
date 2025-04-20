@@ -17,7 +17,7 @@ from jetfit.models2.basemodels import ObservedFluxModel
 from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel
 from jetfit.plot.dist import DistributionPlot
-from jetfit.plot.dist2 import SpectralIndexPlot, DensityProfilePlot
+from jetfit.plot.dist2 import SpectralIndexPlot, StratifiedDensityProfilePlot
 from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
 from jetfit.plot.posterior import PosteriorPlot
 
@@ -78,7 +78,8 @@ def main(
     observed_flux_model = ObservedFluxModel(
         FireballModel, extinction_model,
         ext_sf=ebv['ebv_source_frame'],
-        ext_mw=ebv['ebv_milky_way']
+        ext_mw=ebv['ebv_milky_way'],
+        dynamic=True,
     )
 
     # -----------------------------------------------------------------
@@ -112,7 +113,7 @@ def main(
         observation.data[observation.sindex_loc], out_dir=results_dir)
 
     # Plot the density profiles
-    density_plotter = DensityProfilePlot(
+    density_plotter = StratifiedDensityProfilePlot(
         mcmc.sampler, parameters, observation.data_regimes)
 
     density_plotter.plot(
@@ -129,7 +130,7 @@ def main(
         dist_plotter.beaming(out_dir=results_dir)
 
     # Plot frequencies
-    fp = FrequencyPlot(mcmc.sampler, parameters)
+    fp = FrequencyPlot(mcmc.sampler, parameters, observed_flux_model.dynamic)
     fp.plot(
         model=observed_flux_model.afterglow_model,
         obs=observation,
@@ -146,7 +147,8 @@ def main(
         model=observed_flux_model.afterglow_model,
         params=best_params,
         observation=observation,
-        title=f'{event} Light Curve'
+        title=f'{event} Light Curve',
+        dynamic=observed_flux_model.dynamic
     )
     lc.plot(
         out_dir=results_dir,
@@ -235,7 +237,7 @@ if __name__ == "__main__":
             # '080319B',
             # '080413B_early',
             # '080413B_late',
-            '090424',
+            # '090424',
             # '090618',
             # '111228A',
             # '111228A_early',
@@ -246,7 +248,7 @@ if __name__ == "__main__":
             # '160131A',
             # '171010A',
             # '210905A',
-            # '220101A',
+            '220101A',
             # '221009A',
             # '231118A',
         ]

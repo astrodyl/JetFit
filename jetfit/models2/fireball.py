@@ -172,25 +172,29 @@ class FireballModel:
     def model(
             self,
             observation: Observation,
-            group: str = None
+            subset_mask: np.ndarray = None
     ) -> np.ndarray:
         """
-        Models an observation object.
+        Models an `observation` object.
 
         Parameters
         ----------
         observation : Observation
             The observation object to model.
 
-        group : str, optional
-            The data group to model.
+        subset_mask : np.ndarray of bool, optional
+            The truth array of which values to model.
 
         Returns
         -------
         np.ndarray of float
-            The modeled flux.
+            The unextinguished modeled flux.
         """
         res = np.full(len(observation.data), np.nan)
+
+        # Physically impossible solution
+        if self.eps_b + self.eps_e >= 1.0:
+            return res[subset_mask] if subset_mask is not None else res
 
         # For speed, get observation as arrays
         arrays = observation.as_arrays
@@ -200,11 +204,10 @@ class FireballModel:
         if_mask = arrays.iflux_loc
         si_mask = arrays.sindex_loc
 
-        if group is not None:
-            g_mask = observation.data_groups[group]
-            sf_mask = np.logical_and(sf_mask, g_mask)
-            if_mask = np.logical_and(if_mask, g_mask)
-            si_mask = np.logical_and(si_mask, g_mask)
+        if subset_mask is not None:
+            sf_mask = np.logical_and(sf_mask, subset_mask)
+            if_mask = np.logical_and(if_mask, subset_mask)
+            si_mask = np.logical_and(si_mask, subset_mask)
 
         # Calculate the spectral functions
         f_peaks = self.f_peak(arrays.times)
@@ -212,39 +215,63 @@ class FireballModel:
         nu_cs = self.nu_c(arrays.times)
 
         # Model spectral fluxes
-        res[sf_mask] = SpectralFluxModel(
-            nu_ms[sf_mask], nu_cs[sf_mask], f_peaks[sf_mask], self.p, self.k
-        )(arrays.frequencies[sf_mask])
+        if sf_mask.any():
+            res[sf_mask] = SpectralFluxModel(
+                nu_ms[sf_mask], nu_cs[sf_mask], f_peaks[sf_mask], self.p, self.k
+            )(arrays.frequencies[sf_mask])
 
-        # Model Integrated fluxes
-        res[if_mask] = IntegratedFluxModel(
-            nu_ms[if_mask], nu_cs[if_mask], f_peaks[if_mask], self.p, self.k
-        )(arrays.if_lower_freqs[if_mask], arrays.if_upper_freqs[if_mask])
+        # Model integrated fluxes
+        if if_mask.any():
+            res[if_mask] = IntegratedFluxModel(
+                nu_ms[if_mask], nu_cs[if_mask], f_peaks[if_mask], self.p, self.k
+            )(arrays.if_lower_freqs[if_mask], arrays.if_upper_freqs[if_mask])
 
-        # Model Spectral indices
-        res[si_mask] = SpectralIndexModel(
-            nu_ms[si_mask], nu_cs[si_mask], f_peaks[si_mask], self.p, self.k
-        )(arrays.si_lower_freqs[si_mask], arrays.si_upper_freqs[si_mask])
+        # Model spectral indices
+        if si_mask.any():
+            res[si_mask] = SpectralIndexModel(
+                nu_ms[si_mask], nu_cs[si_mask], f_peaks[si_mask], self.p, self.k
+            )(arrays.si_lower_freqs[si_mask], arrays.si_upper_freqs[si_mask])
 
         # Smooth the flux values if there is a jet break
-        if self.tj:
+        if self.tj and sf_mask.any():
             res[sf_mask] = self.smooth_jet_break(
-                f=res[sf_mask],
-                t=arrays.times[sf_mask],
+                f=res[sf_mask], t=arrays.times[sf_mask],
                 nu=arrays.frequencies[sf_mask]
             )
+
+        if self.tj and if_mask.any():
             res[if_mask] = self.smooth_jet_break(
-                f=res[if_mask],
-                t=arrays.times[if_mask],
+                f=res[if_mask], t=arrays.times[if_mask],
                 lower=arrays.if_lower_freqs[if_mask],
                 upper=arrays.if_upper_freqs[if_mask]
             )
 
-        # return modeled observational data
-        return res[observation.data_groups[group]] if group else res
+        return res[subset_mask] if subset_mask is not None else res
 
-    def evaluate_spectral_flux(self, t, f):
-        """ Model spectral fluxes. """
+    def spectral_flux(self, t, f):
+        """
+        Calculates the spectral fluxes at times `t` for the
+        frequencies `f`.
+
+        Parameters
+        ----------
+        t : float or np.ndarray of float u.Quantity['time']
+            The observer times measured in days since trigger.
+
+        f : float or np.ndarray of float
+            The average band frequencies.
+
+        Returns
+        -------
+        float np.ndarray of float
+            The modeled spectral flux.
+
+        See Also
+        --------
+        `models2.basemodels.SpectralFluxModel.evaluate`
+            See for information on how various shapes
+            of t and f are handled.
+        """
         res = SpectralFluxModel(
             self.nu_m(t), self.nu_c(t), self.f_peak(t), self.p, self.k
         ).evaluate(f)
@@ -254,8 +281,30 @@ class FireballModel:
 
         return res
 
-    def evaluate_integrated_flux(self, t, lower, upper):
-        """ Model Integrated fluxes. """
+    def integrated_flux(self, t, lower, upper):
+        """
+        Calculates the integrated fluxes at times `t` for the
+        lower and upper integration bounds, `lower` and `upper`.
+
+        Parameters
+        ----------
+        t : float or np.ndarray of float u.Quantity['time']
+            The observer times measured in days since trigger.
+
+        lower, upper : float or np.ndarray of float
+            The integration bounds measured in Hz.
+
+        Returns
+        -------
+        float np.ndarray of float
+            The modeled spectral flux.
+
+        See Also
+        --------
+        `models2.basemodels.SpectralFluxModel.evaluate`
+            See for information on how various shapes
+            of t, lower, upper are handled.
+        """
         res = IntegratedFluxModel(
             self.nu_m(t), self.nu_c(t), self.f_peak(t), self.p, self.k
         ).evaluate(lower, upper)
@@ -264,6 +313,34 @@ class FireballModel:
             return self.smooth_jet_break(res, t, lower=lower, upper=upper)
 
         return res
+
+    def spectral_index(self, t, lower, upper):
+        """
+        Calculates the spectral index at times `t` for the
+        lower and upper integration bounds, `lower` and `upper`.
+
+        Parameters
+        ----------
+        t : float or np.ndarray of float u.Quantity['time']
+            The observer times measured in days since trigger.
+
+        lower, upper : float or np.ndarray of float
+            The integration bounds measured in Hz.
+
+        Returns
+        -------
+        float np.ndarray of float
+            The modeled spectral flux.
+
+        See Also
+        --------
+        `models2.basemodels.SpectralFluxModel.evaluate`
+            See for information on how various shapes
+            of t, lower, upper are handled.
+        """
+        return SpectralIndexModel(
+            self.nu_m(t), self.nu_c(t), self.f_peak(t), self.p, self.k
+        ).evaluate(lower, upper)
 
     def smooth_jet_break(self, f, t, **kwargs):
         """
@@ -275,7 +352,8 @@ class FireballModel:
             The flux to smooth.
 
         t : np.ndarray or float
-            The time of the flux measurements.
+            The times corresponding to `f` measured in days
+            since trigger.
 
         kwargs :
             Do not pass both `nu` and `lower`/`upper`. OR ELSE.
@@ -294,32 +372,33 @@ class FireballModel:
 
         Returns
         -------
-        np.ndarray or float
-            The jet-break smoothed flux.
+        float or np.ndarray of float
+            The jet-break smoothed flux with units equal to those
+            of `f`.
 
         Raises
         ------
         ValueError
             If `nu` and `lower` and `upper` are not provided.
         """
-        f_peak_jet = self.f_peak(self.tj)
-        nu_m_jet = self.nu_m(self.tj)
-        nu_c_jet = self.nu_c(self.tj)
-
         if 'nu' in kwargs:
             model = SpectralFluxModel
         elif 'lower' in kwargs and 'upper' in kwargs:
             model = IntegratedFluxModel
         else:
             raise ValueError(
-                'Must provide either `nu` or `lower` and `upper`'
+                'Must provide either `nu` or `lower` and `upper`.'
             )
 
-        jet_model = model(nu_m_jet, nu_c_jet, f_peak_jet, self.p, self.k)
-        jet_flux = jet_model(**kwargs)
+        # Evaluate the flux at the jet break time
+        f_jet = model(
+            nu_m=self.nu_m(self.tj), nu_c=self.nu_c(self.tj),
+            f_peak=self.f_peak(self.tj), p=self.p, k=self.k
+        )(**kwargs)
 
+        # return flux smoothed over the jet break
         return (
-            f ** -self.sj + (jet_flux * (t / self.tj) ** -self.p) ** -self.sj
+            f ** -self.sj + (f_jet * (t / self.tj) ** -self.p) ** -self.sj
         ) ** -(1 / self.sj)
 
     def f_peak(self, t):
@@ -351,12 +430,12 @@ class FireballModel:
         Parameters
         ----------
         t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, must
-            be measured in days since trigger.
+            The time to evaluate. If `t` is a float, assumed
+            to be measured in days since trigger.
 
         Returns
         -------
-        float or np.ndarray of float or u.Quantity['time']
+        float or np.ndarray of float
             The cooling frequency in Hz at time `t`.
         """
         return CoolingFrequencyModel(
@@ -371,12 +450,12 @@ class FireballModel:
         Parameters
         ----------
         t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, must
-            be measured in days since trigger.
+            The time to evaluate. If `t` is a float, assumed
+            to be measured in days since trigger.
 
         Returns
         -------
-        float or np.ndarray of float or u.Quantity['time']
+        float or np.ndarray of float
             The synchrotron frequency in Hz at time `t`.
         """
         return SynchrotronFrequencyModel(
@@ -391,17 +470,16 @@ class FireballModel:
         Parameters
         ----------
         t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, must
-            be measured in days since trigger.
+            The time to evaluate. If `t` is a float, assumed
+            to be measured in days since trigger.
 
         regime : str, {'slow', 'fast'}
-            The regime to evaluate the self-absorption frequency
-            model.
+            The regime to evaluate.
 
         Returns
         -------
-        float or np.ndarray of float or u.Quantity['time']
-            The synchrotron frequency in Hz at time `t`.
+        float or np.ndarray of float
+            The self-absorption frequency in Hz at time `t`.
         """
         return AbsorptionFrequencyModel(
             self.E, self.rho0, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p

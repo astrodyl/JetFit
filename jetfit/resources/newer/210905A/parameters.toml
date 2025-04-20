@@ -136,9 +136,10 @@ name  = "H_offset"
 scale = "linear"
 
 [offsets.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 1.0
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.05
+
 
 #----------- CALIBRATION -----------
 #-------------- K-band -------------

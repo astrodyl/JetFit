@@ -192,13 +192,7 @@ class MCMC:
         """
         params = self.params.samples_to_dict(theta)
 
-        # Temp enforce condition
-        eps_b = self.params.get(params, 'model').get('eps_b')
-        eps_e = self.params.get(params, 'model').get('eps_e')
-
-        if eps_b + eps_e >= 1.0:
-            return -np.inf
-
+        # Model the observed afterglow flux
         modeled = self.model(self.observation, params, **self.meta)
 
         # Apply calibration offsets
@@ -206,8 +200,7 @@ class MCMC:
             modeled, self.params.get(params, 'offsets')
         )
 
-        # Skip chi squared calculation since a nan will
-        # always result in -inf anyway
+        # A nan will always result in -inf
         if np.isnan(modeled.min()):
             return -np.inf
 

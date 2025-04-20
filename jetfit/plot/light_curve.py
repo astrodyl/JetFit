@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from jetfit.core.defns.enums import DataType
-
+from jetfit.models2.basemodels import StratifiedMediumModel, BlastWaveModel
 
 COLOR_MAP = {
     # JC Optical/NIR
@@ -52,7 +52,7 @@ def get_best_params(sampler, params, **kwargs):
     return params.samples_to_dict(sampler.get_chain(flat=True)[max_index], **kwargs)
 
 
-def map_groups(observation, gen_times):
+def map_groups(observation, gen_times, dynamic=False):
     """"""
     group_map = {
         g: np.full(len(gen_times), False, dtype=bool)
@@ -69,11 +69,43 @@ def map_groups(observation, gen_times):
     return group_map
 
 
+def map_stratified_groups(observation, gen_times, p_early, p_late):
+    """"""
+    group_map = {
+        g: np.full(len(gen_times), False, dtype=bool)
+        for g in observation.data_groups
+    }
+
+    stratified_model = StratifiedMediumModel(
+        n17_1=p_early['rho0'], n17_2=p_late['rho0'],
+        k1=p_early['k'], k2=p_late['k'], E=p_early['E'],
+    )
+
+    # Calculate the observer-frame transition time [d]
+    t_trans = stratified_model.transition_time(p_early['z']) / 86_400
+
+    # Define the early time model
+    early_model = BlastWaveModel(
+        E=p_early['E'], n17=p_early['rho0'], k=p_early['k'])
+
+    # Calculate the observer-frame deceleration time [d]
+    t_dec = early_model.decel_time(z=p_early['z']) / 86_400
+
+    for i, t in enumerate(gen_times):
+        if (t + t_dec) < t_trans:
+            group_map['early'][i] = True
+        else:
+            group_map['late'][i] = True
+
+    return group_map
+
+
 class FrequencyPlot:
     """"""
-    def __init__(self, sampler, params):
+    def __init__(self, sampler, params, dynamic=False):
         self.sampler = sampler
         self.parameters = params
+        self.dynamic = dynamic
 
         self.ax = None
         self._set_axes()
@@ -113,13 +145,20 @@ class FrequencyPlot:
             nu_cs_all = np.full(times.size, np.nan)
 
             if p.get('shared'):
-                groups = map_groups(obs, times)
+                if not self.dynamic:
+                    groups = map_groups(obs, times)
+                else:
+                    groups = map_stratified_groups(
+                        obs, times,
+                        p.get('early').get('model'),
+                        p.get('late').get('model')
+                    )
 
-                for group in groups.keys():
+                for group, pos in groups.items():
                     model_params = p.get(group).get('model')
                     afterglow_model = model(**model_params, **model_kw)
-                    nu_ms_all[groups[group]] = afterglow_model.nu_m(times[groups[group]])
-                    nu_cs_all[groups[group]] = afterglow_model.nu_c(times[groups[group]])
+                    nu_ms_all[pos] = afterglow_model.nu_m(times[pos])
+                    nu_cs_all[pos] = afterglow_model.nu_c(times[pos])
             else:
                 afterglow_model = model(**p.get('model'), **model_kw)
                 nu_ms_all = afterglow_model.nu_m(times)
@@ -179,7 +218,14 @@ class FrequencyPlot:
             nu_cs_all = np.full(times.size, np.nan)
 
             if p.get('shared'):
-                groups = map_groups(obs, times)
+                if not self.dynamic:
+                    groups = map_groups(obs, times)
+                else:
+                    groups = map_stratified_groups(
+                        obs, times,
+                        p.get('early').get('model'),
+                        p.get('late').get('model')
+                    )
 
                 for group in groups.keys():
                     model_params = p.get(group).get('model')
@@ -242,12 +288,14 @@ class FrequencyPlot:
         self.ax.grid(alpha=0.5)
 
 
+
 class LightCurvePlot:
     """"""
-    def __init__(self, model, params, observation, title='Light Curve'):
+    def __init__(self, model, params, observation, title='Light Curve', dynamic=False):
         self.model = model
         self.params = params
         self.observation = observation
+        self.dynamic = dynamic
 
         self.ax = None
         self._set_axes(title)
@@ -317,15 +365,22 @@ class LightCurvePlot:
             modeled = np.full(times.size, np.nan)
 
             if p.get('shared') is not None:
-                groups = map_groups(self.observation, times)
+                if not self.dynamic:
+                    groups = map_groups(self.observation, times)
+                else:
+                    groups = map_stratified_groups(
+                        self.observation, times,
+                        p.get('early').get('model'),
+                        p.get('late').get('model')
+                    )
 
                 for group, pos in groups.items():
                     model_params = p.get(group).get('model')
                     afterglow_model = self.model(**model_params)
-                    modeled[pos] = afterglow_model.evaluate_spectral_flux(times[pos], freq)
+                    modeled[pos] = afterglow_model.spectral_flux(times[pos], freq)
             else:
                 afterglow_model = self.model(**p.get('model'))
-                modeled = afterglow_model.evaluate_spectral_flux(times, freq)
+                modeled = afterglow_model.spectral_flux(times, freq)
             return modeled
 
         def model_integrated_fluxes(p: dict, low, upp):
@@ -333,15 +388,22 @@ class LightCurvePlot:
             modeled = np.full(times.size, np.nan)
 
             if p.get('shared') is not None:
-                groups = map_groups(self.observation, times)
+                if not self.dynamic:
+                    groups = map_groups(self.observation, times)
+                else:
+                    groups = map_stratified_groups(
+                        self.observation, times,
+                        p.get('early').get('model'),
+                        p.get('late').get('model')
+                    )
 
                 for group, pos in groups.items():
                     model_params = p.get(group).get('model')
                     afterglow_model = self.model(**model_params)
-                    modeled[pos] = afterglow_model.evaluate_integrated_flux(times[pos], low, upp)
+                    modeled[pos] = afterglow_model.integrated_flux(times[pos], low, upp)
             else:
                 afterglow_model = self.model(**p.get('model'))
-                modeled = afterglow_model.evaluate_integrated_flux(times, low, upp)
+                modeled = afterglow_model.integrated_flux(times, low, upp)
             return modeled
 
         # Only plot flux values
@@ -359,10 +421,7 @@ class LightCurvePlot:
         integrated_data = data[self.observation.as_arrays.types[filter_loc] == DataType.INTEGRATED_FLUX]
 
         # Modeling time [days]
-        times = np.logspace(
-            np.log10(flux_times.min()), np.log10(flux_times.max() * 2),
-            num=ndata
-        )
+        times = np.logspace(np.log10(flux_times.min()), np.log10(flux_times.max() * 2), num=ndata)
 
         # Plot the spectral flux for each t in `time`
         for sdata in spectral_data:
