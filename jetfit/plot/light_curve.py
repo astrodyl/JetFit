@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 
 from jetfit.core.defns.enums import DataType
 from jetfit.models2.basemodels import StratifiedMediumModel, BlastWaveModel
+from jetfit.models2.fireball import StratifiedFireballModel
 
 COLOR_MAP = {
     # JC Optical/NIR
@@ -134,7 +135,7 @@ class FrequencyPlot:
             plt.show()
 
         if out_dir is not None:
-            plt.savefig(out_dir / 'frequency_dist.png')
+            plt.savefig(out_dir / 'frequency_dist.png', dpi=600)
 
     def plot_frequencies(self, model, obs, **model_kw):
         """"""
@@ -143,6 +144,7 @@ class FrequencyPlot:
             """ Model the critical frequencies using data groups. """
             nu_ms_all = np.full(times.size, np.nan)
             nu_cs_all = np.full(times.size, np.nan)
+            nu_as_all = np.full(times.size, np.nan)
 
             if p.get('shared'):
                 if not self.dynamic:
@@ -159,11 +161,19 @@ class FrequencyPlot:
                     afterglow_model = model(**model_params, **model_kw)
                     nu_ms_all[pos] = afterglow_model.nu_m(times[pos])
                     nu_cs_all[pos] = afterglow_model.nu_c(times[pos])
+                    nu_as_all[pos] = afterglow_model.nu_a(times[pos])
             else:
                 afterglow_model = model(**p.get('model'), **model_kw)
-                nu_ms_all = afterglow_model.nu_m(times)
-                nu_cs_all = afterglow_model.nu_c(times)
-            return nu_ms_all, nu_cs_all
+                if isinstance(afterglow_model, StratifiedFireballModel):
+                    n_eff, k_eff = afterglow_model.smooth(times)
+                    nu_ms_all = afterglow_model.nu_m(k_eff, times)
+                    nu_cs_all = afterglow_model.nu_c(n_eff, k_eff, times)
+                    nu_as_all = afterglow_model.nu_a(n_eff, k_eff, times, 'slow')
+                else:
+                    nu_ms_all = afterglow_model.nu_m(times)
+                    nu_cs_all = afterglow_model.nu_c(times)
+                    nu_as_all = afterglow_model.nu_a(times, 'slow')
+            return nu_ms_all, nu_cs_all, nu_as_all
 
         # Get random locations from flattened chain
         flat_chain = self.sampler.get_chain(flat=True, thin=10)
@@ -184,29 +194,20 @@ class FrequencyPlot:
             )
 
             # For each data group...
-            nu_ms, nu_cs = model_frequencies(params)
+            nu_ms, nu_cs, nu_as = model_frequencies(params)
 
             # Finally plot them.
             self.ax.loglog(times, nu_ms, color='blue', alpha=0.1)
             self.ax.loglog(times, nu_cs, color='orange', alpha=0.1)
+            self.ax.loglog(times, nu_as, color='green', alpha=0.1)
 
         best_params = get_best_params(self.sampler, self.parameters, cat='model')
-        best_nu_ms, best_nu_cs = model_frequencies(best_params)
-
-        # Max likelihood parameters using data groups
-        # best_params = get_best_params(self.sampler, self.parameters, cat='model')
-        # best_nu_ms, best_nu_cs = model_frequencies(best_params)
-        #
-        # else:
-            # Max likelihood parameters
-            # best_params = get_best_params(self.sampler, self.parameters, cat='model')
-            # best_afterglow_model = model(**best_params.get('model'), **model_kw)
-            # best_nu_ms = best_afterglow_model.nu_m(times)
-            # best_nu_cs = best_afterglow_model.nu_c(times)
+        best_nu_ms, best_nu_cs, best_nu_as = model_frequencies(best_params)
 
         # Plot best frequencies
         self.ax.loglog(times, best_nu_ms, color='purple', linewidth=2)
         self.ax.loglog(times, best_nu_cs, color='red', linewidth=2)
+        self.ax.loglog(times, best_nu_as, color='green', linewidth=2)
 
     def plot_best(self, obs, model, out_dir=None, **model_kw):
         """"""
@@ -216,6 +217,7 @@ class FrequencyPlot:
             """ Model the critical frequencies using data groups. """
             nu_ms_all = np.full(times.size, np.nan)
             nu_cs_all = np.full(times.size, np.nan)
+            nu_as_all = np.full(times.size, np.nan)
 
             if p.get('shared'):
                 if not self.dynamic:
@@ -232,11 +234,19 @@ class FrequencyPlot:
                     afterglow_model = model(**model_params, **model_kw)
                     nu_ms_all[groups[group]] = afterglow_model.nu_m(times[groups[group]])
                     nu_cs_all[groups[group]] = afterglow_model.nu_c(times[groups[group]])
+                    nu_as_all[groups[group]] = afterglow_model.nu_a(times[groups[group]])
             else:
                 afterglow_model = model(**p.get('model'), **model_kw)
-                nu_ms_all = afterglow_model.nu_m(times)
-                nu_cs_all = afterglow_model.nu_c(times)
-            return nu_ms_all, nu_cs_all
+                if isinstance(afterglow_model, StratifiedFireballModel):
+                    n_eff, k_eff = afterglow_model.smooth(times)
+                    nu_ms_all = afterglow_model.nu_m(k_eff, times)
+                    nu_cs_all = afterglow_model.nu_c(n_eff, k_eff, times)
+                    nu_as_all = afterglow_model.nu_a(n_eff, k_eff, times, 'slow')
+                else:
+                    nu_ms_all = afterglow_model.nu_m(times)
+                    nu_cs_all = afterglow_model.nu_c(times)
+                    nu_as_all = afterglow_model.nu_a(times, 'slow')
+            return nu_ms_all, nu_cs_all, nu_as_all
 
         times = np.logspace(
             start=np.log10(obs.as_arrays.times[obs.flux_loc].min()),
@@ -245,15 +255,16 @@ class FrequencyPlot:
         )
 
         best_params = get_best_params(self.sampler, self.parameters, cat='model')
-        nu_ms, nu_cs = model_frequencies(best_params)
+        nu_ms, nu_cs, nu_as = model_frequencies(best_params)
 
         # Include indices in label
         ax.loglog(times, nu_ms, color='blue', label=r'$\nu_{m}$')
         ax.loglog(times, nu_cs, color='orange', label=r'$\nu_{c}$')
+        ax.loglog(times, nu_as, color='green', label=r'$\nu_{a}$')
 
         # Plot horizontal lines roughly corresponding to optical/xray
-        plt.axhline(y=5e14, color='green', linewidth=10, alpha=0.2)
-        plt.axhline(y=1e18, color='black', linewidth=10, alpha=0.3)
+        plt.axhline(y=5e14, color='green', linewidth=10, alpha=0.5)
+        plt.axhline(y=5e17, color='black', linewidth=10, alpha=0.5)
 
         ax.set_title('Critical Frequencies')
         ax.set_xlabel('Time Since Trigger (days)')
@@ -338,7 +349,7 @@ class LightCurvePlot:
             plt.show()
 
         if out_dir is not None:
-            plt.savefig(out_dir / 'light_curve.png')
+            plt.savefig(out_dir / 'light_curve.png', dpi=600)
 
     def plot_model(
             self, show: bool = False, ext_model=None, ndata: int = 200

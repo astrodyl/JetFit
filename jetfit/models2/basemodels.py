@@ -28,10 +28,11 @@ class BaseBlastWaveModel:
     c = const.c.cgs.value  # type: ignore
     m_p = const.m_p.cgs.value  # type: ignore
 
-    def __init__(self, E, n17, k):
+    def __init__(self, E, n17, k, ref):
         self._E = E
         self._n17 = n17
         self.k = k
+        self.r_ref = ref
 
     @property
     def E(self) -> float:
@@ -77,15 +78,15 @@ class BaseBlastWaveModel:
 
         Parameters
         ----------
-        n17 : float or u.Quantity['number density', 'density']
+        n17 : float or u.Quantity['number density', 'mass density']
             The number density at 1e17 cm.
         """
         if isinstance(n17, u.Quantity):
             if n17.physical_type == 'number density':
-                n17 = n17.to_value('cm')
+                n17 = n17.cgs.value
 
-            elif n17.physical_type == 'density':
-                n17 = n17.to_value('cm') / self.m_p
+            elif n17.physical_type == 'mass density':
+                n17 = n17.cgs.value / self.m_p
 
         self._n17 = n17
 
@@ -102,7 +103,7 @@ class BaseBlastWaveModel:
     @property
     def rho17(self):
         """ Returns the density normalization. """
-        return self.n17 * self.m_p * (1e17 ** self.k)
+        return self.n17 * self.m_p * (self.r_ref ** self.k)
 
 
 # noinspection PyPep8Naming
@@ -110,8 +111,8 @@ class BlastWaveModel(BaseBlastWaveModel):
     """
     Models a self-similar, ultra-relativistic blast wave.
     """
-    def __init__(self, E, n17, k):
-        super().__init__(E, n17, k)
+    def __init__(self, E, n17, k, ref=1e17):
+        super().__init__(E, n17, k, ref)
 
     def lorentz_factor(self, z, t):
         """
@@ -157,7 +158,7 @@ class BlastWaveModel(BaseBlastWaveModel):
             The observer time measured in days.
 
         t_decel : float or u.Quantity['time'] or np.ndarray
-            The source frame (z=0) deceleration time
+            The burst frame (z=0) deceleration time
             of the blast wave measured in days.
 
         Returns
@@ -166,6 +167,11 @@ class BlastWaveModel(BaseBlastWaveModel):
             The shock radius evaluated at `t`.
         """
         if isinstance(t, u.Quantity):
+            if t.unit.physical_type != 'time':
+                raise TypeError(
+                    f'Expected a time Quantity. Received '
+                    f'{t.unit.physical_type} instead.'
+                )
             t = t.to_value('d')
 
         # Add the deceleration time [s]
@@ -296,6 +302,159 @@ class OpeningAngleModel:
             ((1e52 * self.E) **-1) *        # [g cm2 s-2] ^ -1
             ((86_400 * t) ** (3 - self.k))  # [s] ^ (3 - k)
         ) ** (0.5 / (4 - self.k))
+
+
+class BaseFireballModel:
+    """
+    Base model. Not intended for direct use.
+
+    Implements the ultra-relativistic shock moving into an
+    external medium with density rho = rho_0 * R^-k.
+
+    Attributes
+    ----------
+    E : float or astropy.units.Quantity['energy']
+        The explosion energy [1e52 ergs].
+
+    rho0 : float or astropy.units.Quantity['number density']
+        The density normalization [cm-3].
+
+    dL : float or astropy.units.Quantity['length']
+        The luminosity distance to the event [1e28 cm].
+
+    p : float
+        The electron energy index.
+
+    k : float or np.ndarray of float
+        The density power-law index. The model requires that
+        `k` < 4.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    eps_e : float
+        The fraction of thermal energy carried by relativistic
+        electrons. Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    X : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    References
+    ----------
+    [1] Broadband view of blast wave physics: A study
+        of gamma-ray burst afterglows
+    """
+    m_p = const.m_p.cgs.value  # type: ignore
+
+    # noinspection PyPep8Naming
+    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X):
+        # intrinsic properties
+        self.E = E
+        self.p = p
+        self.eps_b = eps_b
+        self.eps_e = eps_e
+        self.k = k
+        self.rho0 = rho0
+        self.X = X
+
+        # extrinsic properties
+        self.dL = dL
+        self.z = z
+
+    def __repr__(self):
+        """ Human-readable representation. """
+        name = self.__class__.__name__
+        return f'{name}(E={self.E}, n={self.rho0}, .., p={self.p}, k={self.k})'
+
+    # noinspection PyPep8Naming
+    @property
+    def E(self) -> float:
+        """ Returns the explosion energy normalized to 10e52 ergs. """
+        return self._E
+
+    # noinspection PyPep8Naming
+    @E.setter
+    def E(self, e: float | u.Quantity) -> None:
+        """
+        Sets the explosion energy normalized to 10e52 ergs.
+
+        Parameters
+        ----------
+        e : float or astropy.units.Quantity
+            The explosion energy. If a float is provided, assumes
+            that the value is already normalized to 1e52 ergs.
+        """
+        if isinstance(e, u.Quantity):
+            e = e.to_value('erg') / 1e52
+        self._E = e
+
+    @property
+    def rho0(self) -> float:
+        """ Returns the density normalization, normalized to the proton mass. """
+        return self._rho0
+
+    @rho0.setter
+    def rho0(self, rho0) -> None:
+        """
+        Sets the density normalization as a simple float.
+
+        Define rho as:
+
+        rho = rho_x * R^-k = rho_0 * (R/R_0)^-k
+
+        such that:
+
+        rho_x = rho_0 * R_0^k = n0 * m_p * R_0^k
+
+        where R_0 is the characteristic radius which is
+        taken to be 1e17 cm. Then, `n17` is defined as
+        the number density with respect to 1e17 cm.
+
+        Parameters
+        ----------
+        rho0 : float or u.Quantity['number density', 'mass density']
+            The number density at 1e17 cm.
+        """
+        if isinstance(rho0, u.Quantity):
+            if rho0.unit.physical_type == 'number density':
+                rho0 = rho0.cgs.value
+
+            elif rho0.unit.physical_type == 'mass density':
+                rho0 = rho0.cgs.value / self.m_p
+
+        self._rho0 = rho0
+
+    # noinspection PyPep8Naming
+    @property
+    def dL(self) -> float:
+        """ Returns the luminosity distance normalized to 1e28 cm. """
+        return self._dL
+
+    # noinspection PyPep8Naming
+    @dL.setter
+    def dL(self, d: float | u.Quantity) -> None:
+        """
+        Sets the luminosity distance normalized to 1e28 cm.
+
+        Parameters
+        ----------
+        d : float or astropy.units.Quantity
+            The luminosity distance. If a float is provided,
+            assumes the value is normalized to 1e28 cm.
+        """
+        if isinstance(d, u.Quantity):
+            d = d.to_value('cm') / 1e28
+        self._dL = d
+
+    @property
+    def is_physical(self):
+        """ Whether the model is parameters are physically valid. """
+        return self.eps_b + self.eps_e < 1.0
 
 
 class BaseFluxModel:
@@ -477,8 +636,12 @@ class SpectralFluxModel(BaseFluxModel):
         b3 = np.full(size, -self.p / 2)
 
         # Initialize smoothing factors with slow-cooling params
-        s12 = np.full(size, 1.84 - (0.040 * self.k) - (0.40 - 0.010 * self.k) * self.p)
-        s23 = np.full(size, 1.15 - (0.125 * self.k) - (0.06 - 0.015 * self.k) * self.p)
+        if isinstance(self.k, np.ndarray):
+            s12 = 1.84 - (0.040 * self.k) - (0.40 - 0.010 * self.k) * self.p
+            s23 = 1.15 - (0.125 * self.k) - (0.06 - 0.015 * self.k) * self.p
+        else:
+            s12 = np.full(size, 1.84 - (0.040 * self.k) - (0.40 - 0.010 * self.k) * self.p)
+            s23 = np.full(size, 1.15 - (0.125 * self.k) - (0.06 - 0.015 * self.k) * self.p)
 
         # Initialize critical frequencies in slow-cooling order
         nu12 = np.array(nu_m, copy=True)
@@ -488,14 +651,13 @@ class SpectralFluxModel(BaseFluxModel):
         fast_regime = nu_m > nu_c
 
         if fast_regime.any():
-            try:
-                b2[fast_regime] = -0.5
-                s12[fast_regime] = 0.597
-                nu12[fast_regime] = nu_c[fast_regime]
-                nu23[fast_regime] = nu_m[fast_regime]
-                s23[fast_regime] = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
-            except IndexError as e:
-                print()
+            fast_k = self.k[fast_regime] if isinstance(self.k, np.ndarray) else self.k
+
+            b2[fast_regime] = -0.5
+            s12[fast_regime] = 0.597
+            nu12[fast_regime] = nu_c[fast_regime]
+            nu23[fast_regime] = nu_m[fast_regime]
+            s23[fast_regime] = 3.34 + 0.17 * fast_k - (0.82 + 0.035 * fast_k) * self.p
 
         # Smooth the flux across the spectral segments
         flux = self.f_peak * (
@@ -504,7 +666,7 @@ class SpectralFluxModel(BaseFluxModel):
             (((nu23 / nu12) ** -(s23 * b2)) * ((nu/nu23) ** -(s23 * b3)))
         ) ** -(1 / s23)
 
-        # return spectral flux smoothed across segments [mJy]
+        # return the smoothed spectral flux [mJy]
         return flux[0] if flux.size == 1 else flux
 
 
@@ -568,7 +730,7 @@ class IntegratedFluxModel(BaseFluxModel):
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k
         ).evaluate(lower)
 
-        # return smoothed integrated flux [erg cm-2 s-1]
+        # return the smoothed integrated flux [erg cm-2 s-1]
         return 1e-26 * (
             (flux * lower / (beta + 1)) *
             (((upper / lower) ** (beta + 1)) - 1)
@@ -627,7 +789,7 @@ class SpectralIndexModel(BaseFluxModel):
         model = SpectralFluxModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k)
 
-        # return spectral index [dimension less]
+        # return the spectral index [dimension less]
         return (
             np.log10(model(upper) / model(lower)) /
             np.log10(upper / lower)
@@ -649,7 +811,7 @@ class BaseSpectralModel:
     eps_b : float
         The fraction of thermal energy in the magnetic field.
 
-    k : float
+    k : float or np.ndarray of float
         The density power-law index.
 
     z : float
@@ -727,7 +889,7 @@ class PeakFluxModel(BaseSpectralModel):
         """ Returns the inverse particle density. """
         return 0.5 * (1 + self.X)
 
-    def evaluate(self, t):
+    def evaluate(self, t, ref=17):
         """
         Calculates the peak flux at time `t` for a shock's
         movement that is described by `evo`.
@@ -737,6 +899,9 @@ class PeakFluxModel(BaseSpectralModel):
         t : float or np.array of float or u.Quantity['time']
             The time to evaluate. If `t` is a float, must
             be measured in days since trigger.
+
+        ref : float
+            The radius normalization [cm] in log space.
 
         Returns
         -------
@@ -750,20 +915,20 @@ class PeakFluxModel(BaseSpectralModel):
         k, x = self.k, 4 - self.k
 
         # Evaluate exponents once
-        exp_z   = 0.5 * (8 - k) / x
         exp_c   = -0.5 * (24 - 7 * k) / x
         exp_en  = 0.5 * (8 - 3 * k) / x
+        exp_z   = 0.5 * (8 - k) / x
         exp_t   = -0.5 * k / x
         exp_rho = 2 / x
 
         # Exponents in log-space to prevent overflow
         log_pot = (
-            (10 * exp_c) +              # speed of light [cm]
-            (52 * exp_en) +             # 1e52 erg normalization
-            ((17 * k - 24) * exp_rho) + # proton mass [g] and radius normalization
-            (4 * exp_t) -               # time conversion (d -> s)
-            8.0                         # e(q_e)^3 * e(m_e)^-1 * e(m_p)^-1 - e(dL)^2 + e(cgs->mJy)
-                                        # = -30 + 28 + 24 -56 + 26 = -8
+            (10 * exp_c) +                # speed of light [cm]
+            (52 * exp_en) +               # 1e52 erg normalization
+            ((ref * k - 24) * exp_rho) +  # proton mass [g] and radius normalization
+            (4 * exp_t) -                 # time conversion (d -> s)
+            8.0                           # e(q_e)^3 * e(m_e)^-1 * e(m_p)^-1 - e(dL)^2 + e(cgs->mJy)
+                                          # = -30 + 28 + 24 -56 + 26 = -8
         )
 
         # return peak flux [mJy]
@@ -807,7 +972,7 @@ class CoolingFrequencyModel(BaseSpectralModel):
         super().__init__(E, eps_b, k, z)
         self.rho0 = rho0
 
-    def evaluate(self, t):
+    def evaluate(self, t, ref=17):
         """
         Calculates the cooling frequency at time `t`
         for a shock's movement that is described by `evo`.
@@ -817,6 +982,9 @@ class CoolingFrequencyModel(BaseSpectralModel):
         t : float or np.array of float or u.Quantity['time']
             The time to evaluate. If `t` is a float, must
             be measured in days since trigger.
+
+        ref : float
+            The radius normalization [cm] in log space.
 
         Returns
         -------
@@ -839,7 +1007,7 @@ class CoolingFrequencyModel(BaseSpectralModel):
         # exponents in log-space to prevent overflow
         log_pot = (
             (10 * exp_c) + (52 * exp_en) - 70 +
-            (4 * exp_t) + ((17 * k - 24) * exp_rho)
+            (4 * exp_t) + ((ref * k - 24) * exp_rho)
         )
 
         # return cooling frequency [Hz]
@@ -975,7 +1143,7 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         self.X = X
         self.p = p
 
-    def evaluate(self, t, regime):
+    def evaluate(self, t, regime, ref=17):
         """
         ??
 
@@ -989,14 +1157,17 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
             Indicates whether to evaluate the fast or slow
             cooling model.
 
+        ref : float, optional, default=17
+            The reference radius [cm] in log space.
+
         Returns
         -------
         float or np.array of float
             The self-absorption frequency at time `t` measured in Hz.
         """
-        return getattr(self, f'evaluate_{regime}')(t)
+        return getattr(self, f'evaluate_{regime}')(t, ref)
 
-    def evaluate_slow(self, t):
+    def evaluate_slow(self, t, ref=17):
         """"""
         if isinstance(t, u.Quantity):
             t = t.to_value('d')
@@ -1025,7 +1196,6 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
             e_beta * np.log10(self.beta) +          # hydrodynamics coefficient
             e_pi * np.log10(np.pi) +                # pi
             (1.6 * np.log10(0.5 * (1 + self.X))) +  # hydrogen mass fraction
-            -np.log10(self.p - 2) +                 # electron energy index
             1.6 * np.log10(self.p - 1) +            # electron energy index
             -0.6 * np.log10(self.p + 2/3) +         # electron energy index
             0.6 * np.log10(self.p + 2) +            # electron energy index
@@ -1038,13 +1208,13 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
             # Model parameters
             -np.log10(self.eps_e) +                       # electron field energy fraction
             0.2 * np.log10(self.eps_b) +                  # magnetic field electron fraction
-            e_rho * (17*k + np.log10(m_p * self.rho0)) +  # density [g cm-3]
+            e_rho * (ref*k + np.log10(m_p * self.rho0)) +  # density [g cm-3]
             e_en * (52 + np.log10(self.E)) +              # energy [erg]
             e_z * np.log10(1 + self.z) +                  # redshift
 
             # Evaluated at time, `t`
             -0.6 * (k / x) * np.log10(86_400 * t)  # time [s]
-        )
+        ) * ((self.p - 2) ** -1)  # electron energy index (avoids inf for p < 2)
 
 
 class ObservedFluxModel:
@@ -1374,14 +1544,14 @@ class StratifiedMediumModel:
     """
     m_p = const.m_p.cgs.value  # type: ignore
     c = const.c.cgs.value  # type: ignore
-    r_ref = 1e17
 
-    def __init__(self, E, n17_1, n17_2, k1, k2):
+    def __init__(self, E, n17_1, n17_2, k1, k2, ref=1e17):
         self.E = E
         self.n17_1 = n17_1
         self.n17_2 = n17_2
         self.k1 = k1
         self.k2 = k2
+        self.r_ref = ref
 
     @staticmethod
     def alpha(k) -> float:
@@ -1408,7 +1578,7 @@ class StratifiedMediumModel:
             The transition radius measured in cm.
         """
         # Evaluate in log space to prevent overflow when k1 ~= k2
-        return 10 ** (17 + np.log10(self.n17_2 / self.n17_1) / (self.k2 - self.k1))
+        return 10 ** (np.log10(self.r_ref) + np.log10(self.n17_2 / self.n17_1) / (self.k2 - self.k1))
 
     def transition_time(self, z):
         """

@@ -6,9 +6,8 @@ import astropy.constants as const
 from matplotlib import pyplot as plt
 
 from jetfit.models2.basemodels import PeakFluxModel, SynchrotronFrequencyModel, CoolingFrequencyModel, \
-    AbsorptionFrequencyModel
-from jetfit.models2.fireball import FireballModel
-
+    AbsorptionFrequencyModel, BlastWaveModel
+from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
 
 # Constants in cgs units
 m_p = const.m_p.cgs  # noqa
@@ -19,6 +18,40 @@ c = const.c.cgs  # noqa
 
 class TestCharacteristicModels(unittest.TestCase):
     """"""
+    def test_plot(self):
+        """"""
+        model = StratifiedFireballModel(
+            E=1.0, p=2.5, eps_b=0.001, eps_e=0.1, X=0.7,
+            k1=-1.0, k2=3.0, sk=3.0, n1=1.0, n2=100.0, sn=3.0,
+            rt=1e17, dL=2.0, z=0.0
+        )
+
+        ts = np.geomspace(100, 1e5, 500)
+        radii = np.geomspace(1e15, 1e19, 500)
+
+
+        for s in np.linspace(1.0, 5.0, 5):
+            model.sn = s
+            n_eff, _ = model.smooth(ts, radii)
+
+            plt.loglog(radii, n_eff, label=f's = {s}')
+            plt.axvline(model.rt, linestyle='--', color='black')
+            plt.xlabel(r'Radius [cm]')
+            plt.ylabel(r'$n_{eff}$')
+            plt.legend(loc='best')
+        plt.show()
+
+        for s in np.linspace(1.0, 5.0, 5):
+            model.sk = s
+            _, k_eff = model.smooth(ts, radii)
+
+            plt.plot(radii, k_eff, label=f's = {s}')
+            plt.xlabel(r'Radius [cm]')
+            plt.ylabel(r'$k_{eff}$')
+            plt.legend(loc='best')
+            plt.xscale('log')
+        plt.show()
+
     def test_nu_a(self):
         """"""
         # ISM

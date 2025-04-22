@@ -12,23 +12,23 @@ scale = "log"
     upper = 1.0
 
 #-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- n1 ----------------
+#---------------- n ----------------
 [[model]]
-name  = "n1"
+name  = "rho0"
 scale = "log"
+group = "early"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
-    upper = 6.0
+    lower = -3.0
+    upper = 2.0
 
 #-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- n2 ----------------
+#---------------- n ----------------
 [[model]]
-name  = "n2"
+name  = "rho0"
 scale = "log"
+group = "late"
 
 [model.prior]
     type  = "uniform"
@@ -71,61 +71,27 @@ scale = "linear"
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#--------------- k1 ----------------
+#------------ k (early) ------------
 [[model]]
-name  = "k1"
+name  = "k"
 scale = "linear"
+group = "early"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
+    lower = 2.0
     upper = 3.0
 
 #-------------- MODEL --------------
-#--------------- k2 ----------------
+#------------- k (late) ------------
 [[model]]
-name  = "k2"
+name  = "k"
 scale = "linear"
+group = "late"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- rt ----------------
-[[model]]
-name  = "rt"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = 15.0
-    upper = 22.0
-
-#-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- sn ----------------
-[[model]]
-name  = "sn"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = 1.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- sk ----------------
-[[model]]
-name  = "sk"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = 1.0
+    lower = -6.0
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -180,7 +146,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 1.0
+    upper = 0.1
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------

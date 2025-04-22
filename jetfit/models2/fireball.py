@@ -1,16 +1,364 @@
-import astropy.units as u
 import numpy as np
 
 from jetfit.core.input import Observation
-from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel, AbsorptionFrequencyModel
+from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel, BlastWaveModel
+from jetfit.models2.basemodels import AbsorptionFrequencyModel, BaseFireballModel
 from jetfit.models2.basemodels import SynchrotronFrequencyModel, SpectralFluxModel
 from jetfit.models2.basemodels import CoolingFrequencyModel, PeakFluxModel
 
+# ignore `dust_extinction` user warnings
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 
 
-class FireballModel:
+class StratifiedFireballModel:
+    """
+    Implements the ultra-relativistic shock moving into an
+    external medium with density rho = rho_0 * R^-k.
+
+    Parameters
+    ----------
+    E : float or astropy.units.Quantity
+        The explosion energy normalized to 1e52 ergs.
+
+    p : float
+        The electron energy index (dimensionless).
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+
+    eps_e : float
+        The fraction of thermal energy carried by relativistic
+        electrons.
+
+    z : float
+        The redshift to the event.
+
+    dL : float or astropy.units.Quantity
+        The luminosity distance to the event [1e28 cm].
+
+    nt : float or astropy.units.Quantity
+        The density normalization at the transition radius [cm-3].
+
+    rt : float
+        The density transition radius [cm].
+
+    st : float
+        The density smoothing factor.
+
+    k1 : float
+        The density power-law index before the transition.
+
+    k2 : float
+        The density power-law index after the transition.
+
+    X : float
+        The hydrogen mass fraction.
+
+    tj : float, optional
+        The jet break time in days.
+
+    sj : float, optional
+        The jet break smoothing factor.
+    """
+
+    # noinspection PyPep8Naming
+    def __init__(self, E, p, eps_b, eps_e, z, dL, rt, sn, n1, n2, k1, k2, sk, X, tj=None, sj=None):
+        # Afterglow
+        self.E = E
+        self.p = p
+        self.eps_b = eps_b
+        self.eps_e = eps_e
+        self.X = X
+
+        # Observer
+        self.dL = dL
+        self.z = z
+
+        # Medium
+        self.rt = rt
+
+        self.k1 = k1
+        self.k2 = k2
+        self.sk = sk
+
+        self.n1 = n1
+        self.n2 = n2
+        self.sn = sn
+
+        # Jet
+        self.tj = tj
+        self.sj = sj
+
+    def smooth(self, t, radii=None):
+        """
+        Empirically smooths the number density normalizations
+        and the power-law indices over the observer times `t`.
+
+        Parameters
+        ----------
+        t : np.ndarray
+            The observer times [days since trigger].
+
+        radii : np.ndarray of float, optional
+            The blast wave radii [cm].
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+            The smoothed number density normalizations [cm-3] and
+            the smoothed density power-law indices.
+        """
+        if radii is None:
+            bwm = BlastWaveModel(self.E, self.n1, self.k1, self.rt)
+            radii = bwm.shock_radius(self.z, t, bwm.decel_time() / 86_400)
+
+        # Smooth the density normalizations
+        x = radii / self.rt
+        n_eff = self.n1 + (self.n2 - self.n1) / (1 + x ** -self.sn)
+        k_eff = self.k1 + (self.k2 - self.k1) / (1 + x ** -self.sk)
+
+        return n_eff, k_eff
+
+    def model(self, observation: Observation) -> np.ndarray:
+        """"""
+        res = np.full(len(observation.data), np.nan)
+
+        # Do not model physically impossible solutions
+        if self.eps_b + self.eps_e >= 1.0:
+            return res
+
+        # For speed, get observation as arrays
+        arrays = observation.as_arrays
+
+        # Smooth the density profile
+        n_eff, k_eff = self.smooth(arrays.times)
+
+        # Calculate the spectral functions
+        f_peaks = self.f_peak(n_eff, k_eff, arrays.times)
+        nu_cs = self.nu_c(n_eff, k_eff, arrays.times)
+        nu_ms = self.nu_m(k_eff, arrays.times)
+
+        # Model spectral fluxes
+        if (sf_mask := arrays.sflux_loc).any():
+            res[sf_mask] = SpectralFluxModel(
+                nu_ms[sf_mask], nu_cs[sf_mask], f_peaks[sf_mask], self.p, k_eff[sf_mask]
+            )(arrays.frequencies[sf_mask])
+
+        # Model integrated fluxes
+        if (if_mask := arrays.iflux_loc).any():
+            res[if_mask] = IntegratedFluxModel(
+                nu_ms[if_mask], nu_cs[if_mask], f_peaks[if_mask], self.p, k_eff[if_mask]
+            )(arrays.if_lower_freqs[if_mask], arrays.if_upper_freqs[if_mask])
+
+        # Model spectral indices
+        if (si_mask := arrays.sindex_loc).any():
+            res[si_mask] = SpectralIndexModel(
+                nu_ms[si_mask], nu_cs[si_mask], f_peaks[si_mask], self.p, k_eff[si_mask]
+            )(arrays.si_lower_freqs[si_mask], arrays.si_upper_freqs[si_mask])
+
+        # Smooth the flux values if there is a jet break
+        if self.tj and sf_mask.any():
+            res[sf_mask] = self.smooth_jet_break(
+                f=res[sf_mask], t=arrays.times[sf_mask],
+                nu=arrays.frequencies[sf_mask],
+                n=n_eff[sf_mask], k=k_eff[sf_mask]
+            )
+
+        if self.tj and if_mask.any():
+            res[if_mask] = self.smooth_jet_break(
+                f=res[if_mask], t=arrays.times[if_mask],
+                lower=arrays.if_lower_freqs[if_mask],
+                upper=arrays.if_upper_freqs[if_mask],
+                n=n_eff[if_mask], k=k_eff[if_mask]
+            )
+
+        return res
+
+    def f_peak(self, n, k, t):
+        """
+        Calculates the peak flux in the case of an ultra-
+        relativistic shock moving into an external medium
+        with density rho = rho_0 * R^-k.
+
+        Parameters
+        ----------
+        n : float or np.ndarray of float
+            The smoothed density normalization [cm-3].
+
+        k : float or np.ndarray of float
+            The density power-law indices.
+
+        t : float or np.ndarray of float or u.Quantity['time']
+            The time to evaluate. If `t` is a float, must
+            be measured in days since trigger.
+
+        Returns
+        -------
+        float or np.ndarray of float or u.Quantity['time']
+            The peak flux in mJy at time `t`.
+        """
+        return PeakFluxModel(
+            self.E, n, self.eps_b, self.dL, self.z, k, self.X)(t, np.log10(self.rt))
+
+    def nu_c(self, n, k, t):
+        """
+        Calculates the cooling frequency in the case of an ultra-
+        relativistic shock moving into an external medium with
+        density rho = rho_0 * R^-k.
+
+        Parameters
+        ----------
+        n : np.ndarray of float
+            The smoothed density normalization [cm-3].
+
+        k : np.ndarray of float
+            The density power-law indices.
+
+        t : float or np.ndarray of float or u.Quantity['time']
+            The time to evaluate. If `t` is a float, assumed
+            to be measured in days since trigger.
+
+        Returns
+        -------
+        float or np.ndarray of float
+            The cooling frequency in Hz at time `t`.
+        """
+        return CoolingFrequencyModel(
+            self.E, n, self.eps_b, k, self.z)(t, np.log10(self.rt))
+
+    def nu_m(self, k, t):
+        """
+        Calculates the synchrotron frequency in the case of an
+        ultra-relativistic shock moving into an external medium
+        with density rho = rho_0 * R^-k.
+
+        Parameters
+        ----------
+        k : np.ndarray of float
+            The density power-law indices.
+
+        t : float or np.ndarray of float or u.Quantity['time']
+            The time to evaluate. If `t` is a float, assumed
+            to be measured in days since trigger.
+
+        Returns
+        -------
+        float or np.ndarray of float
+            The synchrotron frequency in Hz at time `t`.
+        """
+        return SynchrotronFrequencyModel(
+            self.E, self.eps_e, self.eps_b, k, self.z, self.X, self.p)(t)
+
+    def nu_a(self, n, k, t, regime: str):
+        """
+        Calculates the self-absorption frequency in the case of
+        an ultra-relativistic shock moving into an external medium
+        with density rho = rho_0 * R^-k.
+
+        Parameters
+        ----------
+        t : float or np.ndarray of float or u.Quantity['time']
+            The time to evaluate. If `t` is a float, assumed
+            to be measured in days since trigger.
+
+        regime : str, {'slow', 'fast'}
+            The regime to evaluate.
+
+        Returns
+        -------
+        float or np.ndarray of float
+            The self-absorption frequency in Hz at time `t`.
+        """
+        return AbsorptionFrequencyModel(
+            self.E, n, self.eps_e, self.eps_b, k, self.z, self.X, self.p
+        )(t, regime, np.log10(self.rt))
+
+    def smooth_jet_break(self, f, t, n, k, **kwargs):
+        """ Will be moved in base or mixin. """
+        if 'nu' in kwargs:
+            model = SpectralFluxModel
+        elif 'lower' in kwargs and 'upper' in kwargs:
+            model = IntegratedFluxModel
+        else:
+            raise ValueError(
+                'Must provide either `nu` or `lower` and `upper`.'
+            )
+
+        # Evaluate the flux at the jet break time
+        f_jet = model(
+            nu_m=self.nu_m(k, self.tj), nu_c=self.nu_c(n, k, self.tj),
+            f_peak=self.f_peak(n, k, self.tj), p=self.p, k=k
+        )(**kwargs)
+
+        # return flux smoothed over the jet break
+        return (
+            f ** -self.sj + (f_jet * (t / self.tj) ** -self.p) ** -self.sj
+        ) ** -(1 / self.sj)
+
+    def spectral_flux(self, t, f):
+        """
+        Calculates the spectral fluxes at times `t` for the
+        frequencies `f`.
+
+        Parameters
+        ----------
+        t : float or np.ndarray of float u.Quantity['time']
+            The observer times measured in days since trigger.
+
+        f : float or np.ndarray of float
+            The average band frequencies.
+
+        Returns
+        -------
+        float np.ndarray of float
+            The modeled spectral flux.
+        """
+        n_eff, k_eff = self.smooth(t)
+
+        res = SpectralFluxModel(
+            self.nu_m(k_eff, t), self.nu_c(n_eff, k_eff, t),
+            self.f_peak(n_eff, k_eff, t), self.p, k_eff
+        ).evaluate(f)
+
+        if self.tj:
+            return self.smooth_jet_break(res, t, n_eff, k_eff, nu=f)
+
+        return res
+
+    def integrated_flux(self, t, lower, upper):
+        """
+        Calculates the integrated fluxes at times `t` for the
+        lower and upper integration bounds, `lower` and `upper`.
+
+        Parameters
+        ----------
+        t : float or np.ndarray of float u.Quantity['time']
+            The observer times measured in days since trigger.
+
+        lower, upper : float or np.ndarray of float
+            The integration bounds measured in Hz.
+
+        Returns
+        -------
+        float np.ndarray of float
+            The modeled spectral flux.
+        """
+        n_eff, k_eff = self.smooth(t)
+
+        res = IntegratedFluxModel(
+            self.nu_m(k_eff, t), self.nu_c(n_eff, k_eff, t),
+            self.f_peak(n_eff, k_eff, t), self.p, k_eff
+        ).evaluate(lower, upper)
+
+        if self.tj:
+            return self.smooth_jet_break(
+                res, t, n_eff, k_eff, lower=lower, upper=upper)
+
+        return res
+
+
+class FireballModel(BaseFireballModel):
     """
     Implements the ultra-relativistic shock moving into an
     external medium with density rho = rho_0 * R^-k.
@@ -23,7 +371,7 @@ class FireballModel:
     MCMC fitting extremely difficult. If a float is passed, it is
     assumed that the value is already in the expected units.
 
-    Attributes
+    Parameters
     ----------
     E : float or astropy.units.Quantity
         The explosion energy normalized to 1e52 ergs.
@@ -67,107 +415,11 @@ class FireballModel:
 
     # noinspection PyPep8Naming
     def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, tj=None, sj=None):
-        # intrinsic properties
-        self.E = E
-        self.p = p
-        self.eps_b = eps_b
-        self.eps_e = eps_e
-        self.k = k
-        self.rho0 = rho0
-        self.X = X
+        super().__init__(E, p, eps_b, eps_e, z, dL, rho0, k, X)
 
-        # extrinsic properties
-        self.dL = dL
-        self.z = z
-
-        # Jet break properties
+        # Jet break
         self.tj = tj
         self.sj = sj
-
-    def __repr__(self):
-        """ Human-readable representation. """
-        return f'FireballModel(E={self.E}, n={self.rho0}, .., p={self.p}, k={self.k})'
-
-    # noinspection PyPep8Naming
-    @property
-    def E(self) -> float:
-        """ Returns the explosion energy normalized to 10e52 ergs. """
-        return self._E
-
-    # noinspection PyPep8Naming
-    @E.setter
-    def E(self, e: float | u.Quantity) -> None:
-        """
-        Sets the explosion energy normalized to 10e52 ergs.
-
-        Parameters
-        ----------
-        e : float or astropy.units.Quantity
-            The explosion energy. If a float is provided, assumes
-            that the value is already normalized to 1e52 ergs.
-        """
-        if isinstance(e, u.Quantity):
-            e = e.to_value('erg') / 1e52
-
-        self._E = e
-
-    @property
-    def rho0(self) -> float:
-        """ Returns the density normalization, normalized to the proton mass. """
-        return self._rho0
-
-    @rho0.setter
-    def rho0(self, rho0) -> None:
-        """
-        Sets the density normalization as a simple float.
-
-        Define rho as:
-
-        rho = rho_x * R^-k = rho_0 * (R/R_0)^-k
-
-        such that:
-
-        rho_x = rho_0 * R_0^k
-
-        where R_0 is the characteristic radius which we take to
-        be 1e17 cm. Then `rho0` is the reference density at 1e17
-        cm with units of g/cm^3. However, I normalize to the proton
-        mass such that rho0 is a number density with units of cm^-3.
-
-        Parameters
-        ----------
-        rho0 : float or astropy.units.Quantity
-            The density normalization. If a float or unit-less
-            quantity is provided, assumes that the value is
-            ??.
-        """
-        if isinstance(rho0, u.Quantity):
-            rho0 = rho0.cgs.value
-
-        self._rho0 = rho0
-
-    # noinspection PyPep8Naming
-    @property
-    def dL(self) -> float:
-        """ Returns the luminosity distance normalized to 1e28 cm. """
-        return self._dL
-
-    # noinspection PyPep8Naming
-    @dL.setter
-    def dL(self, d: float | u.Quantity) -> None:
-        """
-        Sets the luminosity distance normalized to 1e28 cm.
-
-        Parameters
-        ----------
-        d : float or astropy.units.Quantity
-            The luminosity distance. If a float is provided,
-            assumes the value is already normalized to 1e28 cm.
-        """
-        if isinstance(d, u.Quantity):
-            d = d.to_value('cm') / 1e28
-
-        self._dL = d
 
     def model(
             self,

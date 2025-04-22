@@ -476,7 +476,7 @@ class StratifiedDensityProfilePlot(Distribution):
         model = BlastWaveModel(p['E'], p['rho0'], p['k'])
 
         # Calculate the burst-frame deceleration time [d]
-        t_dec = model.decel_time(gamma=300) / 86_400
+        t_dec = model.decel_time() / 86_400
 
         # Calculate the shock radius [cm]
         radii = model.shock_radius(p['z'], times, t_dec)

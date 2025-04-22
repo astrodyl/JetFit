@@ -90,6 +90,6 @@ def save_plot_unique(filename_base, ext, directory):
         filename = f"{filename_base}.{ext}" if i == 0 else f"{filename_base}_{i}.{ext}"
         filepath = os.path.join(directory, filename)
         if not os.path.exists(filepath):
-            plt.savefig(filepath, dpi=300)
+            plt.savefig(filepath, dpi=600)
             return
         i += 1

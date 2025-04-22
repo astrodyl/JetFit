@@ -15,7 +15,8 @@ from jetfit.mcmc.settings.reader import MCMCSettingsReader
 from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSimTable
 from jetfit.models2.basemodels import ObservedFluxModel
 from jetfit.models2.boosted import BoostedFireballModel
-from jetfit.models2.fireball import FireballModel
+from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
+from jetfit.plot.SFBMPlotter import SFBMDensityPlotter, SFBMDensityProfiler
 from jetfit.plot.dist import DistributionPlot
 from jetfit.plot.dist2 import SpectralIndexPlot, StratifiedDensityProfilePlot
 from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
@@ -62,6 +63,11 @@ def main(
     observation = Observation.from_csv(data_path)
     mcmc_params = MCMCSettingsReader(mcmc_path)
 
+    if parameters.has('n1'):
+        model = StratifiedFireballModel
+    else:
+        model = FireballModel
+
     # -----------------------------------------------------------------
     # ---------------------- Observed Flux Model ----------------------
     # -----------------------------------------------------------------
@@ -76,10 +82,10 @@ def main(
 
     # Store pre-computed values in the extrinsic model
     observed_flux_model = ObservedFluxModel(
-        FireballModel, extinction_model,
+        model, extinction_model,
         ext_sf=ebv['ebv_source_frame'],
         ext_mw=ebv['ebv_milky_way'],
-        dynamic=True,
+        # dynamic=True,
     )
 
     # -----------------------------------------------------------------
@@ -105,29 +111,39 @@ def main(
     # Plot the light curves
     best_params = mcmc.get_best_params()
 
-    # Plot the spectral index distribution
-    spectral_index_plotter = SpectralIndexPlot(
-        mcmc.sampler, parameters, FireballModel, observation.data_regimes)
+    if model.__name__ == 'StratifiedFireballModel':
+        profiler = SFBMDensityProfiler(mcmc.sampler, parameters)
 
-    spectral_index_plotter.model(
-        observation.data[observation.sindex_loc], out_dir=results_dir)
+        profiler.profile(
+            observation.as_arrays.times.min(),
+            observation.as_arrays.times.max(),
+        )
+        SFBMDensityPlotter(**profiler.as_dict()).plot(results_dir)
 
-    # Plot the density profiles
-    density_plotter = StratifiedDensityProfilePlot(
-        mcmc.sampler, parameters, observation.data_regimes)
+    else:
+        # Plot the density profiles
+        density_plotter = StratifiedDensityProfilePlot(
+            mcmc.sampler, parameters, observation.data_regimes)
 
-    density_plotter.plot(
-        observation.as_arrays.times.min(),
-        observation.as_arrays.times.max(),
-        out_dir=results_dir
-    )
+        density_plotter.plot(
+            observation.as_arrays.times.min(),
+            observation.as_arrays.times.max(),
+            out_dir=results_dir
+        )
 
-    # Plot distributions
-    dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
+        # Plot distributions
+        dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
 
-    # Plot the opening angle and energy distribution
-    if parameters.has('tj'):
-        dist_plotter.beaming(out_dir=results_dir)
+        # Plot the opening angle and energy distribution
+        if parameters.has('tj'):
+            dist_plotter.beaming(out_dir=results_dir)
+
+        # Plot the spectral index distribution
+        spectral_index_plotter = SpectralIndexPlot(
+            mcmc.sampler, parameters, model, observation.data_regimes)
+
+        spectral_index_plotter.model(
+            observation.data[observation.sindex_loc], out_dir=results_dir)
 
     # Plot frequencies
     fp = FrequencyPlot(mcmc.sampler, parameters, observed_flux_model.dynamic)
@@ -231,7 +247,7 @@ if __name__ == "__main__":
         events = [
             # '050525A',
             # '050922C',
-            # '080413B',
+            '080413B',
             # '080319B_early',
             # '080319B_mid',
             # '080319B',
@@ -248,7 +264,7 @@ if __name__ == "__main__":
             # '160131A',
             # '171010A',
             # '210905A',
-            '220101A',
+            # '220101A',
             # '221009A',
             # '231118A',
         ]
