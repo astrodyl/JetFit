@@ -18,13 +18,19 @@ SYS_OFFSET = {
     'iprime': 0.37, 'zprime': 0.54
 }
 
+# Aliases
+SYS_OFFSET['g'] = SYS_OFFSET['gprime']
+SYS_OFFSET['r'] = SYS_OFFSET['rprime']
+SYS_OFFSET['i'] = SYS_OFFSET['iprime']
+SYS_OFFSET['z'] = SYS_OFFSET['zprime']
+
 
 # Converts from UVOT Vega to AB for UVOT data
 # https://swift.gsfc.nasa.gov/analysis/uvot_digest/zeropts.html
 UVOT_OFFSET = {
-    'uvot-uvw2': 1.73,
-    'uvot-uvm2': 1.69,
-    'uvot-uvw1': 1.51,
+    'uvw2': 1.73,
+    'uvm2': 1.69,
+    'uvw1': 1.51,
     'uvot-u': 1.02,
     'uvot-b': -0.13,
     'uvot-v': -0.01,
@@ -36,7 +42,7 @@ EFF_WL = {
     'U': SpectralElement.from_filter('johnson_u').pivot(),
     'B': SpectralElement.from_filter('johnson_b').pivot(),
     'V': SpectralElement.from_filter('johnson_v').pivot(),
-    'R': SpectralElement.from_filter('johnson_r').pivot(),
+    'R': SpectralElement.from_filter('johnson_r').pivot(),  # 6899 AA
     'I': SpectralElement.from_filter('johnson_i').pivot(),
     'J': SpectralElement.from_filter('bessel_j').pivot(),
     'H': SpectralElement.from_filter('bessel_h').pivot(),
@@ -115,19 +121,24 @@ def main(input_path: str, output_path: str,  xrt_path: str = None, before = None
 
             # If ebv is provided, we need to de-redden the data
             ebv = None
-            if hasattr(row, 'Ebv') and isinstance(row.Ebv, float):
+            if hasattr(row, 'Ebv') and not np.isnan(row.Ebv):
                 ebv = row.Ebv
-
-            # Check if fluxes were provided already
-            if hasattr(row, 'Flux') and not np.isnan(row.Flux):
-                flux = u.Quantity(row.Flux, unit=row.FluxUnit).to('mJy')
-                flux_err = u.Quantity(row.FluxError, unit=row.FluxUnit).to('mJy')
-
-            else:
-                flux, flux_err = mag_to_flux(row.Mag, row.MagError, dfilter, row.MagSys, ebv)
 
             # Get frequency of filter
             frequency = EFF_WL[dfilter].to('Hz', equivalencies=u.spectral())
+
+            # Check if fluxes were provided already
+            if hasattr(row, 'Flux') and not np.isnan(row.Flux):
+                try:
+                    flux = u.Quantity(row.Flux, unit=row.FluxUnit).to('mJy')
+                    flux_err = u.Quantity(row.FluxError, unit=row.FluxUnit).to('mJy')
+                except u.UnitConversionError as e:
+                    flux = u.Quantity(row.Flux, unit=row.FluxUnit).to('mJy', equivalencies=u.spectral_density(frequency))
+                    flux_err = u.Quantity(row.FluxError, unit=row.FluxUnit).to('mJy', equivalencies=u.spectral_density(frequency))
+
+
+            else:
+                flux, flux_err = mag_to_flux(row.Mag, row.MagError, dfilter, row.MagSys, ebv)
 
             # Format the CalOffset
             cal_offset = dfilter + '_offset'
@@ -202,10 +213,10 @@ def mag_to_flux(mag, mag_error, dfilter, system, ebv=None):
         The flux and flux error in mJy.
     """
     # Convert all mags to AB system
-    if system.lower() == 'vega':
+    if system.lower().strip() == 'vega':
         mag += SYS_OFFSET[dfilter]
 
-    elif system.lower == 'uvot':
+    elif system.lower().strip() == 'uvot':
         mag += UVOT_OFFSET[dfilter]
 
     # Convert to flux
@@ -222,73 +233,8 @@ def mag_to_flux(mag, mag_error, dfilter, system, ebv=None):
 
 if __name__ == '__main__':
 
-    event = '080319B_late'
+    event = '080319B'
 
-    mags = [
-        19,
-        18.91,
-        19.15,
-        19.22,
-        17.64,
-        18.64,
-        18.82,
-        17.67,
-        17.42,
-        18.07,
-        17.92,
-
-    ]
-
-    mag_errs = [
-        0.15,
-        0.05,
-        0.05,
-        0.06,
-        0.1,
-        0.22,
-        0.71,
-        0.27,
-        0.27,
-        0.47,
-        0.36,
-
-    ]
-
-    filters = [
-        'R',
-        'I',
-        'I',
-        'I',
-        'uvot - v',
-        'uvot - v',
-        'uvot - b',
-        'uvot - u',
-        'uvot - uvw1',
-        'uvot - uvm2',
-        'uvot - uvw2',
-
-    ]
-
-    cal_sys = [
-        'vega',
-        'vega',
-        'vega',
-        'vega',
-        'uvot',
-        'uvot',
-        'uvot',
-        'uvot',
-        'uvot',
-        'uvot',
-        'uvot',
-    ]
-
-
-    for i in range(len(mags)):
-        f, fe = mag_to_flux(mags[i], mag_errs[i], filters[i], cal_sys[i])
-        print(f.to_value('mJy'), fe.to_value('mJy'))
-
-    exit()
     args = {
         'input_path':
             rf"C:\Users\Dylan\Documents\GRB_DATA\{event}\{event}_in.csv",
@@ -300,10 +246,10 @@ if __name__ == '__main__':
             rf"C:\Users\Dylan\Documents\GRB_DATA\{event}\{event}_out.csv",
 
         'before':  # Include data before this time
-            None,
+            None, #u.Quantity(3, unit='d'),
 
         'after':  # Include data after this time
-            u.Quantity(76075.0, unit='s')
+            None #u.Quantity(1e-2, unit='d')
     }
 
     main(**args)

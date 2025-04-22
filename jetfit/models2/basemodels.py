@@ -1460,7 +1460,8 @@ class ObservedFluxModel:
 
     def model_extinction(
         self, modeled, wn, z=None, ebv_sf=None,
-        ebv_mw=None, host_pos=None, host_vals=None
+        ebv_mw=None, host_pos=None, host_vals=None,
+        rv_sf=None, rv_mw=None
     ):
         """
         Corrects the afterglow flux, `modeled`, for
@@ -1490,6 +1491,10 @@ class ObservedFluxModel:
             precomputed source frame extinction values are
             given priority over `ebv_mw` (if defined).
 
+        rv_sf, rv_mw : float, optional
+            R(V) = A(V)/E(B-V) = total-to-selective extinction
+            for source frame/Milky Way.
+
         host_pos, host_vals : dict, optional
             The positions and values of the host galaxy corrections.
             Both must be provided to apply host galaxy corrections.
@@ -1503,9 +1508,14 @@ class ObservedFluxModel:
         """
 
         # Apply source frame extinction
-        if self.ext_sf is not None or ebv_sf is not None:
-            modeled *= self.ext_sf if self.ext_sf is not None \
-                else self.extinction_model.extinguish((1+z)*wn, Ebv=ebv_sf)
+        if self.ext_sf is not None:
+            modeled *= self.ext_sf  # pre-computed
+
+        elif ebv_sf is not None:
+            # Reuse model object if not fitting for Rv
+            model = self.extinction_model if rv_sf is None \
+                else self.extinction_model.__class__(Rv=rv_sf)
+            modeled *= model.extinguish((1 + z) * wn, Ebv=ebv_sf)
 
         # Apply host galaxy correction
         if host_vals is not None and host_pos is not None:
@@ -1513,9 +1523,14 @@ class ObservedFluxModel:
                 modeled[np.where(host_pos[name])] += corr
 
         # Apply Milky Way extinction
-        if self.ext_mw is not None or ebv_mw is not None:
-            modeled *= self.ext_mw if self.ext_mw is not None \
-                else self.extinction_model.extinguish(wn, Ebv=ebv_mw)
+        if self.ext_mw is not None:
+            modeled *= self.ext_mw  # pre-computed
+
+        elif ebv_mw is not None:
+            # Reuse model object if not fitting for Rv
+            model = self.extinction_model if rv_mw is None \
+                else self.extinction_model.__class__(Rv=rv_mw)
+            modeled *= model.extinguish(wn, Ebv=ebv_mw)
 
         # return (afterglow_flux * ext_sf + host_correction) * ext_mw
         return modeled

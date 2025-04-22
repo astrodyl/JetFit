@@ -8,33 +8,48 @@ from jetfit.core.defns.enums import DataType
 from jetfit.models2.basemodels import StratifiedMediumModel, BlastWaveModel
 from jetfit.models2.fireball import StratifiedFireballModel
 
-COLOR_MAP = {
-    # JC Optical/NIR
-    'U': '#8601AF', 'B': '#0247FE', 'V': '#66B032', 'R': '#FE2712',
-    'I': '#4424D6', 'J': '#66B032', 'H': '#FC600A', 'K': '#FE2712',
 
-    # SDSS Optical
-    "u": '#4424D6', "g": '#347C98', "r": '#FC600A', "i": '#8601AF',
-    "z": '#0247FE',
+OPTION_MAP = {
+    # JC Optical/NIR (circles)
+    'U': {'color': '#8601AF', 'marker': '.'},
+    'B': {'color': '#0247FE', 'marker': '.'},
+    'V': {'color': '#66B032', 'marker': '.'},
+    'R': {'color': '#FE2712', 'marker': '.'},
+    'I': {'color': '#4424D6', 'marker': '.'},
+    'J': {'color': '#66B032', 'marker': '.'},
+    'H': {'color': '#FC600A', 'marker': '.'},
+    'K': {'color': '#FE2712', 'marker': '.'},
 
-    # Swift Optical/UV/XRAY
-    'uvot-u': 'cyan', 'uvot-b': 'lightblue', 'uvot-v': 'lightgreen',
-    'uvw2': 'pink', 'uvm2': 'darkblue', 'uvw1': 'green',
-    'xray': 'black',
+    # SDSS Optical (squares)
+    'u': {'color': '#882E72', 'marker': '*'},
+    'g': {'color': '#1965B0', 'marker': '*'},
+    'r': {'color': '#DC050C', 'marker': '*'},
+    'i': {'color': '#E8601C', 'marker': '*'},
+    'z': {'color': '#A5170E', 'marker': '*'},
+
+    # Swift Optical/UV/XRAY (diamonds, hexagons)
+    'uvot-u': {'color': 'cyan',       'marker': 'd'},
+    'uvot-b': {'color': 'lightblue',  'marker': 'd'},
+    'uvot-v': {'color': 'lightgreen', 'marker': 'd'},
+    'uvw2': {'color': 'pink',         'marker': 'd'},
+    'uvm2': {'color': 'darkblue',     'marker': 'd'},
+    'uvw1': {'color': 'green',        'marker': 'd'},
+    'xray': {'color': 'black',        'marker': 'h'},
 
     # HST
-    'F775W': 'yellow', 'F125W': 'grey',
+    'F775W': {'color': 'yellow', 'marker': '.'},
+    'F125W': {'color': 'grey',   'marker': '.'},
 }
 
 # Aliases
-COLOR_MAP['Rc'] = COLOR_MAP['R']
-COLOR_MAP['Ic'] = COLOR_MAP['I']
-COLOR_MAP['Ks'] = COLOR_MAP['K']
-COLOR_MAP['uprime'] = COLOR_MAP['u']
-COLOR_MAP['gprime'] = COLOR_MAP['g']
-COLOR_MAP['rprime'] = COLOR_MAP['r']
-COLOR_MAP['iprime'] = COLOR_MAP['i']
-COLOR_MAP['zprime'] = COLOR_MAP['z']
+OPTION_MAP['Rc'] = OPTION_MAP['R']
+OPTION_MAP['Ic'] = OPTION_MAP['I']
+OPTION_MAP['Ks'] = OPTION_MAP['K']
+OPTION_MAP['uprime'] = OPTION_MAP['u']
+OPTION_MAP['gprime'] = OPTION_MAP['g']
+OPTION_MAP['rprime'] = OPTION_MAP['r']
+OPTION_MAP['iprime'] = OPTION_MAP['i']
+OPTION_MAP['zprime'] = OPTION_MAP['z']
 
 
 def sec_to_days(x):
@@ -293,7 +308,7 @@ class FrequencyPlot:
                 frequencies.append(d.frequency.to_value('Hz'))
 
             # Plot the band
-            self.ax.scatter(times, frequencies, label=f, color=COLOR_MAP[f])
+            self.ax.scatter(times, frequencies, label=f, **OPTION_MAP[f])
 
         self.ax.legend(loc='best')
         self.ax.grid(alpha=0.5)
@@ -467,7 +482,7 @@ class LightCurvePlot:
                 sflux *= ext_model.extinguish(1 / wavelength, Ebv=ebv_mw)
 
             # Plot the modeled spectral flux
-            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.5, color=COLOR_MAP[sdata.filter])
+            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.5, color=OPTION_MAP[sdata.filter]['color'])
 
         # Plot the integrated flux for each t in `time`
         for idata in integrated_data:
@@ -483,7 +498,7 @@ class LightCurvePlot:
             sflux_quant = (iflux_quant / idata.int_range.width).to('mJy')
 
             # Plot the modeled integrated flux as a spectral flux
-            self.ax.loglog(days_to_sec(times), sflux_quant.value, '--', linewidth=1.5, color=COLOR_MAP[idata.filter])
+            self.ax.loglog(days_to_sec(times), sflux_quant.value, '--', linewidth=1.5, color=OPTION_MAP[idata.filter]['color'])
 
         self.ax.set_xlim(days_to_sec(times[0]/3), days_to_sec(times[-1]*1.5))
 
@@ -516,7 +531,7 @@ class LightCurvePlot:
                 errors.append(d.uncertainty.center.to_value('mJy'))
 
             # Plot the band
-            self.ax.errorbar(times, flux, yerr=errors, fmt='.', label=dfilter, color=COLOR_MAP[dfilter])
+            self.ax.errorbar(times, flux, yerr=errors, fmt='.', label=dfilter, **OPTION_MAP[dfilter], markersize=6.5)
 
         self.ax.legend(loc='best')
         self.ax.grid(alpha=0.5)

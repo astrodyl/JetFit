@@ -80,12 +80,17 @@ def main(
         if p.name in ebv.keys():
             ebv[p.name] = extinction_model.extinguish(wn, Ebv=p.value)
 
+    if parameters.has('rv_milky_way'):
+        ebv['ebv_milky_way'] = None
+
+    if parameters.has('rv_source_frame'):
+        ebv['ebv_source_frame'] = None
+
     # Store pre-computed values in the extrinsic model
     observed_flux_model = ObservedFluxModel(
         model, extinction_model,
         ext_sf=ebv['ebv_source_frame'],
         ext_mw=ebv['ebv_milky_way'],
-        # dynamic=True,
     )
 
     # -----------------------------------------------------------------
@@ -247,12 +252,9 @@ if __name__ == "__main__":
         events = [
             # '050525A',
             # '050922C',
-            '080413B',
-            # '080319B_early',
-            # '080319B_mid',
-            # '080319B',
-            # '080413B_early',
-            # '080413B_late',
+            # '080413B',
+            # '080319B_nature_mix_early',
+            # '080319B_nature_mix_late',
             # '090424',
             # '090618',
             # '111228A',

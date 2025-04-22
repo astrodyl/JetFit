@@ -63,7 +63,7 @@ class StratifiedFireballModel:
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, rt, sn, n1, n2, k1, k2, sk, X, tj=None, sj=None):
+    def __init__(self, E, p, eps_b, eps_e, z, dL, rt, sn, n1, n2, k1, k2, sk, X, tj=None, sj=None, sji=None):
         # Afterglow
         self.E = E
         self.p = p
@@ -89,6 +89,7 @@ class StratifiedFireballModel:
         # Jet
         self.tj = tj
         self.sj = sj
+        self.sji = sji
 
     def smooth(self, t, radii=None):
         """
@@ -292,9 +293,11 @@ class StratifiedFireballModel:
         )(**kwargs)
 
         # return flux smoothed over the jet break
+        s = self.sj or self.sji
+
         return (
-            f ** -self.sj + (f_jet * (t / self.tj) ** -self.p) ** -self.sj
-        ) ** -(1 / self.sj)
+            f ** -s + (f_jet * (t / self.tj) ** -self.p) ** -s
+        ) ** -(1 / s)
 
     def spectral_flux(self, t, f):
         """
@@ -414,12 +417,13 @@ class FireballModel(BaseFireballModel):
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, tj=None, sj=None):
+    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, tj=None, sj=None, sji=None):
         super().__init__(E, p, eps_b, eps_e, z, dL, rho0, k, X)
 
         # Jet break
         self.tj = tj
         self.sj = sj
+        self.sji = sji
 
     def model(
             self,
@@ -649,9 +653,15 @@ class FireballModel(BaseFireballModel):
         )(**kwargs)
 
         # return flux smoothed over the jet break
-        return (
-            f ** -self.sj + (f_jet * (t / self.tj) ** -self.p) ** -self.sj
-        ) ** -(1 / self.sj)
+        if self.sj:
+            return (
+                f ** -self.sj + (f_jet * (t / self.tj) ** -self.p) ** -self.sj
+            ) ** -(1 / self.sj)
+
+        if self.sji:
+            return (
+                f ** -(1/self.sji) + (f_jet * (t / self.tj) ** -self.p) ** -(1/self.sji)
+            ) ** -self.sji
 
     def f_peak(self, t):
         """

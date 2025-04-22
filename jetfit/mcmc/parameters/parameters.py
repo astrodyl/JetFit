@@ -218,7 +218,9 @@ class Parameters:
             'z': params.get('model').get('z'),
             'wn': obs.as_arrays.wave_numbers[obs.sflux_loc],
             'ebv_sf': params.get('extinction').get('ebv_source_frame'),
+            'rv_sf': params.get('extinction').get('sf_source_frame'),
             'ebv_mw': params.get('extinction').get('ebv_milky_way'),
+            'rv_mw': params.get('extinction').get('rv_milky_way'),
             'host_vals': params.get('host'),
             'host_pos': obs.host_groups,
         }
