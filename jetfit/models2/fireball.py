@@ -1,7 +1,7 @@
 import numpy as np
 
 from jetfit.core.input import Observation
-from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel, BlastWaveModel
+from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel, BlastWaveModel, StratifiedMediumModel
 from jetfit.models2.basemodels import AbsorptionFrequencyModel, BaseFireballModel
 from jetfit.models2.basemodels import SynchrotronFrequencyModel, SpectralFluxModel
 from jetfit.models2.basemodels import CoolingFrequencyModel, PeakFluxModel
@@ -37,13 +37,7 @@ class StratifiedFireballModel:
     dL : float or astropy.units.Quantity
         The luminosity distance to the event [1e28 cm].
 
-    nt : float or astropy.units.Quantity
-        The density normalization at the transition radius [cm-3].
-
-    rt : float
-        The density transition radius [cm].
-
-    st : float
+    sn : float
         The density smoothing factor.
 
     k1 : float
@@ -63,7 +57,7 @@ class StratifiedFireballModel:
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, rt, sn, n1, n2, k1, k2, sk, X, tj=None, sj=None, sji=None):
+    def __init__(self, E, p, eps_b, eps_e, z, dL, nt, rt, k1, k2, sn, sr, X, tj=None, sj=None, sji=None):
         # Afterglow
         self.E = E
         self.p = p
@@ -76,20 +70,47 @@ class StratifiedFireballModel:
         self.z = z
 
         # Medium
-        self.rt = rt
-
         self.k1 = k1
         self.k2 = k2
-        self.sk = sk
 
-        self.n1 = n1
-        self.n2 = n2
+        self.rt = rt
+        self.sr = sr
+        self.nt = nt
         self.sn = sn
 
         # Jet
         self.tj = tj
         self.sj = sj
         self.sji = sji
+
+    # def smooth(self, t, radii=None):
+    #     """
+    #     Empirically smooths the number density normalizations
+    #     and the power-law indices over the observer times `t`.
+    #
+    #     Parameters
+    #     ----------
+    #     t : np.ndarray
+    #         The observer times [days since trigger].
+    #
+    #     radii : np.ndarray of float, optional
+    #         The pre-computed blast wave radii [cm].
+    #
+    #     Returns
+    #     -------
+    #     tuple of np.ndarray of float
+    #         The smoothed number density normalizations [cm-3] and
+    #         the smoothed density power-law indices [dimension less].
+    #     """
+    #     if radii is None:
+    #         radii = self.radii(t)
+    #
+    #     # Smooth the density normalizations
+    #     x = radii / self.transition_radius()
+    #     n_eff = self.n1 + (self.n2 - self.n1) / (1 + x ** -self.sn)
+    #     k_eff = self.k1 + (self.k2 - self.k1) / (1 + x ** -self.sk)
+    #
+    #     return n_eff, k_eff
 
     def smooth(self, t, radii=None):
         """
@@ -102,7 +123,7 @@ class StratifiedFireballModel:
             The observer times [days since trigger].
 
         radii : np.ndarray of float, optional
-            The blast wave radii [cm].
+            The pre-computed blast wave radii [cm].
 
         Returns
         -------
@@ -110,16 +131,87 @@ class StratifiedFireballModel:
             The smoothed number density normalizations [cm-3] and
             the smoothed density power-law indices.
         """
-        if radii is None:
-            bwm = BlastWaveModel(self.E, self.n1, self.k1, self.rt)
-            radii = bwm.shock_radius(self.z, t, bwm.decel_time() / 86_400)
+        bwm1 = BlastWaveModel(self.E, self.nt, self.k1)
+        bwm2 = BlastWaveModel(self.E, self.nt, self.k2)
+        t_decel = bwm1.decel_time() / 86_400
 
-        # Smooth the density normalizations
-        x = radii / self.rt
-        n_eff = self.n1 + (self.n2 - self.n1) / (1 + x ** -self.sn)
-        k_eff = self.k1 + (self.k2 - self.k1) / (1 + x ** -self.sk)
+        r1 = bwm1.shock_radius(self.z, t, t_decel)
+        r2 = bwm2.shock_radius(self.z, t, t_decel)
 
-        return n_eff, k_eff
+        # Rename for convenience
+        sn, sr = self.sn, self.sr
+        k1, k2 = self.k1, self.k2
+        x1, x2 = r1 / self.rt, r2 / self.rt
+
+        r_eff = self.rt * (x1 ** -sr + x2 ** -sr) ** -(1 / sr)
+
+        # Calculate the effective number density normalizations
+        x = r_eff / self.rt
+        n_eff = self.nt * (x ** (k1 * sn) + x ** (k2 * sn)) ** -(1 / sn)
+
+        # Calculate the effective density power-law indices
+        k_eff_num = k1 * x ** (k1 * sn) + k2 * x ** (k2 * sn)
+        k_eff_den = x ** (k1 * sn) + x ** (k2 * sn)
+
+        return n_eff, k_eff_num / k_eff_den
+
+    def radii(self, t):
+        """
+        Calculates the radius traversed by the blast wave
+        during time `t`.
+
+        Parameters
+        ----------
+        t : float or np.ndarray
+            The observer times [days since trigger].
+
+        Returns
+        -------
+        float or np.ndarray
+            The radii traversed by the blast wave [cm].
+        """
+        bwm = BlastWaveModel(self.E, self.nt, self.k1)
+        t_decel = bwm.decel_time() / 86_400  # [d]
+        return bwm.shock_radius(self.z, t, t_decel)
+        # r_trans = self.transition_radius()
+        # t_trans = self.transition_time() / 86_400
+        #
+        # t_pre = t[t < t_trans]  # time since trigger [d]
+        # t_post = t[t >= t_trans] - t_trans  # time since transition [d]
+        #
+        # # Models pre- and post-transition
+        # bwm_pre = BlastWaveModel(self.E, self.n1, self.k1)
+        # bwm_post = BlastWaveModel(self.E, self.n2, self.k2)
+        #
+        # # Calculate the blast-wave radii
+        # t_decel = bwm_pre.decel_time() / 86_400  # [d]
+        # r_pre = bwm_pre.shock_radius(self.z, t_pre, t_decel)  # [cm]
+        # r_post = bwm_post.shock_radius(self.z, t_post, t_decel) + r_trans  # [cm]
+        #
+        # if r_pre.size != 0 and r_post.size != 0:
+        #     return np.concatenate((r_pre, r_post))
+        # return r_pre if r_pre.size != 0 else r_post
+
+    # def transition_density(self, r_trans=None, ref=1e17):
+    #     """ Returns the transition density normalization. """
+    #     if r_trans is None:
+    #         r_trans = self.transition_radius()
+    #
+    #     if r_trans < ref:
+    #         return self.n1 * (r_trans / ref) ** -self.k1
+    #     return self.n2 * (r_trans / ref) ** -self.k2
+
+    # def transition_radius(self) -> float:
+    #     """ Returns the transition radius [cm]. """
+    #     return StratifiedMediumModel(
+    #         self.E, self.n1, self.n2, self.k1, self.k2
+    #     ).transition_radius()
+
+    # def transition_time(self):
+    #     """"""
+    #     return StratifiedMediumModel(
+    #         self.E, self.n1, self.n2, self.k1, self.k2
+    #     ).transition_time(self.z)
 
     def model(self, observation: Observation) -> np.ndarray:
         """"""
@@ -200,7 +292,7 @@ class StratifiedFireballModel:
             The peak flux in mJy at time `t`.
         """
         return PeakFluxModel(
-            self.E, n, self.eps_b, self.dL, self.z, k, self.X)(t, np.log10(self.rt))
+            self.E, n, self.eps_b, self.dL, self.z, k, self.X)(t)
 
     def nu_c(self, n, k, t):
         """
@@ -226,7 +318,7 @@ class StratifiedFireballModel:
             The cooling frequency in Hz at time `t`.
         """
         return CoolingFrequencyModel(
-            self.E, n, self.eps_b, k, self.z)(t, np.log10(self.rt))
+            self.E, n, self.eps_b, k, self.z)(t)
 
     def nu_m(self, k, t):
         """
@@ -273,7 +365,7 @@ class StratifiedFireballModel:
         """
         return AbsorptionFrequencyModel(
             self.E, n, self.eps_e, self.eps_b, k, self.z, self.X, self.p
-        )(t, regime, np.log10(self.rt))
+        )(t, regime)
 
     def smooth_jet_break(self, f, t, n, k, **kwargs):
         """ Will be moved in base or mixin. """

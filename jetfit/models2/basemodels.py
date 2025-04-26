@@ -20,7 +20,7 @@ class BaseBlastWaveModel:
         normalized to 1e52 ergs.
 
     n17 : float or u.Quantity['number density']
-        The number density at 1e17 cm.
+        The number density at `ref` cm.
 
     k : float
         The density power-law index.
@@ -155,16 +155,16 @@ class BlastWaveModel(BaseBlastWaveModel):
             The redshift.
 
         t : float or u.Quantity['time'] or np.ndarray
-            The observer time measured in days.
+            The observer time [days since trigger].
 
         t_decel : float or u.Quantity['time'] or np.ndarray
             The burst frame (z=0) deceleration time
-            of the blast wave measured in days.
+            of the blast wave [days since trigger].
 
         Returns
         -------
         float or u.Quantity['length'] or np.ndarray
-            The shock radius evaluated at `t`.
+            The shock radius evaluated at `t` [cm].
         """
         if isinstance(t, u.Quantity):
             if t.unit.physical_type != 'time':
@@ -194,7 +194,7 @@ class BlastWaveModel(BaseBlastWaveModel):
         Returns
         -------
         float or np.ndarray
-            The deceleration radius measured in cm.
+            The deceleration radius [cm].
         """
         return (
             ((3 - self.k) * 1e52 * self.E) /
@@ -219,7 +219,7 @@ class BlastWaveModel(BaseBlastWaveModel):
         Returns
         -------
         float or np.ndarray
-            The deceleration time measured in seconds.
+            The deceleration time [seconds since trigger].
         """
         return (1 + z) * (
             self.decel_radius(gamma) /
@@ -1590,7 +1590,7 @@ class StratifiedMediumModel:
         Returns
         -------
         float
-            The transition radius measured in cm.
+            The transition radius [cm].
         """
         # Evaluate in log space to prevent overflow when k1 ~= k2
         return 10 ** (np.log10(self.r_ref) + np.log10(self.n17_2 / self.n17_1) / (self.k2 - self.k1))
@@ -1611,7 +1611,7 @@ class StratifiedMediumModel:
         Returns
         -------
         float
-            The observer-frame transition time in seconds.
+            The observer-frame transition time [s].
 
         See Also
         --------
@@ -1624,5 +1624,5 @@ class StratifiedMediumModel:
 
         return (1 + z) * (
             (a * b ** (3 - self.k1) * np.pi *
-            self.c ** (5 - self.k1) * rho17 / (1e52 * self.E))
-        ) * (r / (b * self.c)) ** (4 - self.k1)
+            self.c * rho17 / (1e52 * self.E))
+        ) * (r / b) ** (4 - self.k1)

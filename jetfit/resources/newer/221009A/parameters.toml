@@ -97,7 +97,7 @@ scale = "linear"
 
 [extinction.prior]
     type  = "uniform"
-    lower = 2.5
+    lower = 2.0
     upper = 5.0
 
 #----------- EXTINCTION ------------
@@ -188,17 +188,6 @@ scale = "linear"
 #------------- z2-band -------------
 [[offsets]]
 name  = "z2_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#------------ uvw1-band ------------
-[[offsets]]
-name  = "uvw1_offset"
 scale = "linear"
 
 [offsets.prior]

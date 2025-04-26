@@ -8,7 +8,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -4.0
+    lower = -2.0
     upper = 4.0
 
 #-------------- MODEL --------------
@@ -20,7 +20,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -6.0
-    upper = 9.0
+    upper = 6.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -52,7 +52,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 1.0
+    lower = 1.5
     upper = 3.5
 
 #-------------- MODEL --------------
@@ -63,7 +63,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -4.0
+    lower = -1.0
     upper = 3.0
 
 #-------------- MODEL --------------

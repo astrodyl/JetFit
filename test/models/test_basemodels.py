@@ -6,7 +6,7 @@ import astropy.constants as const
 from matplotlib import pyplot as plt
 
 from jetfit.models2.basemodels import PeakFluxModel, SynchrotronFrequencyModel, CoolingFrequencyModel, \
-    AbsorptionFrequencyModel, BlastWaveModel
+    AbsorptionFrequencyModel, BlastWaveModel, StratifiedMediumModel
 from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
 
 # Constants in cgs units
@@ -18,19 +18,37 @@ c = const.c.cgs  # noqa
 
 class TestCharacteristicModels(unittest.TestCase):
     """"""
+    def test_shock_radius(self):
+        """"""
+        t = np.geomspace(0.0012, 1, 500)  # 100s to 2 days
+
+        # ISM
+        bwm = BlastWaveModel(E=1.0, n17=1.0, k=0.0, ref=1e17)
+
+        t_decel = bwm.decel_time(gamma=300, z=0) / 86_400   # [s]
+        r_decel = bwm.decel_radius(gamma=300)               # [cm]
+        radii = bwm.shock_radius(0.0, t, t_decel)        # [cm]
+
+        # Wind
+        bwm = BlastWaveModel(E=1.0, n17=30.0, k=2.0, ref=1e17)
+
+        t_decel = bwm.decel_time(gamma=300, z=0) / 86_400  # [s]
+        r_decel = bwm.decel_radius(gamma=300)              # [cm]
+        radii = bwm.shock_radius(0.0, t, t_decel)       # [cm]
+
     def test_plot(self):
         """"""
+
         model = StratifiedFireballModel(
-            E=1.0, p=2.5, eps_b=0.001, eps_e=0.1, X=0.7,
-            k1=-1.0, k2=3.0, sk=3.0, n1=1.0, n2=100.0, sn=3.0,
-            rt=1e17, dL=2.0, z=0.0
-        )
+            E=4.0, p=2.5, eps_b=0.001, eps_e=0.1, X=0.7,
+            k1=2.0, k2=0.0, nt=1.0, rt=1e17, sn=3.0,
+            dL=2.0, z=0.0)
 
-        ts = np.geomspace(100, 1e5, 500)
-        radii = np.geomspace(1e15, 1e19, 500)
+        ts = np.geomspace(0.0012, 10, 500)  # 100s to 2 days
+        radii = model.radii(ts)
 
-
-        for s in np.linspace(1.0, 5.0, 5):
+        # Plot n effective
+        for s in np.linspace(-3.0, 3.0, 5):
             model.sn = s
             n_eff, _ = model.smooth(ts, radii)
 
@@ -41,11 +59,13 @@ class TestCharacteristicModels(unittest.TestCase):
             plt.legend(loc='best')
         plt.show()
 
-        for s in np.linspace(1.0, 5.0, 5):
-            model.sk = s
+        # Plot k effective
+        for s in np.linspace(-3.0, 3.0, 5):
+            model.sn = s
             _, k_eff = model.smooth(ts, radii)
 
             plt.plot(radii, k_eff, label=f's = {s}')
+            plt.axvline(model.rt, linestyle='--', color='black')
             plt.xlabel(r'Radius [cm]')
             plt.ylabel(r'$k_{eff}$')
             plt.legend(loc='best')

@@ -21,20 +21,20 @@ OPTION_MAP = {
     'K': {'color': '#FE2712', 'marker': '.'},
 
     # SDSS Optical (squares)
-    'u': {'color': '#882E72', 'marker': '*'},
-    'g': {'color': '#1965B0', 'marker': '*'},
-    'r': {'color': '#DC050C', 'marker': '*'},
-    'i': {'color': '#E8601C', 'marker': '*'},
-    'z': {'color': '#A5170E', 'marker': '*'},
+    'u': {'color': 'tab:purple', 'marker': '.'},
+    'g': {'color': 'tab:blue',   'marker': '.'},
+    'r': {'color': 'tab:orange', 'marker': '.'},
+    'i': {'color': 'tab:red',    'marker': '.'},
+    'z': {'color': 'tab:pink',   'marker': '.'},
 
     # Swift Optical/UV/XRAY (diamonds, hexagons)
-    'uvot-u': {'color': 'cyan',       'marker': 'd'},
-    'uvot-b': {'color': 'lightblue',  'marker': 'd'},
-    'uvot-v': {'color': 'lightgreen', 'marker': 'd'},
-    'uvw2': {'color': 'pink',         'marker': 'd'},
-    'uvm2': {'color': 'darkblue',     'marker': 'd'},
-    'uvw1': {'color': 'green',        'marker': 'd'},
-    'xray': {'color': 'black',        'marker': 'h'},
+    'uvot-u': {'color': 'cyan',       'marker': '.'},
+    'uvot-b': {'color': 'lightblue',  'marker': '.'},
+    'uvot-v': {'color': 'lightgreen', 'marker': '.'},
+    'uvw2': {'color': 'pink',         'marker': '.'},
+    'uvm2': {'color': 'darkblue',     'marker': '.'},
+    'uvw1': {'color': 'green',        'marker': '.'},
+    'xray': {'color': 'black',        'marker': '.'},
 
     # HST
     'F775W': {'color': 'yellow', 'marker': '.'},
@@ -364,7 +364,7 @@ class LightCurvePlot:
             plt.show()
 
         if out_dir is not None:
-            plt.savefig(out_dir / 'light_curve.png', dpi=600)
+            plt.savefig(out_dir / 'light_curve.png', dpi=1200)
 
     def plot_model(
             self, show: bool = False, ext_model=None, ndata: int = 200
@@ -482,7 +482,7 @@ class LightCurvePlot:
                 sflux *= ext_model.extinguish(1 / wavelength, Ebv=ebv_mw)
 
             # Plot the modeled spectral flux
-            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.5, color=OPTION_MAP[sdata.filter]['color'])
+            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.0, color=OPTION_MAP[sdata.filter]['color'])
 
         # Plot the integrated flux for each t in `time`
         for idata in integrated_data:
@@ -498,7 +498,7 @@ class LightCurvePlot:
             sflux_quant = (iflux_quant / idata.int_range.width).to('mJy')
 
             # Plot the modeled integrated flux as a spectral flux
-            self.ax.loglog(days_to_sec(times), sflux_quant.value, '--', linewidth=1.5, color=OPTION_MAP[idata.filter]['color'])
+            self.ax.loglog(days_to_sec(times), sflux_quant.value, '--', linewidth=1.0, color=OPTION_MAP[idata.filter]['color'])
 
         self.ax.set_xlim(days_to_sec(times[0]/3), days_to_sec(times[-1]*1.5))
 
@@ -531,7 +531,8 @@ class LightCurvePlot:
                 errors.append(d.uncertainty.center.to_value('mJy'))
 
             # Plot the band
-            self.ax.errorbar(times, flux, yerr=errors, fmt='.', label=dfilter, **OPTION_MAP[dfilter], markersize=6.5)
+            ms = 1.0 if OPTION_MAP[dfilter]['marker'] == 's' else 3.0
+            self.ax.errorbar(times, flux, yerr=errors, fmt='.', label=dfilter, **OPTION_MAP[dfilter], markersize=ms, elinewidth=0.5)
 
         self.ax.legend(loc='best')
         self.ax.grid(alpha=0.5)

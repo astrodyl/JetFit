@@ -63,7 +63,7 @@ def main(
     observation = Observation.from_csv(data_path)
     mcmc_params = MCMCSettingsReader(mcmc_path)
 
-    if parameters.has('n1'):
+    if parameters.has('nt'):
         model = StratifiedFireballModel
     else:
         model = FireballModel
@@ -252,7 +252,7 @@ if __name__ == "__main__":
         events = [
             # '050525A',
             # '050922C',
-            # '080413B',
+            '080413B',
             # '080319B_nature_mix_early',
             # '080319B_nature_mix_late',
             # '090424',

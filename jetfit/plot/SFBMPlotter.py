@@ -136,7 +136,7 @@ class SFBMDensityProfiler:
 
         # Generate modeled times
         blastwave_model = BlastWaveModel(
-            model.E, model.n1, model.k1, model.rt
+            model.E, model.nt, model.k1
         )
 
         # Use the modeled times to generate a dense plot
