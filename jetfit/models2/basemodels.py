@@ -1238,10 +1238,6 @@ class ObservedFluxModel:
 
     ext_mw : np.array, optional
         The pre-computed milky way extinction values.
-
-    dynamic : bool, optional, default=False
-        Whether to determine the transition time in
-        a stratified medium during runtime.
     """
     def __init__(
             self,
@@ -1249,13 +1245,11 @@ class ObservedFluxModel:
             extinction_model,
             ext_sf=None,
             ext_mw=None,
-            dynamic=False
     ):
         self.afterglow_model = afterglow_model
         self.extinction_model = extinction_model
         self.ext_sf = ext_sf
         self.ext_mw = ext_mw
-        self.dynamic = dynamic
 
     def __repr__(self):
         """ Human-readable representation. """
@@ -1323,20 +1317,11 @@ class ObservedFluxModel:
             The modeled GRB afterglow flux.
         """
         if params.get('shared') is not None:
-
-            if self.dynamic:
-                # Model the afterglow flux in a stratified density
-                # using a dynamically determined transition time.
-                modeled = self.model_stratified_afterglow(
-                    obs, params, **kwargs
-                )
-
-            else:
-                # Model the afterglow flux with sets of parameters
-                # applied to different subsets of the data.
-                modeled = self.model_segmented_afterglow(
-                    obs, params, **kwargs
-                )
+            # Model the afterglow flux with sets of parameters
+            # applied to different subsets of the data.
+            modeled = self.model_segmented_afterglow(
+                obs, params, **kwargs
+            )
 
         else:
             # Model the afterglow flux all together. Nice and simple.
@@ -1382,79 +1367,6 @@ class ObservedFluxModel:
 
             modeled[mask] = self.afterglow_model(
                 **model_params, **kwargs).model(obs, mask)
-
-        return modeled
-
-    def model_stratified_afterglow(self, obs, params, **kwargs):
-        """
-        Models the unextinguished GRB afterglow flux in
-        a stratified medium.
-
-        Requires that the data groups are defined as `pre`
-        and `post`. By extension, this means that I only
-        model a stratified medium with a single transition.
-
-        To model the data using an arbitrary number of subsets,
-        use the `model_segmented_afterglow` method instead.
-        Keep in mind that the segmented afterglow model does
-        not allow for dynamically changing the transition position.
-        Instead, the positions are pre-determined and fixed.
-
-        It is important to note that changing the subsets of data
-        that the parameters are fit to can cause discontinuities
-        in the likelihood. This can cause the walkers to become
-        stuck and cause issues with convergence. As a result, this
-        method is generally not recommended but available anyway.
-
-        Parameters
-        ----------
-        obs : Observation
-            The `Observation` object to model.
-
-        params : dict
-            The dict returned from `Parameters.samples_to_dict`.
-
-        kwargs : optional
-            Any additional arguments needed to instantiate the
-            flux model.
-
-        Returns
-        -------
-        np.ndarray of float
-            The modeled unextinguished GRB afterglow flux.
-        """
-        modeled = np.full(obs.length, np.nan, dtype=float)
-
-        # Params to use pre- and post-transition
-        all_params = params.get('shared').get('model')
-        pre_params = params.get('early').get('model')
-        post_params = params.get('late').get('model')
-
-        # Observer-frame transition time [days]
-        t_trans = StratifiedMediumModel(
-            all_params['E'],
-            pre_params['rho0'], post_params['rho0'],
-            pre_params['k'], post_params['k']
-        ).transition_time(z=all_params['z']) / 86_400
-
-        # Observer-frame blast wave deceleration time [days]
-        t_decel = BlastWaveModel(
-            all_params['E'], pre_params['rho0'], pre_params['k']
-        ).decel_time(z=all_params['z']) / 86_400
-
-        # Observer-frame time [days]
-        # Correct for the frame and add to the observation time.
-        t_obs = obs.as_arrays.times + t_decel
-
-        # Model the pre-transition flux, indices
-        if (early_mask := t_obs < t_trans).any():
-            early_model = self.afterglow_model(**pre_params, **kwargs)
-            modeled[early_mask] = early_model.model(obs, early_mask)
-
-        # Model the post-transition flux, indices
-        if (late_mask := ~early_mask).any():
-            early_model = self.afterglow_model(**post_params, **kwargs)
-            modeled[late_mask] = early_model.model(obs, late_mask)
 
         return modeled
 

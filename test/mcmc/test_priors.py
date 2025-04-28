@@ -6,7 +6,7 @@ from scipy import stats
 
 from jetfit.core.defns.enums import Prior
 from jetfit.mcmc.parameters import priors
-from jetfit.mcmc.parameters.priors import GaussianPrior, UniformPrior, TruncatedGaussianPrior
+from jetfit.mcmc.parameters.priors import GaussianPrior, UniformPrior, TruncatedGaussianPrior, MilkyWayRvPrior
 
 
 class TestPriorFactory(unittest.TestCase):
@@ -133,7 +133,7 @@ class TestUniformPrior(unittest.TestCase):
         samples_f = uniform.draw(n, initial=False)
 
         fig, ax = plt.subplots(1, 1)
-        ax.hist(samples_f, density=True, bins='auto', alpha=0.8, label='Full Samples')
+        ax.hist(samples_f, density=True, bins='auto', facecolor='#2ab0ff', edgecolor='#169acf', alpha=0.5, label='Full Samples')
         _, _, rects = ax.hist(samples_g, density=True, bins='auto', alpha=0.5, label='Initial Samples')
 
         # Normalize the heights of the histograms
@@ -223,7 +223,7 @@ class TestGaussianPrior(unittest.TestCase):
         ax.plot(x, pdf, 'r-', lw=5, alpha=0.6, label='Sampled PDF')
 
         # Plot the histogram of samples for comparison
-        ax.hist(samples, density=True, bins='auto', histtype='stepfilled', alpha=0.2)
+        ax.hist(samples, density=True, bins='auto', facecolor='#2ab0ff', edgecolor='#169acf', alpha=0.2)
 
         # Calculate the mu, sigma from the drawn samples
         sampled_mu = np.mean(samples)
@@ -273,6 +273,33 @@ class TestTGaussianPrior(unittest.TestCase):
         ax.hist(samples, density=True, bins='auto', histtype='stepfilled', alpha=0.2)
 
         ax.set_title(str(gaussian) + f' with n={n}')
+        ax.legend(loc='best')
+        plt.show()
+
+
+class TestMilkyWayRvPrior(unittest.TestCase):
+    """"""
+
+    @unittest.skip("Test=Plot MilkyWayRv, Reason=For visual inspection only")
+    def test_plot_distribution(self):
+        """"""
+        n = 100_000
+        rv_prior = MilkyWayRvPrior()
+
+        fig, ax = plt.subplots(1, 1)
+        log_rv = np.linspace(0.35, 1.0, n)
+
+        # Plot the probability distribution function
+        pdf = np.asarray([rv_prior.evaluate(xx) for xx in log_rv])
+        ax.plot(log_rv, pdf, 'r-', lw=5, alpha=0.6, label='Sampled PDF')
+
+        # Plot the histogram of samples for comparison
+        samples = rv_prior.draw(n)
+        ax.hist(samples, density=True, bins='auto', facecolor='#2ab0ff', edgecolor='#169acf', alpha=0.4)
+
+        ax.set_title(str(rv_prior) + f' with n={n}')
+        ax.set_ylabel('$p(logR_{v}^{MW})$')
+        ax.set_xlabel(r'$logR_{v}^{MW}$')
         ax.legend(loc='best')
         plt.show()
 

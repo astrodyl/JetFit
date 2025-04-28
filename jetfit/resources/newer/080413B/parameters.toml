@@ -105,18 +105,6 @@ scale = "linear"
     upper = 3.0
 
 #-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- sr ----------------
-[[model]]
-name  = "sr"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = 1.0
-    upper = 3.0
-
-#-------------- MODEL --------------
 #------------ tj (days) ------------
 [[model]]
 name  = "tj"
@@ -128,7 +116,7 @@ scale = "log"
     upper = 1.0
 
 #-------------- MODEL --------------
-#---------------- sj ---------------
+#--------------- sji ---------------
 [[model]]
 name  = "sji"
 scale = "linear"

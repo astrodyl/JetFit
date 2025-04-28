@@ -37,6 +37,9 @@ def prior_factory(d: dict):
         case Prior.SINE:
             return SinePrior.from_dict(d)
 
+        case Prior.MILKYWAYRV:
+            return MilkyWayRvPrior.from_dict(d)
+
 
 class GaussianPrior:
     """
@@ -147,6 +150,127 @@ class GaussianPrior:
         >>> p = prior.evaluate(x)
         """
         return stats.norm.pdf(x, loc=self.mu, scale=self.sigma)
+
+
+class MilkyWayRvPrior:
+    """
+    Milky Way Rv Prior.
+
+    References
+    ----------
+    Adam Trotter (2011):
+        The Gamma-Ray Burst Afterglow Modeling Project:
+        Foundational Statistics and Absorption & Extinction Models.
+        See: Page 108.
+    """
+    def __init__(self):
+        self.mu = 0.4150
+        self.sigma_low = 0.00779
+        self.sigma_high = 0.09074
+
+    def __repr__(self) -> str:
+        """ Human-readable representation. """
+        return (
+            f"{self.__class__.__name__}(mu={self.mu}, "
+            f"sigma={(self.sigma_low, self.sigma_high)})"
+        )
+
+    @property
+    def lower(self) -> float:
+        """ Returns the lower 3-sigma bound of the prior. """
+        return 0.302  # self.mu - 3.0 * self.sigma_low
+
+    @property
+    def upper(self) -> float:
+        """ Returns the upper 3-sigma bound of the prior. """
+        return 0.778  # self.mu + 3.0 * self.sigma_high
+
+    @classmethod
+    def from_dict(cls, d: dict):
+        """
+        Creates instance from dict ensuring values are OK.
+
+        Parameters
+        ----------
+        d : dict
+            `mu`   : float
+            `low`  : float
+            `high` : float
+
+        Returns
+        -------
+        GaussianPrior
+            Instantiated from dictionary
+        """
+        return cls()
+
+    def draw(self, n: int) -> float | np.ndarray:
+        """
+        Draws `n` samples from the Gaussian distribution.
+
+        Parameters
+        ----------
+        n : int
+            The number of samples to draw.
+
+        Returns
+        -------
+        float or np.ndarray, with shape (n, 1)
+            The samples drawn.
+        """
+        # Probabilities for each side (proportional to sigmas)
+        p_left = self.sigma_low / (self.sigma_low + self.sigma_high)
+
+        # Randomly decide which branch for each sample
+        branches = np.random.rand(n) < p_left
+
+        samples_log = np.zeros(n)
+
+        # Left branch: truncated normal, x < mu
+        n_left = branches.sum()
+        if n_left > 0:
+            samples_log[branches] = stats.truncnorm.rvs(
+                -np.inf, 0.0, loc=self.mu, scale=self.sigma_low, size=n_left
+            )
+
+        # Right branch: truncated normal, x >= mu
+        n_right = n - n_left
+        if n_right > 0:
+            samples_log[~branches] = stats.truncnorm.rvs(
+                0.0, np.inf, loc=self.mu, scale=self.sigma_high, size=n_right
+            )
+
+        return samples_log
+
+    def evaluate(self, x, norm=False) -> float | np.ndarray:
+        """
+        Evaluates the prior at the sampled value `x`.
+
+        Parameters
+        ----------
+        x : float or array_like
+            The sampled value.
+
+        norm : bool, optional, default: False
+            Normalize the prior? Normalization is not
+            needed for maximizing likelihoods and introduces
+            unnecessary computations. However, it's provided
+            as option for those that want it.
+
+        Returns
+        -------
+        float
+            The prior evaluated at `x`.
+        """
+
+        # CCM implementation only supports 2 > x < 6
+        if x < 0.302 or x > 0.778:
+            return -np.inf
+
+        sig = self.sigma_low if x < self.mu else self.sigma_high
+        norm = (self.sigma_low + self.sigma_high) * np.sqrt(np.pi / 2) if norm else 1.0
+
+        return np.exp(-0.5 * ((x - self.mu) / sig) ** 2) / norm
 
 
 class TruncatedGaussianPrior(GaussianPrior, BoundedMixin):
@@ -306,17 +430,19 @@ class UniformPrior(BoundedMixin):
         UniformPrior
             Instantiated from dictionary.
         """
-        if not nav_utils.is_expected_type(lower := d.get('lower'), (int, float)):
-            raise TypeError('Uniform lower must be of type float.')
+        if not isinstance(lower := d.get('lower'), (int, float)):
+            raise TypeError('Uniform lower must be a number.')
 
-        if not nav_utils.is_expected_type(upper := d.get('upper'), (int, float)):
-            raise TypeError('Uniform upper must be of type float.')
+        if not isinstance(upper := d.get('upper'), (int, float)):
+            raise TypeError('Uniform upper must be a number.')
 
-        if not nav_utils.is_expected_type(initial := d.get('initial_guess', None), (int, float), True):
-            raise TypeError('Initial guess must be of type float.')
+        if (initial := d.get('initial_guess')) is not None:
+            if not isinstance(initial, (int, float)):
+                raise TypeError('Initial guess must be a number.')
 
-        if not nav_utils.is_expected_type(sigma := d.get('initial_sigma', None), (int, float), True):
-            raise TypeError('Initial sigma must be of type float.')
+        if (sigma := d.get('initial_sigma')) is not None:
+            if not isinstance(sigma, (int, float)):
+                raise TypeError('Initial sigma must be a number.')
 
         return cls(lower, upper, initial, sigma)
 

@@ -42,7 +42,8 @@ class TestCharacteristicModels(unittest.TestCase):
         model = StratifiedFireballModel(
             E=4.0, p=2.5, eps_b=0.001, eps_e=0.1, X=0.7,
             k1=2.0, k2=0.0, nt=1.0, rt=1e17, sn=3.0,
-            dL=2.0, z=0.0)
+            dL=2.0, z=0.0
+        )
 
         ts = np.geomspace(0.0012, 10, 500)  # 100s to 2 days
         radii = model.radii(ts)
@@ -50,7 +51,7 @@ class TestCharacteristicModels(unittest.TestCase):
         # Plot n effective
         for s in np.linspace(-3.0, 3.0, 5):
             model.sn = s
-            n_eff, _ = model.smooth(ts, radii)
+            n_eff, _ = model.smooth(ts)
 
             plt.loglog(radii, n_eff, label=f's = {s}')
             plt.axvline(model.rt, linestyle='--', color='black')
@@ -62,7 +63,7 @@ class TestCharacteristicModels(unittest.TestCase):
         # Plot k effective
         for s in np.linspace(-3.0, 3.0, 5):
             model.sn = s
-            _, k_eff = model.smooth(ts, radii)
+            _, k_eff = model.smooth(ts)
 
             plt.plot(radii, k_eff, label=f's = {s}')
             plt.axvline(model.rt, linestyle='--', color='black')

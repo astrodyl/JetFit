@@ -68,7 +68,7 @@ def get_best_params(sampler, params, **kwargs):
     return params.samples_to_dict(sampler.get_chain(flat=True)[max_index], **kwargs)
 
 
-def map_groups(observation, gen_times, dynamic=False):
+def map_groups(observation, gen_times):
     """"""
     group_map = {
         g: np.full(len(gen_times), False, dtype=bool)
@@ -118,10 +118,9 @@ def map_stratified_groups(observation, gen_times, p_early, p_late):
 
 class FrequencyPlot:
     """"""
-    def __init__(self, sampler, params, dynamic=False):
+    def __init__(self, sampler, params):
         self.sampler = sampler
         self.parameters = params
-        self.dynamic = dynamic
 
         self.ax = None
         self._set_axes()
@@ -162,21 +161,14 @@ class FrequencyPlot:
             nu_as_all = np.full(times.size, np.nan)
 
             if p.get('shared'):
-                if not self.dynamic:
-                    groups = map_groups(obs, times)
-                else:
-                    groups = map_stratified_groups(
-                        obs, times,
-                        p.get('early').get('model'),
-                        p.get('late').get('model')
-                    )
+                groups = map_groups(obs, times)
 
                 for group, pos in groups.items():
                     model_params = p.get(group).get('model')
                     afterglow_model = model(**model_params, **model_kw)
                     nu_ms_all[pos] = afterglow_model.nu_m(times[pos])
                     nu_cs_all[pos] = afterglow_model.nu_c(times[pos])
-                    nu_as_all[pos] = afterglow_model.nu_a(times[pos])
+                    nu_as_all[pos] = afterglow_model.nu_a(times[pos], 'slow')
             else:
                 afterglow_model = model(**p.get('model'), **model_kw)
                 if isinstance(afterglow_model, StratifiedFireballModel):
@@ -235,21 +227,14 @@ class FrequencyPlot:
             nu_as_all = np.full(times.size, np.nan)
 
             if p.get('shared'):
-                if not self.dynamic:
-                    groups = map_groups(obs, times)
-                else:
-                    groups = map_stratified_groups(
-                        obs, times,
-                        p.get('early').get('model'),
-                        p.get('late').get('model')
-                    )
+                groups = map_groups(obs, times)
 
                 for group in groups.keys():
                     model_params = p.get(group).get('model')
                     afterglow_model = model(**model_params, **model_kw)
                     nu_ms_all[groups[group]] = afterglow_model.nu_m(times[groups[group]])
                     nu_cs_all[groups[group]] = afterglow_model.nu_c(times[groups[group]])
-                    nu_as_all[groups[group]] = afterglow_model.nu_a(times[groups[group]])
+                    nu_as_all[groups[group]] = afterglow_model.nu_a(times[groups[group]], 'slow')
             else:
                 afterglow_model = model(**p.get('model'), **model_kw)
                 if isinstance(afterglow_model, StratifiedFireballModel):
@@ -317,11 +302,10 @@ class FrequencyPlot:
 
 class LightCurvePlot:
     """"""
-    def __init__(self, model, params, observation, title='Light Curve', dynamic=False):
+    def __init__(self, model, params, observation, title='Light Curve'):
         self.model = model
         self.params = params
         self.observation = observation
-        self.dynamic = dynamic
 
         self.ax = None
         self._set_axes(title)
@@ -391,14 +375,7 @@ class LightCurvePlot:
             modeled = np.full(times.size, np.nan)
 
             if p.get('shared') is not None:
-                if not self.dynamic:
-                    groups = map_groups(self.observation, times)
-                else:
-                    groups = map_stratified_groups(
-                        self.observation, times,
-                        p.get('early').get('model'),
-                        p.get('late').get('model')
-                    )
+                groups = map_groups(self.observation, times)
 
                 for group, pos in groups.items():
                     model_params = p.get(group).get('model')
@@ -414,14 +391,7 @@ class LightCurvePlot:
             modeled = np.full(times.size, np.nan)
 
             if p.get('shared') is not None:
-                if not self.dynamic:
-                    groups = map_groups(self.observation, times)
-                else:
-                    groups = map_stratified_groups(
-                        self.observation, times,
-                        p.get('early').get('model'),
-                        p.get('late').get('model')
-                    )
+                groups = map_groups(self.observation, times)
 
                 for group, pos in groups.items():
                     model_params = p.get(group).get('model')
@@ -467,6 +437,7 @@ class LightCurvePlot:
             host_corr = params.get('host')
             ebv_sf = params.get('extinction').get('ebv_source_frame')
             ebv_mw = params.get('extinction').get('ebv_milky_way')
+            rv_milky_way = params.get('extinction').get('rv_milky_way')
 
             # Apply source dust extinction before host galaxy correction
             if ext_model is not None and ebv_sf is not None:
@@ -478,8 +449,13 @@ class LightCurvePlot:
                 sflux += host_corr[filter_host]
 
             # Apply Milky Way dust extinction
-            if ext_model is not None and ebv_mw is not None:
-                sflux *= ext_model.extinguish(1 / wavelength, Ebv=ebv_mw)
+            if ext_model is not None:
+                model = ext_model
+
+                if rv_milky_way is not None:
+                    model = ext_model.__class__(Rv=rv_milky_way)
+
+                sflux *= model.extinguish(1 / wavelength, Ebv=ebv_mw)
 
             # Plot the modeled spectral flux
             self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.0, color=OPTION_MAP[sdata.filter]['color'])

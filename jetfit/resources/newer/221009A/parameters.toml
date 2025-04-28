@@ -9,7 +9,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -2.0
-    upper = 8.0
+    upper = 4.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -93,12 +93,10 @@ value = 0.229
 #---------- Rv Milky Way -----------
 [[extinction]]
 name  = "rv_milky_way"
-scale = "linear"
+scale = "log"
 
 [extinction.prior]
-    type  = "uniform"
-    lower = 2.0
-    upper = 5.0
+    type  = "milkywayrv"
 
 #----------- EXTINCTION ------------
 #---------- source_frame -----------

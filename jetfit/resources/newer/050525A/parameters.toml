@@ -52,7 +52,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 1.5
+    lower = 1.0
     upper = 3.5
     initial_guess = 2.25
     initial_sigma = 0.25
@@ -65,8 +65,8 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
-    upper = 3.0
+    lower = -5.0
+    upper = 3.5
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -227,14 +227,3 @@ scale = "linear"
     type  = "gaussian"
     mu    = 0.0
     sigma = 0.02
-
-#--------------- SLOP --------------
-#--------------- slop --------------
-[[slop]]
-name  = "slop"
-scale = "linear"
-
-[slop.prior]
-    type  = "uniform"
-    lower = 0.0
-    upper = 0.3

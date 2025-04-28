@@ -518,6 +518,10 @@ class StratifiedDensityProfilePlot(Distribution):
 
             else:
                 p = self.params.samples_to_dict(s).get('model')
+
+                if p is None:
+                    p = self.params.samples_to_dict(s).get('shared').get('model')
+
                 self.model_single(p, start, stop, 'dist')
 
     def model_best(self, start, stop):
@@ -537,7 +541,12 @@ class StratifiedDensityProfilePlot(Distribution):
             self.model_stratified(p_early, p_late, start, stop, 'best')
 
         else:
-            self.model_single(self.best().get('model'), start, stop, 'best')
+            p = self.best().get('model')
+
+            if p is None:
+                p = self.best().get('shared').get('model')
+
+            self.model_single(p, start, stop, 'best')
 
     def plot(self, start, stop, thin=10, nsamps=100, out_dir=None):
         """

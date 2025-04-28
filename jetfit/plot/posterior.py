@@ -127,7 +127,7 @@ class PosteriorPlot:
                 # Generic Fireball Model
                 'E': r'$log_{10}E_{52}$',
                 'eps_e': r'$log_{10}\epsilon_e$',
-                'rv_milky_way': r'$Rv_{MW}$',
+                'rv_milky_way': r'$log_{10}R_{v}^{MW}$',
                 'eps_b': r'$log_{10}\epsilon_B$',
                 'ebv_sf': r'$E(B-v)_{sf}$',
                 'rho0': r'$log_{10}n$',

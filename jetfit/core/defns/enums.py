@@ -31,10 +31,11 @@ class Prior(Enum):
     """
 
     """
-    GAUSSIAN  = 'gaussian'
-    TGAUSSIAN = 'tgaussian'
-    UNIFORM   = 'uniform'
-    SINE      = 'sine'
+    GAUSSIAN   = 'gaussian'
+    TGAUSSIAN  = 'tgaussian'
+    UNIFORM    = 'uniform'
+    SINE       = 'sine'
+    MILKYWAYRV = 'milkywayrv'
 
 
 class DataType(Enum):

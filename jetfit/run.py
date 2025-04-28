@@ -16,7 +16,7 @@ from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSi
 from jetfit.models2.basemodels import ObservedFluxModel
 from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
-from jetfit.plot.SFBMPlotter import SFBMDensityPlotter, SFBMDensityProfiler
+from jetfit.plot.sfbm import SFBMIndexProfiler, SFBMDensityProfiler
 from jetfit.plot.dist import DistributionPlot
 from jetfit.plot.dist2 import SpectralIndexPlot, StratifiedDensityProfilePlot
 from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
@@ -72,7 +72,7 @@ def main(
     # ---------------------- Observed Flux Model ----------------------
     # -----------------------------------------------------------------
     # Pre-compute extinction values (if applicable)
-    ebv = {'ebv_source_frame': None, 'ebv_milky_way': None}
+    ebv = {'ebv_milky_way': None}
     wn = observation.as_arrays.wave_numbers[observation.sflux_loc]
     extinction_model = CCM89(Rv=3.1)
 
@@ -83,14 +83,10 @@ def main(
     if parameters.has('rv_milky_way'):
         ebv['ebv_milky_way'] = None
 
-    if parameters.has('rv_source_frame'):
-        ebv['ebv_source_frame'] = None
-
     # Store pre-computed values in the extrinsic model
     observed_flux_model = ObservedFluxModel(
         model, extinction_model,
-        ext_sf=ebv['ebv_source_frame'],
-        ext_mw=ebv['ebv_milky_way'],
+        ext_mw=ebv['ebv_milky_way']
     )
 
     # -----------------------------------------------------------------
@@ -123,7 +119,7 @@ def main(
             observation.as_arrays.times.min(),
             observation.as_arrays.times.max(),
         )
-        SFBMDensityPlotter(**profiler.as_dict()).plot(results_dir)
+        profiler.plot_profile(results_dir)
 
     else:
         # Plot the density profiles
@@ -151,7 +147,7 @@ def main(
             observation.data[observation.sindex_loc], out_dir=results_dir)
 
     # Plot frequencies
-    fp = FrequencyPlot(mcmc.sampler, parameters, observed_flux_model.dynamic)
+    fp = FrequencyPlot(mcmc.sampler, parameters)
     fp.plot(
         model=observed_flux_model.afterglow_model,
         obs=observation,
@@ -169,7 +165,6 @@ def main(
         params=best_params,
         observation=observation,
         title=f'{event} Light Curve',
-        dynamic=observed_flux_model.dynamic
     )
     lc.plot(
         out_dir=results_dir,
@@ -252,7 +247,7 @@ if __name__ == "__main__":
         events = [
             # '050525A',
             # '050922C',
-            '080413B',
+            # '080413B',
             # '080319B_nature_mix_early',
             # '080319B_nature_mix_late',
             # '090424',
@@ -265,9 +260,9 @@ if __name__ == "__main__":
             # '140506A',
             # '160131A',
             # '171010A',
-            # '210905A',
+            # '210905A_late',
             # '220101A',
-            # '221009A',
+            '221009A',
             # '231118A',
         ]
     else:
