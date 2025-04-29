@@ -101,8 +101,8 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 1.0
-    upper = 3.0
+    lower = -3.0
+    upper = 0.1
 
 #-------------- MODEL --------------
 #------------ tj (days) ------------

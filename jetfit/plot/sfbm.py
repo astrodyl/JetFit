@@ -98,14 +98,7 @@ class SFBMDensityProfiler(Profiler):
 
         # Calculate the radii
         n_eff, k_eff = model.smooth(times)
-
-        blastwave_model = BlastWaveModel(
-            model.E, n_eff, k_eff, model.rt
-        )
-
-        radii = blastwave_model.shock_radius(
-            model.z, times, sec_to_days(blastwave_model.decel_time())
-        )
+        radii = model.radii(times)
 
         # Store the interesting values
         self.r[loc].append(radii)

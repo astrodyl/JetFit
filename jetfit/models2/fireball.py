@@ -164,9 +164,6 @@ class StratifiedFireballModel:
         # Smooth the density profile
         n_eff, k_eff = self.smooth(arrays.times)
 
-        if k_eff.max() > 10:
-            exit()
-
         # Calculate the spectral functions
         f_peaks = self.f_peak(n_eff, k_eff, arrays.times)
         nu_as = self.nu_a(n_eff, k_eff, arrays.times, regime='slow')
@@ -237,7 +234,7 @@ class StratifiedFireballModel:
             The peak flux in mJy at time `t`.
         """
         return PeakFluxModel(
-            self.E, n, self.eps_b, self.dL, self.z, k, self.X)(t)
+            self.E, n, self.eps_b, self.dL, self.z, k, self.X)(t, np.log10(self.rt))
 
     def nu_c(self, n, k, t):
         """
@@ -263,7 +260,7 @@ class StratifiedFireballModel:
             The cooling frequency in Hz at time `t`.
         """
         return CoolingFrequencyModel(
-            self.E, n, self.eps_b, k, self.z)(t)
+            self.E, n, self.eps_b, k, self.z)(t, np.log10(self.rt))
 
     def nu_m(self, k, t):
         """
@@ -310,7 +307,7 @@ class StratifiedFireballModel:
         """
         return AbsorptionFrequencyModel(
             self.E, n, self.eps_e, self.eps_b, k, self.z, self.X, self.p
-        )(t, regime)
+        )(t, regime, np.log10(self.rt))
 
     def smooth_jet_break(self, f, t, n, k, **kwargs):
         """ Will be moved in base or mixin. """

@@ -3,6 +3,7 @@ import json
 import os.path
 from pathlib import Path
 
+import emcee
 import numpy as np
 from dust_extinction.parameter_averages import CCM89
 from matplotlib import pyplot as plt
@@ -248,7 +249,7 @@ if __name__ == "__main__":
             # '050525A',
             # '050922C',
             # '080413B',
-            # '080319B_nature_mix_early',
+            '080319B_nature_mix',
             # '080319B_nature_mix_late',
             # '090424',
             # '090618',
@@ -260,9 +261,9 @@ if __name__ == "__main__":
             # '140506A',
             # '160131A',
             # '171010A',
-            # '210905A_late',
+            # '210905A',
             # '220101A',
-            '221009A',
+            # '221009A',
             # '231118A',
         ]
     else:

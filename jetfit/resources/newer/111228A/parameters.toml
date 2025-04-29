@@ -1,39 +1,39 @@
 # MCMC Parameter Configuriation File
 
 #-------------- MODEL --------------
-#------------ E (early) ------------
+#---------------- E ----------------
 [[model]]
 name  = "E"
 scale = "log"
-group = "early"
-
-[model.prior]
-    type  = "uniform"
-    lower = -4.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#------------ E (late) -------------
-[[model]]
-name  = "E"
-scale = "log"
-group = "late"
 
 [model.prior]
     type  = "uniform"
     lower = -2.0
-    upper = 3.0
+    upper = 4.0
 
 #-------------- MODEL --------------
-#---------------- n ----------------
+#----------- TRANSITION ------------
+#--------------- nt ----------------
 [[model]]
-name  = "rho0"
+name  = "nt"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
     lower = -6.0
-    upper = 9.0
+    upper = 6.0
+
+#-------------- MODEL --------------
+#----------- TRANSITION ------------
+#--------------- rt ----------------
+[[model]]
+name  = "rt"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 15.0
+    upper = 25.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -43,7 +43,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -4.0
+    lower = -6.0
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -58,25 +58,10 @@ scale = "log"
     upper = 0.0
 
 #-------------- MODEL --------------
-#------------ p (early) ------------
+#----------------- p ----------------
 [[model]]
 name  = "p"
 scale = "linear"
-group = "early"
-
-[model.prior]
-    type  = "uniform"
-    lower = 1.0
-    upper = 3.5
-    initial_guess = 2.25
-    initial_sigma = 0.25
-
-#-------------- MODEL --------------
-#------------- p (late) ------------
-[[model]]
-name  = "p"
-scale = "linear"
-group = "late"
 
 [model.prior]
     type  = "uniform"
@@ -86,23 +71,33 @@ group = "late"
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#------------ k (early) ------------
+#--------------- k1 ----------------
 [[model]]
-name  = "k"
+name  = "k1"
 scale = "linear"
-group = "early"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
+    lower = -3.0
     upper = 3.0
 
 #-------------- MODEL --------------
-#------------- k (late) ------------
+#--------------- k2 ----------------
 [[model]]
-name  = "k"
+name  = "k2"
 scale = "linear"
-group = "late"
+
+[model.prior]
+    type  = "uniform"
+    lower = -3.0
+    upper = 3.0
+
+#-------------- MODEL --------------
+#----------- TRANSITION ------------
+#--------------- sn ----------------
+[[model]]
+name  = "sn"
+scale = "linear"
 
 [model.prior]
     type  = "uniform"

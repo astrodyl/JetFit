@@ -204,17 +204,17 @@ class FrequencyPlot:
             nu_ms, nu_cs, nu_as = model_frequencies(params)
 
             # Finally plot them.
-            self.ax.loglog(times, nu_ms, color='blue', alpha=0.1)
+            self.ax.loglog(times, nu_ms, color='blue',   alpha=0.1)
             self.ax.loglog(times, nu_cs, color='orange', alpha=0.1)
-            self.ax.loglog(times, nu_as, color='green', alpha=0.1)
+            self.ax.loglog(times, nu_as, color='green',  alpha=0.1)
 
         best_params = get_best_params(self.sampler, self.parameters, cat='model')
         best_nu_ms, best_nu_cs, best_nu_as = model_frequencies(best_params)
 
         # Plot best frequencies
         self.ax.loglog(times, best_nu_ms, color='purple', linewidth=2)
-        self.ax.loglog(times, best_nu_cs, color='red', linewidth=2)
-        self.ax.loglog(times, best_nu_as, color='green', linewidth=2)
+        self.ax.loglog(times, best_nu_cs, color='red',    linewidth=2)
+        self.ax.loglog(times, best_nu_as, color='green',  linewidth=2)
 
     def plot_best(self, obs, model, out_dir=None, **model_kw):
         """"""
@@ -471,10 +471,10 @@ class LightCurvePlot:
 
             # Convert to flux density [mJy]
             iflux_quant = u.Quantity(iflux, unit=self.observation.as_arrays.if_units)
-            sflux_quant = (iflux_quant / idata.int_range.width).to('mJy')
+            sflux = (iflux_quant / idata.int_range.width).to_value('mJy')
 
             # Plot the modeled integrated flux as a spectral flux
-            self.ax.loglog(days_to_sec(times), sflux_quant.value, '--', linewidth=1.0, color=OPTION_MAP[idata.filter]['color'])
+            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.0, color=OPTION_MAP[idata.filter]['color'])
 
         self.ax.set_xlim(days_to_sec(times[0]/3), days_to_sec(times[-1]*1.5))
 
