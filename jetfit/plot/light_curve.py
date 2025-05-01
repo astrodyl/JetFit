@@ -168,18 +168,18 @@ class FrequencyPlot:
                     afterglow_model = model(**model_params, **model_kw)
                     nu_ms_all[pos] = afterglow_model.nu_m(times[pos])
                     nu_cs_all[pos] = afterglow_model.nu_c(times[pos])
-                    nu_as_all[pos] = afterglow_model.nu_a(times[pos], 'slow')
+                    nu_as_all[pos] = afterglow_model.nu_a(times[pos], nu_ms_all[pos])
             else:
                 afterglow_model = model(**p.get('model'), **model_kw)
                 if isinstance(afterglow_model, StratifiedFireballModel):
                     n_eff, k_eff = afterglow_model.smooth(times)
                     nu_ms_all = afterglow_model.nu_m(k_eff, times)
                     nu_cs_all = afterglow_model.nu_c(n_eff, k_eff, times)
-                    nu_as_all = afterglow_model.nu_a(n_eff, k_eff, times, 'slow')
+                    nu_as_all = afterglow_model.nu_a(n_eff, k_eff, times, nu_ms_all)
                 else:
                     nu_ms_all = afterglow_model.nu_m(times)
                     nu_cs_all = afterglow_model.nu_c(times)
-                    nu_as_all = afterglow_model.nu_a(times, 'slow')
+                    nu_as_all = afterglow_model.nu_a(times, nu_ms_all)
             return nu_ms_all, nu_cs_all, nu_as_all
 
         # Get random locations from flattened chain
@@ -234,18 +234,18 @@ class FrequencyPlot:
                     afterglow_model = model(**model_params, **model_kw)
                     nu_ms_all[groups[group]] = afterglow_model.nu_m(times[groups[group]])
                     nu_cs_all[groups[group]] = afterglow_model.nu_c(times[groups[group]])
-                    nu_as_all[groups[group]] = afterglow_model.nu_a(times[groups[group]], 'slow')
+                    nu_as_all[groups[group]] = afterglow_model.nu_a(times[groups[group]], nu_ms_all[groups[group]])
             else:
                 afterglow_model = model(**p.get('model'), **model_kw)
                 if isinstance(afterglow_model, StratifiedFireballModel):
                     n_eff, k_eff = afterglow_model.smooth(times)
                     nu_ms_all = afterglow_model.nu_m(k_eff, times)
                     nu_cs_all = afterglow_model.nu_c(n_eff, k_eff, times)
-                    nu_as_all = afterglow_model.nu_a(n_eff, k_eff, times, 'slow')
+                    nu_as_all = afterglow_model.nu_a(n_eff, k_eff, times, nu_ms_all)
                 else:
                     nu_ms_all = afterglow_model.nu_m(times)
                     nu_cs_all = afterglow_model.nu_c(times)
-                    nu_as_all = afterglow_model.nu_a(times, 'slow')
+                    nu_as_all = afterglow_model.nu_a(times, nu_ms_all)
             return nu_ms_all, nu_cs_all, nu_as_all
 
         times = np.logspace(

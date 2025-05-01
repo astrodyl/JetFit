@@ -57,7 +57,10 @@ class StratifiedFireballModel:
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, nt, rt, k1, k2, sn, X, tj=None, sj=None, sji=None):
+    def __init__(self, E, p, eps_b, eps_e, z, dL, nt, rt, k1, k2, X, tj=None, sj=None, sji=None, sn=None, sni=None):
+        if sn is None and sni is None:
+            raise ValueError("Must specify either sni or sni.")
+
         # Afterglow
         self.E = E
         self.p = p
@@ -76,6 +79,7 @@ class StratifiedFireballModel:
         self.rt = rt
         self.nt = nt
         self.sn = sn
+        self.sni = sni
 
         # Jet
         self.tj = tj
@@ -106,7 +110,7 @@ class StratifiedFireballModel:
         r2 = bwm2.shock_radius(self.z, t, t_decel)
 
         # Rename for convenience
-        sn = self.sn
+        sn = self.sn if self.sn else 1 / self.sni
         k1, k2 = self.k1, self.k2
         x1, x2 = r1 / self.rt, r2 / self.rt
 
@@ -146,7 +150,8 @@ class StratifiedFireballModel:
         r2 = bwm2.shock_radius(self.z, t, t_decel)
 
         # Rename for convenience
-        x1, x2, s = r1 / self.rt, r2 / self.rt, self.sn
+        s = self.sn if self.sn else 1 / self.sni
+        x1, x2 = r1 / self.rt, r2 / self.rt
 
         return self.rt * (2 ** (1 / s)) * (x1 ** -s + x2 ** -s) ** -(1 / s)
 
@@ -158,6 +163,10 @@ class StratifiedFireballModel:
         if self.eps_b + self.eps_e >= 1.0:
             return res
 
+        # Unstable near 0
+        if 0.1 > (self.sn or self.sni) > -0.1:
+            return res
+
         # For speed, get observation as arrays
         arrays = observation.as_arrays
 
@@ -166,30 +175,29 @@ class StratifiedFireballModel:
 
         # Calculate the spectral functions
         f_peaks = self.f_peak(n_eff, k_eff, arrays.times)
-        nu_as = self.nu_a(n_eff, k_eff, arrays.times, regime='slow')
         nu_cs = self.nu_c(n_eff, k_eff, arrays.times)
         nu_ms = self.nu_m(k_eff, arrays.times)
-
-        # Do not allow for absorption frequencies
-        if (nu_as > arrays.frequencies[arrays.sflux_loc].min()).any():  # type: ignore
-            return res
+        nu_as = self.nu_a(n_eff, k_eff, arrays.times, nu_ms)
 
         # Model spectral fluxes
         if (sf_mask := arrays.sflux_loc).any():
             res[sf_mask] = SpectralFluxModel(
-                nu_ms[sf_mask], nu_cs[sf_mask], f_peaks[sf_mask], self.p, k_eff[sf_mask]
+                nu_ms[sf_mask], nu_cs[sf_mask], nu_as[sf_mask],
+                f_peaks[sf_mask], self.p, k_eff[sf_mask]
             )(arrays.frequencies[sf_mask])
 
         # Model integrated fluxes
         if (if_mask := arrays.iflux_loc).any():
             res[if_mask] = IntegratedFluxModel(
-                nu_ms[if_mask], nu_cs[if_mask], f_peaks[if_mask], self.p, k_eff[if_mask]
+                nu_ms[if_mask], nu_cs[if_mask], nu_as[if_mask],
+                f_peaks[if_mask], self.p, k_eff[if_mask]
             )(arrays.if_lower_freqs[if_mask], arrays.if_upper_freqs[if_mask])
 
         # Model spectral indices
         if (si_mask := arrays.sindex_loc).any():
             res[si_mask] = SpectralIndexModel(
-                nu_ms[si_mask], nu_cs[si_mask], f_peaks[si_mask], self.p, k_eff[si_mask]
+                nu_ms[si_mask], nu_cs[si_mask], nu_as[si_mask],
+                f_peaks[si_mask], self.p, k_eff[si_mask]
             )(arrays.si_lower_freqs[si_mask], arrays.si_upper_freqs[si_mask])
 
         # Smooth the flux values if there is a jet break
@@ -231,7 +239,7 @@ class StratifiedFireballModel:
         Returns
         -------
         float or np.ndarray of float or u.Quantity['time']
-            The peak flux in mJy at time `t`.
+            The peak flux [mJy] at time `t`.
         """
         return PeakFluxModel(
             self.E, n, self.eps_b, self.dL, self.z, k, self.X)(t, np.log10(self.rt))
@@ -280,34 +288,52 @@ class StratifiedFireballModel:
         Returns
         -------
         float or np.ndarray of float
-            The synchrotron frequency in Hz at time `t`.
+            The synchrotron frequency [Hz] at time `t`.
         """
         return SynchrotronFrequencyModel(
             self.E, self.eps_e, self.eps_b, k, self.z, self.X, self.p)(t)
 
-    def nu_a(self, n, k, t, regime: str):
+    def nu_a(self, n, k, t, nu_m=None):
         """
-        Calculates the self-absorption frequency in the case of
-        an ultra-relativistic shock moving into an external medium
-        with density rho = rho_0 * R^-k.
+        Calculates the self-absorption frequency.
+
+        Since the self-absorption frequency has different relations
+        depending on its relative position to the other critical
+        frequencies, I calculate the self-absorption frequency
+        for both slow-cooling cases (nu_m < nu_a and nu_a < nu_m).
+
+        The result is a combined array where the self-absorption
+        is compared to the synchrotron frequency.
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, assumed
-            to be measured in days since trigger.
+        n : np.ndarray of float
+            The effective density normalization [cm-3].
 
-        regime : str, {'slow', 'fast'}
-            The regime to evaluate.
+        k : np.ndarray of float
+            The effective density power-law indices.
+
+        t : float or np.ndarray of float or u.Quantity['time']
+            The time since trigger. If `t` is a float,
+            assumed to be measured in days.
+
+        nu_m : float or np.ndarray of float, optional
+            The synchrotron frequencies [Hz] at time `t`.
 
         Returns
         -------
         float or np.ndarray of float
-            The self-absorption frequency in Hz at time `t`.
+            The self-absorption frequency [Hz] at time `t`.
         """
-        return AbsorptionFrequencyModel(
+        model = AbsorptionFrequencyModel(
             self.E, n, self.eps_e, self.eps_b, k, self.z, self.X, self.p
-        )(t, regime, np.log10(self.rt))
+        )
+
+        nu_m = self.nu_m(k, t) if nu_m is None else nu_m
+        nu_amc = model.evaluate_amc(t, np.log10(self.rt))
+        nu_mac = model.evaluate_mac(t, np.log10(self.rt))
+
+        return np.where(nu_amc < nu_m, nu_amc, nu_mac)
 
     def smooth_jet_break(self, f, t, n, k, **kwargs):
         """ Will be moved in base or mixin. """
@@ -320,18 +346,20 @@ class StratifiedFireballModel:
                 'Must provide either `nu` or `lower` and `upper`.'
             )
 
-        # Evaluate the flux at the jet break time
-        f_jet = model(
-            nu_m=self.nu_m(k, self.tj), nu_c=self.nu_c(n, k, self.tj),
-            f_peak=self.f_peak(n, k, self.tj), p=self.p, k=k
-        )(**kwargs)
-
-        # return flux smoothed over the jet break
+        # Transform the smoothing factor
         s = self.sj or 1 / self.sji
 
-        return (
-            f ** -s + (f_jet * (t / self.tj) ** -self.p) ** -s
-        ) ** -(1 / s)
+        # Characteristics at the jet break time
+        nu_m = self.nu_m(k, self.tj)
+        nu_c = self.nu_c(n, k, self.tj)
+        nu_a = self.nu_a(n, k, self.tj, nu_m)
+        f_peak = self.f_peak(n, k, self.tj)
+
+        # Evaluate the flux at the jet break time
+        f_jet = model(nu_m, nu_c, nu_a, f_peak, self.p, k)(**kwargs)
+
+        # return flux smoothed over the jet break
+        return (f ** -s + (f_jet * (t / self.tj) ** -self.p) ** -s) ** -(1 / s)
 
     def spectral_flux(self, t, f):
         """
@@ -353,14 +381,20 @@ class StratifiedFireballModel:
         """
         n_eff, k_eff = self.smooth(t)
 
+        # Characteristics
+        nu_m = self.nu_m(k_eff, t)
+        nu_c = self.nu_c(n_eff, k_eff, t)
+        nu_a = self.nu_a(n_eff, k_eff, t, nu_m)
+        f_peak = self.f_peak(n_eff, k_eff, t)
+
         res = SpectralFluxModel(
-            self.nu_m(k_eff, t), self.nu_c(n_eff, k_eff, t),
-            self.f_peak(n_eff, k_eff, t), self.p, k_eff
+            nu_m, nu_c, nu_a, f_peak, self.p, k_eff
         ).evaluate(f)
 
         if self.tj:
             return self.smooth_jet_break(res, t, n_eff, k_eff, nu=f)
 
+        # return the spectral flux [mJy]
         return res
 
     def integrated_flux(self, t, lower, upper):
@@ -383,15 +417,20 @@ class StratifiedFireballModel:
         """
         n_eff, k_eff = self.smooth(t)
 
+        # Characteristics
+        nu_m = self.nu_m(k_eff, t)
+        nu_c = self.nu_c(n_eff, k_eff, t)
+        nu_a = self.nu_a(n_eff, k_eff, t, nu_m)
+        f_peak = self.f_peak(n_eff, k_eff, t)
+
         res = IntegratedFluxModel(
-            self.nu_m(k_eff, t), self.nu_c(n_eff, k_eff, t),
-            self.f_peak(n_eff, k_eff, t), self.p, k_eff
-        ).evaluate(lower, upper)
+            nu_m, nu_c, nu_a, f_peak, self.p, k_eff)(lower, upper)
 
         if self.tj:
             return self.smooth_jet_break(
                 res, t, n_eff, k_eff, lower=lower, upper=upper)
 
+        # return the integrated flux [erg s-1 cm-2]
         return res
 
     def spectral_index(self, t, lower, upper):
@@ -420,9 +459,14 @@ class StratifiedFireballModel:
         """
         n_eff, k_eff = self.smooth(t)
 
+        # Characteristics
+        nu_m = self.nu_m(k_eff, t)
+        nu_c = self.nu_c(n_eff, k_eff, t)
+        nu_a = self.nu_a(n_eff, k_eff, t, nu_m)
+        f_peak = self.f_peak(n_eff, k_eff, t)
+
         return SpectralIndexModel(
-            self.nu_m(k_eff, t), self.nu_c(n_eff, k_eff, t),
-            self.f_peak(n_eff, k_eff, t), self.p, k_eff
+            nu_m, nu_c, nu_a, f_peak, self.p, k_eff
         ).evaluate(lower, upper)
 
 
@@ -534,28 +578,24 @@ class FireballModel(BaseFireballModel):
         f_peaks = self.f_peak(arrays.times)
         nu_ms = self.nu_m(arrays.times)
         nu_cs = self.nu_c(arrays.times)
-        nu_as = self.nu_a(arrays.times, regime='slow')
+        nu_as = self.nu_a(arrays.times, nu_ms)
 
-        # Do not allow for absorption frequencies
-        if (nu_as > arrays.frequencies[sf_mask].min()).any():  # type: ignore
-            return res[subset_mask] if subset_mask is not None else res
-
-        # Model spectral fluxes
-        if sf_mask.any():
+        if sf_mask.any():  # Model spectral fluxes
             res[sf_mask] = SpectralFluxModel(
-                nu_ms[sf_mask], nu_cs[sf_mask], f_peaks[sf_mask], self.p, self.k
+                nu_ms[sf_mask], nu_cs[sf_mask], nu_as[sf_mask],
+                f_peaks[sf_mask], self.p, self.k
             )(arrays.frequencies[sf_mask])
 
-        # Model integrated fluxes
-        if if_mask.any():
+        if if_mask.any():  # Model integrated fluxes
             res[if_mask] = IntegratedFluxModel(
-                nu_ms[if_mask], nu_cs[if_mask], f_peaks[if_mask], self.p, self.k
+                nu_ms[if_mask], nu_cs[if_mask], nu_as[if_mask],
+                f_peaks[if_mask], self.p, self.k
             )(arrays.if_lower_freqs[if_mask], arrays.if_upper_freqs[if_mask])
 
-        # Model spectral indices
-        if si_mask.any():
+        if si_mask.any():  # Model spectral indices
             res[si_mask] = SpectralIndexModel(
-                nu_ms[si_mask], nu_cs[si_mask], f_peaks[si_mask], self.p, self.k
+                nu_ms[si_mask], nu_cs[si_mask], nu_as[si_mask],
+                f_peaks[si_mask], self.p, self.k
             )(arrays.si_lower_freqs[si_mask], arrays.si_upper_freqs[si_mask])
 
         # Smooth the flux values if there is a jet break
@@ -598,13 +638,19 @@ class FireballModel(BaseFireballModel):
             See for information on how various shapes
             of t and f are handled.
         """
+        # Characteristics
+        nu_m = self.nu_m(t)
+        nu_c = self.nu_c(t)
+        nu_a = self.nu_a(t, nu_m)
+        f_peak = self.f_peak(t)
+
         res = SpectralFluxModel(
-            self.nu_m(t), self.nu_c(t), self.f_peak(t), self.p, self.k
-        ).evaluate(f)
+            nu_m, nu_c, nu_a, f_peak, self.p, self.k)(f)
 
         if self.tj:
             return self.smooth_jet_break(res, t, nu=f)
 
+        # return the spectral flux [mJy]
         return res
 
     def integrated_flux(self, t, lower, upper):
@@ -631,13 +677,19 @@ class FireballModel(BaseFireballModel):
             See for information on how various shapes
             of t, lower, upper are handled.
         """
+        # Characteristics
+        nu_m = self.nu_m(t)
+        nu_c = self.nu_c(t)
+        nu_a = self.nu_a(t, nu_m)
+        f_peak = self.f_peak(t)
+
         res = IntegratedFluxModel(
-            self.nu_m(t), self.nu_c(t), self.f_peak(t), self.p, self.k
-        ).evaluate(lower, upper)
+            nu_m, nu_c, nu_a, f_peak, self.p, self.k)(lower, upper)
 
         if self.tj:
             return self.smooth_jet_break(res, t, lower=lower, upper=upper)
 
+        # return the integrated flux [erg s-1 cm-2]
         return res
 
     def spectral_index(self, t, lower, upper):
@@ -664,9 +716,15 @@ class FireballModel(BaseFireballModel):
             See for information on how various shapes
             of t, lower, upper are handled.
         """
+        # Characteristics
+        nu_m = self.nu_m(t)
+        nu_c = self.nu_c(t)
+        nu_a = self.nu_a(t, nu_m)
+        f_peak = self.f_peak(t)
+
+        # return the spectral indices [dimension less]
         return SpectralIndexModel(
-            self.nu_m(t), self.nu_c(t), self.f_peak(t), self.p, self.k
-        ).evaluate(lower, upper)
+            nu_m, nu_c, nu_a, f_peak, self.p, self.k)(lower, upper)
 
     def smooth_jet_break(self, f, t, **kwargs):
         """
@@ -715,16 +773,21 @@ class FireballModel(BaseFireballModel):
             raise ValueError(
                 'Must provide either `nu` or `lower` and `upper`.'
             )
+        # Transform the smoothing factor
+        s = self.sj or 1 / self.sji
+
+        # Characteristics
+        nu_m = self.nu_m(self.tj)
+        nu_c = self.nu_c(self.tj)
+        nu_a = self.nu_a(self.tj, nu_m)
+        f_peak = self.f_peak(self.tj)
 
         # Evaluate the flux at the jet break time
         f_jet = model(
-            nu_m=self.nu_m(self.tj), nu_c=self.nu_c(self.tj),
-            f_peak=self.f_peak(self.tj), p=self.p, k=self.k
+            nu_m, nu_c, nu_a, f_peak, p=self.p, k=self.k
         )(**kwargs)
 
-        # return flux smoothed over the jet break
-        s = self.sj or 1 / self.sji
-
+        # return the flux smoothed over the jet break
         return (
             f ** -s + (f_jet * (t / self.tj) ** -self.p) ** -s
         ) ** -(1 / s)
@@ -789,11 +852,17 @@ class FireballModel(BaseFireballModel):
         return SynchrotronFrequencyModel(
             self.E, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p)(t)
 
-    def nu_a(self, t, regime: str):
+    def nu_a(self, t, nu_m=None):
         """
-        Calculates the self-absorption frequency in the case of
-        an ultra-relativistic shock moving into an external medium
-        with density rho = rho_0 * R^-k.
+        Calculates the self-absorption frequency.
+
+        Since the self-absorption frequency has different relations
+        depending on its relative position to the other critical
+        frequencies, I calculate the self-absorption frequency
+        for both slow-cooling cases (nu_m < nu_a and nu_a < nu_m).
+
+        The result is a combined array where the self-absorption
+        is compared to the synchrotron frequency.
 
         Parameters
         ----------
@@ -801,14 +870,21 @@ class FireballModel(BaseFireballModel):
             The time to evaluate. If `t` is a float, assumed
             to be measured in days since trigger.
 
-        regime : str, {'slow', 'fast'}
-            The regime to evaluate.
+        nu_m : float or np.ndarray of float, optional
+            The synchrotron frequencies [Hz] at time `t`.
 
         Returns
         -------
         float or np.ndarray of float
             The self-absorption frequency in Hz at time `t`.
         """
-        return AbsorptionFrequencyModel(
-            self.E, self.rho0, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p
-        )(t, regime)
+        model = AbsorptionFrequencyModel(
+            self.E, self.rho0, self.eps_e, self.eps_b,
+            self.k, self.z, self.X, self.p
+        )
+
+        nu_m = self.nu_m(t) if nu_m is None else nu_m
+        nu_amc = model.evaluate_amc(t)
+        nu_mac = model.evaluate_mac(t)
+
+        return np.where(nu_amc < nu_m, nu_amc, nu_mac)

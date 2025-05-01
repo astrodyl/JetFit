@@ -459,6 +459,7 @@ class BaseFireballModel:
 
 class BaseFluxModel:
     """
+    Base flux model. Not intended for direct use.
 
     Attributes
     ----------
@@ -474,30 +475,45 @@ class BaseFluxModel:
         The cooling frequency. If a simple float
         is provided, assumes it is measured in Hz.
 
+    nu_a : float or np.ndarray or u.Quantity['frequency']
+        The self-absorption frequency. If a simple float
+        is provided, assumes it is measured in Hz.
+
     p : float
         The electron energy power-law index.
 
     k : float
         The circumburst density power-law index.
     """
-    def __init__(self, nu_m, nu_c, f_peak, p, k):
-        if isinstance(nu_m, np.ndarray) or isinstance(nu_c, np.ndarray):
-            if nu_m.size != nu_c.size:
-                raise ValueError('nu_m, nu_c must have the same size.')
-
+    def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
         self.f_peak = f_peak
-        self.nu_m = nu_m
-        self.nu_c = nu_c
+        self.nu_m = np.atleast_1d(nu_m)
+        self.nu_c = np.atleast_1d(nu_c)
+        self.nu_a = np.atleast_1d(nu_a)
+
+        if self.nu_m.size != self.nu_c.size != self.nu_a.size:
+            raise ValueError(
+                f'nu_m, nu_c, nu_a must have the same size: '
+                f'{self.nu_m.size, self.nu_c.size, self.nu_a.size}'
+            )
+
         self.p = p
         self.k = k
 
+        # Determine regimes (slow, slow with self-absorption, fast)
+        # TODO: Not updated when frequencies are updated. Not good
+        # TODO: practice, but its faster. Revisit this before release.
+        self.slow = self.nu_m < self.nu_c
+        self.sabs = np.logical_and(self.slow, nu_m < nu_a)
+        self.fast = ~self.slow
+
     @property
     def f_peak(self) -> float | np.ndarray:
-        """ Returns the peak flux in mJy. """
+        """ Returns the peak flux [mJy]. """
         return self._f_peak
 
     @f_peak.setter
-    def f_peak(self, val) -> None:
+    def f_peak(self, val):
         """
         Sets the peak flux in mJy.
 
@@ -513,11 +529,11 @@ class BaseFluxModel:
 
     @property
     def nu_m(self) -> float | np.ndarray:
-        """ Returns the synchrotron frequency in Hz. """
+        """ Returns the synchrotron frequency [Hz]. """
         return self._nu_m
 
     @nu_m.setter
-    def nu_m(self, val) -> None:
+    def nu_m(self, val):
         """
         Sets synchrotron frequency in Hz.
 
@@ -533,11 +549,11 @@ class BaseFluxModel:
 
     @property
     def nu_c(self) -> float | np.ndarray:
-        """ Returns the synchrotron frequency in Hz. """
+        """ Returns the synchrotron frequency [Hz]. """
         return self._nu_c
 
     @nu_c.setter
-    def nu_c(self, val) -> None:
+    def nu_c(self, val):
         """
         Sets cooling frequency in Hz.
 
@@ -551,13 +567,51 @@ class BaseFluxModel:
             val = val.to_value('Hz')
         self._nu_c = val
 
+    @property
+    def nu_a(self) -> float | np.ndarray:
+        """ Returns the self-absorption frequency [Hz]. """
+        return self._nu_a
+
+    @nu_a.setter
+    def nu_a(self, val) :
+        """
+        Sets self-absorption frequency in Hz.
+
+        Parameters
+        ----------
+        val : float or np.ndarray or u.Quantity['frequency']
+            The self-absorption frequency. If a simple float is
+            provided, assumes it is measured in Hz.
+        """
+        if isinstance(val, u.Quantity):
+            val = val.to_value('Hz')
+        self._nu_a = val
+
 
 class SpectralFluxModel(BaseFluxModel):
     """
     Spectral Fireball Flux Model
+
+    The notation in this class is as follows:
+        - b1 = spectral index of segment 1
+        - s12 = smoothing between segments 1 and 2
+        - nu12 = characteristic frequency at `v_12`
+
+    F_ν
+    │                     _
+    │              _⎽⎽⎼⎼⎻⎻⎺⎺ ‾│‾---__
+    │        _⎽⎽⎼⎼⎻⎻⎺⎺        │      ‾‾---__
+    │      ╱ │            │            │\
+    │     ╱  │            │            │ \
+    │    ╱   │    seg 1   │    seg 2   │  \
+    │   ╱    │            │            │   \
+    │  ╱     │            │            │    \
+    │ ╱      │            │            │
+    ├───────────────────────────────────────────▶ ν
+            v_0          v_1          v_2
     """
-    def __init__(self, nu_m, nu_c, f_peak, p, k):
-        super().__init__(nu_m, nu_c, f_peak, p, k)
+    def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
+        super().__init__(nu_m, nu_c, nu_a, f_peak, p, k)
 
     def __call__(self, nu):
         """ Calls the `evaluate` method. """
@@ -581,7 +635,7 @@ class SpectralFluxModel(BaseFluxModel):
 
     def evaluate(self, nu):
         """
-        Calculates the smoothed flux at a given frequency, `nu`.
+        Calculates the smoothed flux for frequency, `nu`.
 
         Supports four cases:
             (1) One `nu` and many spectral functions:
@@ -598,76 +652,140 @@ class SpectralFluxModel(BaseFluxModel):
             (4) One `nu` and one spectral function:
                 Returns a single flux value.
 
-        Smoothing factors are taken from Granot & Sari 2002.
-        Spectral indices are taken from Sari, Piran, & Narayan 1998.
-
         Parameters
         ----------
         nu : float or np.ndarray
-            The frequency to evaluate.
+            The observed frequency [Hz].
 
         Returns
         -------
         float or np.ndarray of float
-            The modeled flux with units of [mJy].
-
-        References
-        ----------
-        [1] Granot & Sari 2002
-        https://iopscience.iop.org/article/10.1086/338966
-
-        [2] Sari, Piran, & Narayan 1998
-        https://iopscience.iop.org/article/10.1086/311269/pdf
+            The modeled smoothed spectral flux [mJy].
         """
         nu = np.atleast_1d(nu)
-        nu_m = np.atleast_1d(self.nu_m)
-        nu_c = np.atleast_1d(self.nu_c)
 
-        # Handles the cases for varying sizes of inputs
-        size = nu_m.size if nu.size == 1 else nu.size
+        # Get stuff done
+        nu12, nu23 = self.spectral_breaks()
+        b1, b2, b3 = self.spectral_indices()
+        s12, s23 = self.smoothing()
 
-        if nu.size > 1 and nu_c.size == 1:
-            nu_c = np.full(nu.size, nu_c[0])
-            nu_m = np.full(nu.size, nu_m[0])
+        # Transform for readability
+        x12, x23 = nu / nu12, nu / nu23
 
-        # Initialize spectral indices with slow-cooling params
-        b1 = np.full(size, 1 / 3)
-        b2 = np.full(size, (1 - self.p) / 2)
-        b3 = np.full(size, -self.p / 2)
-
-        # Initialize smoothing factors with slow-cooling params
-        if isinstance(self.k, np.ndarray):
-            s12 = 1.84 - (0.040 * self.k) - (0.40 - 0.010 * self.k) * self.p
-            s23 = 1.15 - (0.125 * self.k) - (0.06 - 0.015 * self.k) * self.p
-        else:
-            s12 = np.full(size, 1.84 - (0.040 * self.k) - (0.40 - 0.010 * self.k) * self.p)
-            s23 = np.full(size, 1.15 - (0.125 * self.k) - (0.06 - 0.015 * self.k) * self.p)
-
-        # Initialize critical frequencies in slow-cooling order
-        nu12 = np.array(nu_m, copy=True)
-        nu23 = np.array(nu_c, copy=True)
-
-        # Overwrite with any fast-cooling parameters
-        fast_regime = nu_m > nu_c
-
-        if fast_regime.any():
-            fast_k = self.k[fast_regime] if isinstance(self.k, np.ndarray) else self.k
-
-            b2[fast_regime] = -0.5
-            s12[fast_regime] = 0.597
-            nu12[fast_regime] = nu_c[fast_regime]
-            nu23[fast_regime] = nu_m[fast_regime]
-            s23[fast_regime] = 3.34 + 0.17 * fast_k - (0.82 + 0.035 * fast_k) * self.p
-
-        # Smooth the flux across the spectral segments
+        # Smooth the spectrum across spectral breaks
         flux = self.f_peak * (
-            (((nu / nu12) ** -(s12 * (b1 - b2)) + 1) ** (s23 / s12)) *
-            ((nu / nu12) ** -(s23 * b2)) +
-            (((nu23 / nu12) ** -(s23 * b2)) * ((nu/nu23) ** -(s23 * b3)))
+            (x12 ** -(s12 * (b1 - b2)) + 1) ** (s23 / s12) * x12 ** -(s23 * b2) +
+            ((nu23 / nu12) ** -(s23 * b2)) * (x23 ** -(s23 * b3))
         ) ** -(1 / s23)
 
         # return the smoothed spectral flux [mJy]
         return flux[0] if flux.size == 1 else flux
+
+    def spectral_breaks(self):
+        """
+        Creates arrays critical frequencies that define
+        the GRB spectrum.
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+            The critical frequencies [Hz].
+        """
+        # Default: nu_a < nu_m < nu_c
+        nu12 = np.array(self.nu_m, copy=True)
+        nu23 = np.array(self.nu_c, copy=True)
+
+        if self.fast.any():
+            # Overwrite: nu_m < nu_a < nu_c
+            nu12[self.fast] = self.nu_c[self.fast]
+            nu23[self.fast] = self.nu_m[self.fast]
+
+        if self.sabs.any():
+            # Overwrite: nu_a < nu_c < nu_m
+            nu12[self.sabs] = self.nu_a[self.sabs]
+
+        return nu12, nu23
+
+    def spectral_indices(self):
+        """
+        Calculates the spectral indices using Sari, Piran,
+        & Narayan 1998 [1]_.
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+            The spectral indices for each segment.
+
+        References
+        ----------
+        .. [1] Sari, Piran, & Narayan (1998)
+            https://iopscience.iop.org/article/10.1086/311269/pdf
+        """
+        # Default: nu_a < nu_m < nu_c
+        b1 = np.full(self.fast.size, 1 / 3)
+        b2 = np.full(self.fast.size, (1 - self.p) / 2)
+        b3 = np.full(self.fast.size, -self.p / 2)
+
+        if self.sabs.any():
+            # Overwrite: nu_m < nu_a < nu_c
+            b1[self.sabs] = 5/2
+
+        if self.fast.any():
+            # Overwrite: nu_a < nu_c < nu_m
+            b2[self.fast] = -0.5
+
+        return b1, b2, b3
+
+    def smoothing(self):
+        """
+        Determines the smoothing factors between breaks.
+
+        Supports smoothing between three segments / two breaks:
+            - (nu_m, nu_c) for nu_a < nu_m < nu_c
+            - (nu_a, nu_c) for nu_m < nu_a < nu_c
+            - (nu_c, nu_m) for nu_a < nu_c < nu_m
+
+        Smoothing factors are derived from Table 2, column s(p) in
+        Granot & Sari 2002 [1]_. GS02 present smoothing factors
+        for `k=0` and `k=2`. The smoothing factors used here are
+        generalized for any value of `k`.
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+            The smoothing factors.
+
+        References
+        ----------
+        .. [1] Granot & Sari (2002)
+            https://iopscience.iop.org/article/10.1086/338966
+        """
+        k, p = self.k, self.p
+
+        # Generalized s(p) from GS02 for break 2 (s12) and break 3 (s23)
+        if isinstance(k, np.ndarray):
+            # Default: nu_a < nu_m < nu_c
+            s12 = 1.84 - (0.040 * k) - (0.40 - 0.010 * k) * p
+            s23 = 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p
+        else:
+            # Default: nu_a < nu_m < nu_c
+            s12 = np.full(self.fast.size, 1.84 - (0.040 * k) - (0.40 - 0.010 * k) * p)
+            s23 = np.full(self.fast.size, 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p)
+
+        # Generalized s(p) from GS02 for break 9 (s23) and break 11 (s12)
+        if self.fast.any():
+            # Overwrite: nu_a < nu_c < nu_m
+            fast_k = k[self.fast] if isinstance(k, np.ndarray) else k
+            s23[self.fast] = 3.34 + 0.17 * fast_k - (0.82 + 0.035 * fast_k) * p
+            s12[self.fast] = 0.597
+
+        # Generalized s(p) from GS02 for break 5 (s12)
+        if self.sabs.any():
+            # Overwrite: nu_m < nu_a < nu_c
+            sabs_k = k[self.sabs] if isinstance(k, np.ndarray) else k
+            s12[self.sabs] = 1.47 - 0.11 * sabs_k - (0.21 - 0.015 * sabs_k) * p
+
+        return s12, s23
 
 
 class IntegratedFluxModel(BaseFluxModel):
@@ -677,8 +795,8 @@ class IntegratedFluxModel(BaseFluxModel):
     Provides methods for calculating integrated fluxes
     using the spectrum for the GRB fireball model.
     """
-    def __init__(self, nu_m, nu_c, f_peak, p, k):
-        super().__init__(nu_m, nu_c, f_peak, p, k)
+    def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
+        super().__init__(nu_m, nu_c, nu_a, f_peak, p, k)
 
     def __call__(self, lower, upper):
         """ Calls the `evaluate` method. """
@@ -723,11 +841,11 @@ class IntegratedFluxModel(BaseFluxModel):
             The integrated flux with units of erg cm-2 s-1.
         """
         beta = SpectralIndexModel(
-            self.nu_m, self.nu_c, self.f_peak, self.p, self.k
+            self.nu_m, self.nu_c, self.nu_a, self.f_peak, self.p, self.k
         ).evaluate(lower, upper)
 
         flux = SpectralFluxModel(
-            self.nu_m, self.nu_c, self.f_peak, self.p, self.k
+            self.nu_m, self.nu_c, self.nu_a, self.f_peak, self.p, self.k
         ).evaluate(lower)
 
         # return the smoothed integrated flux [erg cm-2 s-1]
@@ -741,8 +859,8 @@ class SpectralIndexModel(BaseFluxModel):
     """
     Spectral Index Model
     """
-    def __init__(self, nu_m, nu_c, f_peak, p, k):
-        super().__init__(nu_m, nu_c, f_peak, p, k)
+    def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
+        super().__init__(nu_m, nu_c, nu_a, f_peak, p, k)
 
     def __call__(self, lower, upper):
         """ Calls the `evaluate` method. """
@@ -787,7 +905,7 @@ class SpectralIndexModel(BaseFluxModel):
             The modeled spectral index.
         """
         model = SpectralFluxModel(
-            self.nu_m, self.nu_c, self.f_peak, self.p, self.k)
+            self.nu_m, self.nu_c, self.nu_a, self.f_peak, self.p, self.k)
 
         # return the spectral index [dimension less]
         return (
@@ -858,12 +976,12 @@ class BaseSpectralModel:
 
     @property
     def alpha(self) -> float:
-        """ Returns the temporal coefficient. """
+        """ Returns the hydrodynamic coefficient. """
         return 16 / (17 - 4 * self.k)
 
     @property
     def beta(self) -> float:
-        """ Returns the spectral coefficient. """
+        """ Returns the hydrodynamic coefficient. """
         return 4 - self.k
 
     def evaluate(self, *args, **kwargs):
@@ -1116,11 +1234,24 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
         )
 
 
+# noinspection PyPep8Naming
 class AbsorptionFrequencyModel(BaseSpectralModel):
     """
     Absorption frequency model. Assumes an ultra-relativistic
     shock moving through an external medium with rho = rho0
     * R^-k density.
+
+    I implement only the slow-cooling scenarios:
+        - nu_a < nu_m < nu_c
+        - nu_m < nu_a < nu_c
+
+    Although nu_a < nu_c < nu_m is perfectly valid, only the
+    upper two of three breaks are considered when smoothing
+    the flux. Thus, this scenario will never be applied.
+
+    All other combinations, though physically plausible in
+    extreme scenarios, are not implemented because they are
+    considered physically unrealistic [1]_.
 
     Attributes
     ----------
@@ -1133,9 +1264,17 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
 
     p : float
         The electron energy power-law index, unit=None.
-    """
 
-    # noinspection PyPep8Naming
+    References
+    ----------
+    .. [1] Gao et al. (2013)
+        https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2520G/abstract
+    """
+    c = const.c.cgs.value      # noqa
+    m_p = const.m_p.cgs.value  # noqa
+    m_e = const.m_e.cgs.value  # noqa
+    q_e = 4.8032e-10           # [g1/2 cm3/2 s-1]
+
     def __init__(self, E, rho0, eps_e, eps_b, k, z, X, p):
         super().__init__(E, eps_b, k, z)
         self.eps_e = eps_e
@@ -1143,7 +1282,7 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         self.X = X
         self.p = p
 
-    def evaluate(self, t, regime, ref=17):
+    def evaluate(self, t, order, ref=17):
         """
         ??
 
@@ -1153,9 +1292,8 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
             The time to evaluate. If `t` is a float, must
             be measured in days since trigger.
 
-        regime : str, {'slow', 'fast'}
-            Indicates whether to evaluate the fast or slow
-            cooling model.
+        order : str, {'amc', 'mac'}
+            The order of the spectral breaks.
 
         ref : float, optional, default=17
             The reference radius [cm] in log space.
@@ -1165,27 +1303,24 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         float or np.array of float
             The self-absorption frequency at time `t` measured in Hz.
         """
-        return getattr(self, f'evaluate_{regime}')(t, ref)
+        return getattr(self, f'evaluate_{order}')(t, ref)
 
-    def evaluate_slow(self, t, ref=17):
+    def evaluate_amc(self, t, ref=17):
         """"""
         if isinstance(t, u.Quantity):
             t = t.to_value('d')
 
         # convenience variables
         k, x = self.k, 4 - self.k
-        c = const.c.cgs.value      # noqa
-        m_p = const.m_p.cgs.value  # noqa
-        q_e = 4.8032e-10           # [g1/2 cm3/2 s-1]
 
         # exponents for readability
+        e_z     = -(0.8 * (5 - 2*k) / x)
+        e_c     = -0.8 * ((5 - 2*k) / x)
         e_alpha = -(0.8 * (1 - k) / x)
-        e_beta = -(0.6*k / x)
-        e_pi = (0.2 * (4 + 2*k) / x)
-        e_c = -0.8 * ((5 - 2*k) / x)
-        e_rho = (2.4 / x)
-        e_en = (0.8 * (1 - k) / x)
-        e_z = -(0.8 * (5 - 2*k) / x)
+        e_pi    = (0.2 * (4 + 2*k) / x)
+        e_en    = (0.8 * (1 - k) / x)
+        e_beta  = -(0.6*k / x)
+        e_rho   = (2.4 / x)
 
         # return self-absorption frequency [Hz]
         return 10 ** (
@@ -1201,20 +1336,65 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
             0.6 * np.log10(self.p + 2) +            # electron energy index
 
             # Dimensional quantities
-            1.6 * np.log10(q_e) +   # electron charge [g1/2 cm3/2 s-1]
-            -1.6 * np.log10(m_p) +  # proton mass [g]
-            e_c * np.log10(c) +     # speed of light [cm s-1]
+            1.6 * np.log10(self.q_e) +   # electron charge [g1/2 cm3/2 s-1]
+            -1.6 * np.log10(self.m_p) +  # proton mass [g]
+            e_c * np.log10(self.c) +     # speed of light [cm s-1]
 
             # Model parameters
             -np.log10(self.eps_e) +                       # electron field energy fraction
             0.2 * np.log10(self.eps_b) +                  # magnetic field electron fraction
-            e_rho * (ref*k + np.log10(m_p * self.rho0)) +  # density [g cm-3]
+            e_rho * (ref*k + np.log10(self.m_p * self.rho0)) +  # density [g cm-3]
             e_en * (52 + np.log10(self.E)) +              # energy [erg]
             e_z * np.log10(1 + self.z) +                  # redshift
 
             # Evaluated at time, `t`
             -0.6 * (k / x) * np.log10(86_400 * t)  # time [s]
         ) * ((self.p - 2) ** -1)  # electron energy index (avoids inf for p < 2)
+
+    def evaluate_mac(self, t, ref=17):
+        """"""
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
+
+        # Convenience variables
+        p, k = self.p, self.k
+        x, y, z = p + 2, p + 4, 4 - k
+
+        # Transformations
+        t = t * 86_400
+        E = 1e52 * self.E
+        rho0 = self.rho0 * self.m_p * (10 ** ref) ** k
+
+        # Shared exponents
+        exp_bt = -0.5 * (4 * (3 * p + 2) - k * (3 * p - 2)) / (y * z)
+        exp_ae = 0.5 * (4 * x - k * (p + 6)) / (y * z)
+
+        # Linear terms
+        pre_factor = (
+            (p - 2) ** (2 * (p - 1) / y) * (p - 1) ** -(2 * (p - 2) / y) * x ** (2 / y) *
+            2 ** ((9 * p - 22) / (6 * y)) * 3 ** (8 / (3 * y)) *
+            np.pi ** -(0.5 * (8 * x - 2 * k * y) / (4 - k) / y) *
+            self.alpha ** -exp_ae * self.beta ** exp_bt *
+            math.gamma(p / 2 + 1 / 3) ** (2 / y)
+        )
+
+        # return self-absorption frequency [Hz]
+        return pre_factor * 10 ** (
+            # Pre-factors
+            np.log10(self.q_e) * ((p + 6) / y) +
+            np.log10(self.m_e) * -((3 * p + 2) / y) +
+            np.log10(self.m_p) * (2 * (p - 2) / y) +
+            np.log10(self.c) * -((4 * (5 * p + 10) - k * (5 * p + 14)) / (2 * y * z)) +
+
+            # Model parameters
+            np.log10(1 + self.z) * (0.5 * (4 * (p - 6)  - k * (p - 10)) / (y * z)) +
+            np.log10(0.5 * (1 + self.X)) * -(2 * x / y) +
+            np.log10(self.eps_e) * (2 * (p - 1) / y) +
+            np.log10(self.eps_b) * (0.5 * x / y) +
+            np.log10(rho0) * (8 / z / y) +
+            np.log10(E) * exp_ae +
+            np.log10(t) * exp_bt
+        )
 
 
 class ObservedFluxModel:

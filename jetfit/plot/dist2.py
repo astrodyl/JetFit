@@ -188,7 +188,7 @@ class SpectralIndexPlot(Distribution):
 
             # Model the spectral index
             modeled[i] = SpectralIndexModel(
-                model.nu_m(time), model.nu_c(time),
+                model.nu_m(time), model.nu_c(time), model.nu_a(time),
                 model.f_peak(time), model.p, model.k
             )(lower, upper)
 
@@ -228,7 +228,7 @@ class SpectralIndexPlot(Distribution):
 
         # Use the uncorrected obs time to eval model
         return SpectralIndexModel(
-            model.nu_m(time), model.nu_c(time),
+            model.nu_m(time), model.nu_c(time), model.nu_a(time),
             model.f_peak(time), model.p, model.k
         )(lower, upper)
 

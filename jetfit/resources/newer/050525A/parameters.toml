@@ -90,6 +90,17 @@ scale = "linear"
 value = 1.135
 
 #----------- EXTINCTION ------------
+#---------- Rv Milky Way -----------
+[[extinction]]
+name  = "rv_milky_way"
+scale = "linear"
+
+[extinction.prior]
+    type  = "uniform"
+    lower = 2.0
+    upper = 6.0
+
+#----------- EXTINCTION ------------
 #---------- source_frame -----------
 [[extinction]]
 name  = "ebv_source_frame"

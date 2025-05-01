@@ -89,20 +89,20 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
+    lower = -6.0
     upper = 3.0
 
 #-------------- MODEL --------------
 #----------- TRANSITION ------------
-#--------------- sn ----------------
+#--------------- sni ---------------
 [[model]]
-name  = "sn"
+name  = "sni"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
-    upper = 3.0
+    lower = -1.0
+    upper = 1.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------
