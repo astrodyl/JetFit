@@ -46,12 +46,12 @@ def chi_squared_eff(
     s: float,
 ) -> float:
     """
-    When the slop parameter, `s`, is provided, the chi-squared
-    calculation accounts for additional unknown variances. When
-    `s > 0`, the effective uncertainties increase, decreasing the
-    penalty for model-data mismatches but adding a penalty for
-    increasing `s` through the normalization term. When `s = 0`,
-    the calculation reduces to the standard chi-squared.
+    When the slop parameter, `s`, is provided, the
+    chi-squared calculation accounts for additional
+    unknown variances. When `s > 0`, the effective
+    uncertainties increase, decreasing the penalty
+    for model-data mismatches but adding a penalty
+    for increasing `s` through the normalization term.
 
     Parameters
     ----------
@@ -73,11 +73,7 @@ def chi_squared_eff(
         The effective chi-squared value.
     """
     # Convert slop to linear space
-    s_lin_hi = 10 ** (np.log10(f) + s) - f
-    s_lin_lo = f - 10 ** (np.log10(f) - s)
-
-    # Force slop to be symmetric
-    s_lin_avg = (s_lin_hi + s_lin_lo) / 2
+    s_lin_avg = f * (10**s - 10**-s) / 2
 
     # Combine the slop and data uncertainties
     sig = np.sqrt(s_lin_avg ** 2 + e ** 2)
