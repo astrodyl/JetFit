@@ -15,7 +15,7 @@ from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSi
 from jetfit.models2.basemodels import ObservedFluxModel
 from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
-from jetfit.plot.sfbm import SFBMIndexProfiler, SFBMDensityProfiler
+from jetfit.plot.sfbm import SFBMDensityProfiler
 from jetfit.plot.dist import DistributionPlot
 from jetfit.plot.dist2 import SpectralIndexPlot, StratifiedDensityProfilePlot
 from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot

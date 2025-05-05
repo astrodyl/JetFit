@@ -102,27 +102,6 @@ class Distribution:
 
         return params
 
-    @staticmethod
-    def stratified_group(p_early, p_late, time):
-        """"""
-        stratified_model = StratifiedMediumModel(
-            n17_1=p_early['rho0'], n17_2=p_late['rho0'],
-            k1=p_early['k'], k2=p_late['k'], E=p_early['E'],
-        )
-
-        # Calculate the observer-frame transition time [d]
-        t_trans = stratified_model.transition_time(p_early['z']) / 86_400
-
-        # Define the early time model
-        early_model = BlastWaveModel(
-            E=p_early['E'], n17=p_early['rho0'], k=p_early['k'])
-
-        # Calculate the observer-frame deceleration time [d]
-        t_dec = early_model.decel_time(z=p_early['z']) / 86_400
-
-        # Correct the observation time to transition time
-        return 'early' if (time + t_dec) < t_trans else 'late'
-
 
 class SpectralIndexPlot(Distribution):
     """
@@ -174,16 +153,7 @@ class SpectralIndexPlot(Distribution):
         modeled = np.full(len(samples), np.nan)
 
         for i, s in enumerate(samples):
-
-            if not self.dynamic:
-                group = self.group(time)
-
-            else:
-                p_early = self.params.samples_to_dict(s, group='early').get('model')
-                p_late = self.params.samples_to_dict(s, group='late').get('model')
-                group = self.stratified_group(p_early, p_late, time)
-
-            p = self.params.samples_to_dict(s, group=group)
+            p = self.params.samples_to_dict(s, group=self.group(time))
             model = self.afterglow_model(**p.get('model'))
 
             # Model the spectral index
@@ -215,15 +185,7 @@ class SpectralIndexPlot(Distribution):
         float
             The most likely spectral index value.
         """
-        if not self.dynamic:
-            group = self.group(time)
-
-        else:  # Handle stratified density
-            best_early = self.best(group='early').get('model')
-            best_late = self.best(group='late').get('model')
-            group = self.stratified_group(best_early, best_late, time)
-
-        best = self.best(group=group).get('model')
+        best = self.best(group=self.group(time)).get('model')
         model = self.afterglow_model(**best)
 
         # Use the uncorrected obs time to eval model
@@ -505,7 +467,6 @@ class StratifiedDensityProfilePlot(Distribution):
             Number of samples to draw.
 
         """
-
         # Draw the samples
         samples = self.draw(thin, nsamps)
 

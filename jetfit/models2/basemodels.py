@@ -8,6 +8,45 @@ from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
 from jetfit.mcmc.parameters.parameters import Parameters
 
 
+def has_fts_transition(nu_m, nu_c) -> bool:
+    """"""
+    return (nu_m < nu_c).any() and (nu_m > nu_c).any()  # noqa
+
+
+# noinspection PyPep8Naming
+def fast_to_slow_time(E52, n, p, k, eps_b, eps_e, z, X, ref=1e17):
+    """
+    Calculates the observer time for the fast-to-slow
+    cooling transition.
+
+    Returns
+    -------
+    float
+        The observer-frame transition time [d].
+    """
+    # Constants
+    c = const.c.cgs.value  # noqa
+    m_p = const.m_p.cgs.value  # noqa
+    m_e = const.m_e.cgs.value  # noqa
+    q_e = 4.8032e-10
+
+    # return the fast-to-slow transition time
+    x = 4 - k
+
+    return (1 + z) * (
+        np.pi * (81 / 16_384) ** -(x / 4) *
+        (16 / (17 - 4 * k)) ** -((2 - k) / 2) *
+        (4 - k) ** -((6 - k) / 2) *
+        ((1 + X) / 2) ** -(x / 2) *
+        q_e ** (2 * x) * m_e ** -(2 * x) *
+        m_p ** (x / 2) * c ** -(11 - 3 * k) *
+        m_p * n * ref ** k *
+        (1e52 * E52) ** ((2 - k) / 2) *
+        (p - 2) ** (x / 2) * (p - 1) ** -(x / 2) *
+        eps_b ** (x / 2) * eps_e ** (x / 2)
+    ) / 86_400
+
+
 # noinspection PyPep8Naming
 class BaseBlastWaveModel:
     """
@@ -320,14 +359,15 @@ class BaseFireballModel:
         The density normalization [cm-3].
 
     dL : float or astropy.units.Quantity['length']
-        The luminosity distance to the event [1e28 cm].
+        The luminosity distance to the event [1e28 cm]. Requiring
+        the distance to be provided in addition to the redshift
+        prevents the need to assume a cosmology here.
 
     p : float
-        The electron energy index.
+        The electron energy index. Must be > 2.
 
     k : float or np.ndarray of float
-        The density power-law index. The model requires that
-        `k` < 4.
+        The density power-law index. Must be < 4.
 
     eps_b : float
         The fraction of thermal energy in the magnetic field.
@@ -401,6 +441,7 @@ class BaseFireballModel:
     @rho0.setter
     def rho0(self, rho0) -> None:
         """
+        TODO: rho0 -> n0
         Sets the density normalization as a simple float.
 
         Define rho as:
@@ -452,16 +493,16 @@ class BaseFireballModel:
         self._dL = d
 
     @property
-    def is_physical(self):
+    def is_physical(self) -> bool:
         """ Whether the model is parameters are physically valid. """
-        return self.eps_b + self.eps_e < 1.0
+        return (self.eps_b + self.eps_e < 1.0) and self.p > 2
 
 
 class BaseFluxModel:
     """
     Base flux model. Not intended for direct use.
 
-    Attributes
+    Parameters
     ----------
     f_peak : float or np.ndarray or u.Quantity['spectral flux density']
         The peak flux. If a simple float is provided,
@@ -484,6 +525,14 @@ class BaseFluxModel:
 
     k : float
         The circumburst density power-law index.
+
+    Attributes
+    ----------
+    slow, fast, sabs : np.ndarray of bool
+        Bools indicating the regimes.
+            - slow: nu_m < nu_c
+            - fast: nu_c < nu_m
+            - sabs nu_m < nu_a < nu_c
     """
     def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
         self.f_peak = f_peak
@@ -587,6 +636,192 @@ class BaseFluxModel:
             val = val.to_value('Hz')
         self._nu_a = val
 
+    def spectral_breaks(self) -> tuple:
+        """
+        Creates arrays of critical frequencies that define
+        the GRB spectrum.
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+            The critical frequencies [Hz].
+        """
+        # Default: nu_a < nu_m < nu_c
+        nu12 = np.array(self.nu_m, copy=True)
+        nu23 = np.array(self.nu_c, copy=True)
+
+        if self.sabs.any():
+            # Overwrite: nu_m < nu_a < nu_c
+            nu12[self.sabs] = self.nu_a[self.sabs]
+
+        if self.fast.any():
+            # Overwrite: nu_a < nu_c < nu_m
+            nu12[self.fast] = self.nu_c[self.fast]
+            nu23[self.fast] = self.nu_m[self.fast]
+
+        return nu12, nu23
+
+    def spectral_indices(self, fts=False) -> tuple:
+        """
+        Calculates the spectral indices using Sari, Piran,
+        & Narayan 1998 [1]_.
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+            The spectral indices for each segment.
+
+        References
+        ----------
+        .. [1] Sari, Piran, & Narayan (1998)
+            https://iopscience.iop.org/article/10.1086/311269/pdf
+        """
+
+        # Default: nu_a < nu_m < nu_c
+        b1 = np.full(self.fast.size, 1 / 3)
+        b2 = np.full(self.fast.size, (1 - self.p) / 2)
+        b3 = np.full(self.fast.size, -self.p / 2)
+
+        if self.sabs.any():
+            # Overwrite: nu_m < nu_a < nu_c
+            b1[self.sabs] = 2.5
+
+        if self.fast.any():
+            # Overwrite: nu_a < nu_c < nu_m
+            b2[self.fast] = -0.5
+
+        # b2 smoothing
+        if fts:
+            s12, s23 = self.smoothing()
+            nu_ratio = self.nu_m / self.nu_c
+
+            # Transition smoother
+            q12 = -s12 * (b3 - b1)
+            q23 = -s23 * (b3 - b1)
+
+            b2a = -0.5 + ((1 - self.p) / 2 - -0.5) / (1 + nu_ratio ** q12)
+            b2b = -0.5 + ((1 - self.p) / 2 - -0.5) / (1 + nu_ratio ** q23)
+
+            return b1, b2a, b2b, b3
+
+        return b1, b2, b3
+
+    def temporal_indices(self, fts=False):
+        """
+        Calculates the temporal indices using Sari, Piran,
+        & Narayan 1998 [1]_.
+
+        Parameters
+        ----------
+        fts : bool, optional
+            ??
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+            The temporal indices for each frequency break.
+
+        References
+        ----------
+        .. [1] Sari, Piran, & Narayan (1998)
+            https://iopscience.iop.org/article/10.1086/311269/pdf
+        """
+        k, p = self.k, self.p
+
+        # Default: nu_a < nu_m < nu_c
+        a1 = np.full(self.fast.size, -(3 * k) / (5 * (4 - k)))
+        a2 = np.full(self.fast.size, -1.5)
+        a3 = np.full(self.fast.size, -(4 - 3 * k) / (2 * (4 - k)))
+
+        if self.sabs.any():
+            # Overwrite: nu_m < nu_a < nu_c
+            k_sabs = k[self.sabs] if isinstance(k, np.ndarray) else k
+
+            a1[self.sabs] = -1.5
+            a2[self.sabs] = -(
+                    4 * (3 * p + 2) - k_sabs * (3 * p - 2)
+            ) / (2 * (4 - k_sabs) * (p + 4))
+
+        if self.fast.any():
+            # Overwrite: nu_a < nu_c < nu_m
+            k_fast = k[self.fast] if isinstance(k, np.ndarray) else k
+
+            a1[self.fast] = -(10 + 3 * k_fast) / (5 * (4 - k_fast))
+            a2[self.fast] = -(4 - 3 * k_fast) / (2 * (4 - k_fast))
+            a3[self.fast] = -1.5
+
+        return a1, a2, a3
+
+    def smoothing(self, fts=False):
+        """
+        Determines the smoothing factors between breaks.
+
+        Supports smoothing between three segments / two breaks:
+            - (nu_m, nu_c) for nu_a < nu_m < nu_c
+            - (nu_a, nu_c) for nu_m < nu_a < nu_c
+            - (nu_c, nu_m) for nu_a < nu_c < nu_m
+
+        Smoothing factors are derived from Table 2, column s(p) in
+        Granot & Sari 2002 [1]_. GS02 present smoothing factors
+        for `k=0` and `k=2`. The smoothing factors used here are
+        generalized for any value of `k`.
+
+        Parameters
+        ----------
+        fts : bool, optional
+            ??
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+            The smoothing factors.
+
+        References
+        ----------
+        .. [1] Granot & Sari (2002)
+            https://iopscience.iop.org/article/10.1086/338966
+        """
+        k, p = self.k, self.p
+
+        # Generalized s(p) from GS02 for break 2 (s12) and break 3 (s23)
+        # Default: nu_a < nu_m < nu_c
+        s12 = np.full(self.fast.size, 1.84 - (0.040 * k) - (0.40 - 0.010 * k) * p)
+        s23 = np.full(self.fast.size, 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p)
+
+        # Generalized s(p) from GS02 for break 5 (s12)
+        if self.sabs.any():
+            # Overwrite: nu_m < nu_a < nu_c
+            sabs_k = k[self.sabs] if isinstance(k, np.ndarray) else k
+            s12[self.sabs] = 1.47 - 0.11 * sabs_k - (0.21 - 0.015 * sabs_k) * p
+
+        # Generalized s(p) from GS02 for break 9 (s23) and break 11 (s12)
+        if self.fast.any():
+            # Overwrite: nu_a < nu_c < nu_m
+            fast_k = k[self.fast] if isinstance(k, np.ndarray) else k
+            s23[self.fast] = 3.34 + 0.17 * fast_k - (0.82 + 0.035 * fast_k) * p
+            s12[self.fast] = 0.597
+
+        # Fast-to-slow cooling smoothing
+        if fts:
+            b1, _, b3 = self.spectral_indices()
+            nu_ratio =  self.nu_m / self.nu_c
+
+            # Transition smoother
+            q12 = -s12 * (b3 - b1)
+            q23 = -s23 * (b3 - b1)
+
+            # S12 smoothing
+            s12_slow = 1.84 - (0.040 * k) - (0.40 - 0.010 * k) * p
+            s12_fast = 0.597
+            s12 = s12_fast + (s12_slow - s12_fast) / (1 + nu_ratio ** q12)
+
+            # s23 smoothing
+            s23_fast = 3.34 + 0.17 * k - (0.82 + 0.035 * k) * p
+            s23_slow = 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p
+            s23 = s23_fast + (s23_slow - s23_fast) / (1 + nu_ratio ** q23)
+
+        return s12, s23
+
 
 class SpectralFluxModel(BaseFluxModel):
     """
@@ -613,9 +848,9 @@ class SpectralFluxModel(BaseFluxModel):
     def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
         super().__init__(nu_m, nu_c, nu_a, f_peak, p, k)
 
-    def __call__(self, nu):
+    def __call__(self, *args, **kwargs):
         """ Calls the `evaluate` method. """
-        return self.evaluate(nu)
+        return self.evaluate(*args, **kwargs)
 
     def model(self, val: SpectralFlux) -> float:
         """
@@ -633,7 +868,7 @@ class SpectralFluxModel(BaseFluxModel):
         """
         return self.evaluate(val.frequency.value)
 
-    def evaluate(self, nu):
+    def evaluate(self, nu, fts=False):
         """
         Calculates the smoothed flux for frequency, `nu`.
 
@@ -666,126 +901,25 @@ class SpectralFluxModel(BaseFluxModel):
 
         # Get stuff done
         nu12, nu23 = self.spectral_breaks()
-        b1, b2, b3 = self.spectral_indices()
-        s12, s23 = self.smoothing()
+        s12, s23 = self.smoothing(fts)
 
         # Transform for readability
         x12, x23 = nu / nu12, nu / nu23
 
+        if fts:
+            b1, b2a, b2b, b3 = self.spectral_indices(fts)
+        else:
+            b1, b2, b3 = self.spectral_indices()
+            b2a = b2b = b2
+
         # Smooth the spectrum across spectral breaks
         flux = self.f_peak * (
-            (x12 ** -(s12 * (b1 - b2)) + 1) ** (s23 / s12) * x12 ** -(s23 * b2) +
-            ((nu23 / nu12) ** -(s23 * b2)) * (x23 ** -(s23 * b3))
+            (x12 ** -(s12 * (b1 - b2a)) + 1) ** (s23 / s12) * x12 ** -(s23 * b2a) +
+            ((nu23 / nu12) ** -(s23 * b2b)) * (x23 ** -(s23 * b3))
         ) ** -(1 / s23)
 
         # return the smoothed spectral flux [mJy]
         return flux[0] if flux.size == 1 else flux
-
-    def spectral_breaks(self):
-        """
-        Creates arrays critical frequencies that define
-        the GRB spectrum.
-
-        Returns
-        -------
-        tuple of np.ndarray of float
-            The critical frequencies [Hz].
-        """
-        # Default: nu_a < nu_m < nu_c
-        nu12 = np.array(self.nu_m, copy=True)
-        nu23 = np.array(self.nu_c, copy=True)
-
-        if self.fast.any():
-            # Overwrite: nu_m < nu_a < nu_c
-            nu12[self.fast] = self.nu_c[self.fast]
-            nu23[self.fast] = self.nu_m[self.fast]
-
-        if self.sabs.any():
-            # Overwrite: nu_a < nu_c < nu_m
-            nu12[self.sabs] = self.nu_a[self.sabs]
-
-        return nu12, nu23
-
-    def spectral_indices(self):
-        """
-        Calculates the spectral indices using Sari, Piran,
-        & Narayan 1998 [1]_.
-
-        Returns
-        -------
-        tuple of np.ndarray of float
-            The spectral indices for each segment.
-
-        References
-        ----------
-        .. [1] Sari, Piran, & Narayan (1998)
-            https://iopscience.iop.org/article/10.1086/311269/pdf
-        """
-        # Default: nu_a < nu_m < nu_c
-        b1 = np.full(self.fast.size, 1 / 3)
-        b2 = np.full(self.fast.size, (1 - self.p) / 2)
-        b3 = np.full(self.fast.size, -self.p / 2)
-
-        if self.sabs.any():
-            # Overwrite: nu_m < nu_a < nu_c
-            b1[self.sabs] = 5/2
-
-        if self.fast.any():
-            # Overwrite: nu_a < nu_c < nu_m
-            b2[self.fast] = -0.5
-
-        return b1, b2, b3
-
-    def smoothing(self):
-        """
-        Determines the smoothing factors between breaks.
-
-        Supports smoothing between three segments / two breaks:
-            - (nu_m, nu_c) for nu_a < nu_m < nu_c
-            - (nu_a, nu_c) for nu_m < nu_a < nu_c
-            - (nu_c, nu_m) for nu_a < nu_c < nu_m
-
-        Smoothing factors are derived from Table 2, column s(p) in
-        Granot & Sari 2002 [1]_. GS02 present smoothing factors
-        for `k=0` and `k=2`. The smoothing factors used here are
-        generalized for any value of `k`.
-
-        Returns
-        -------
-        tuple of np.ndarray of float
-            The smoothing factors.
-
-        References
-        ----------
-        .. [1] Granot & Sari (2002)
-            https://iopscience.iop.org/article/10.1086/338966
-        """
-        k, p = self.k, self.p
-
-        # Generalized s(p) from GS02 for break 2 (s12) and break 3 (s23)
-        if isinstance(k, np.ndarray):
-            # Default: nu_a < nu_m < nu_c
-            s12 = 1.84 - (0.040 * k) - (0.40 - 0.010 * k) * p
-            s23 = 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p
-        else:
-            # Default: nu_a < nu_m < nu_c
-            s12 = np.full(self.fast.size, 1.84 - (0.040 * k) - (0.40 - 0.010 * k) * p)
-            s23 = np.full(self.fast.size, 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p)
-
-        # Generalized s(p) from GS02 for break 9 (s23) and break 11 (s12)
-        if self.fast.any():
-            # Overwrite: nu_a < nu_c < nu_m
-            fast_k = k[self.fast] if isinstance(k, np.ndarray) else k
-            s23[self.fast] = 3.34 + 0.17 * fast_k - (0.82 + 0.035 * fast_k) * p
-            s12[self.fast] = 0.597
-
-        # Generalized s(p) from GS02 for break 5 (s12)
-        if self.sabs.any():
-            # Overwrite: nu_m < nu_a < nu_c
-            sabs_k = k[self.sabs] if isinstance(k, np.ndarray) else k
-            s12[self.sabs] = 1.47 - 0.11 * sabs_k - (0.21 - 0.015 * sabs_k) * p
-
-        return s12, s23
 
 
 class IntegratedFluxModel(BaseFluxModel):
@@ -798,9 +932,9 @@ class IntegratedFluxModel(BaseFluxModel):
     def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
         super().__init__(nu_m, nu_c, nu_a, f_peak, p, k)
 
-    def __call__(self, lower, upper):
+    def __call__(self, *args, **kwargs):
         """ Calls the `evaluate` method. """
-        return self.evaluate(lower, upper)
+        return self.evaluate(*args, **kwargs)
 
     def model(self, val: IntegratedFlux):
         """
@@ -822,7 +956,7 @@ class IntegratedFluxModel(BaseFluxModel):
             upper=val.int_range.upper.value
         )
 
-    def evaluate(self, lower, upper):
+    def evaluate(self, lower, upper, fts=False):
         """
         Evaluates the integrated flux model using the
         `lower` and `upper` integration limits.
@@ -842,11 +976,11 @@ class IntegratedFluxModel(BaseFluxModel):
         """
         beta = SpectralIndexModel(
             self.nu_m, self.nu_c, self.nu_a, self.f_peak, self.p, self.k
-        ).evaluate(lower, upper)
+        ).evaluate(lower, upper, fts)
 
         flux = SpectralFluxModel(
             self.nu_m, self.nu_c, self.nu_a, self.f_peak, self.p, self.k
-        ).evaluate(lower)
+        ).evaluate(lower, fts)
 
         # return the smoothed integrated flux [erg cm-2 s-1]
         return 1e-26 * (
@@ -862,9 +996,9 @@ class SpectralIndexModel(BaseFluxModel):
     def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
         super().__init__(nu_m, nu_c, nu_a, f_peak, p, k)
 
-    def __call__(self, lower, upper):
+    def __call__(self, *args, **kwargs):
         """ Calls the `evaluate` method. """
-        return self.evaluate(lower, upper)
+        return self.evaluate(*args, **kwargs)
 
     def model(self, val: SpectralIndex):
         """
@@ -886,7 +1020,7 @@ class SpectralIndexModel(BaseFluxModel):
             upper=val.int_range.upper.value,
         )
 
-    def evaluate(self, lower, upper):
+    def evaluate(self, lower, upper, fts=False):
         """
         Approximates the spectral index using a two
         point approximation.
@@ -909,7 +1043,7 @@ class SpectralIndexModel(BaseFluxModel):
 
         # return the spectral index [dimension less]
         return (
-            np.log10(model(upper) / model(lower)) /
+            np.log10(model(upper, fts) / model(lower, fts)) /
             np.log10(upper / lower)
         )
 

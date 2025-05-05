@@ -1,13 +1,23 @@
+import json
 import unittest
 
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 
-from jetfit.models2.basemodels import SpectralFluxModel
+from jetfit.models2.basemodels import SpectralFluxModel, fast_to_slow_time
 
 
 class TestSpectralFlux(unittest.TestCase):
+    def test_ftz_time(self):
+        """"""
+        with open(r"C:\Users\Dylan\Downloads\best_fit.json", "r") as jf:
+            data = json.load(jf)
+
+
+
+        print()
+
     def test_slow_cooling_spectrum(self):
         """
         Visual inspection of slow-cooling smoothing approximation.
@@ -15,7 +25,6 @@ class TestSpectralFlux(unittest.TestCase):
         # Define the frequencies
         nu_a, nu_m, nu_c = 6e9, 2e11, 5e12
         nu = np.geomspace(1e8, 1e18, 500)
-        nu_m = nu_c
 
         # Define other
         f_peak, p, k = 2e4, 2.5, 0.0

@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from jetfit.core.defns.enums import DataType
-from jetfit.models2.basemodels import StratifiedMediumModel, BlastWaveModel
+from jetfit.models2.basemodels import has_fts_transition
 from jetfit.models2.fireball import StratifiedFireballModel
 
 
@@ -81,37 +81,6 @@ def map_groups(observation, gen_times):
         for i, t in enumerate(gen_times):
             if (group_times.min() - 1e-6) <= t <= (group_times.max() + 1e-6):
                 group_map[group][i] = True
-
-    return group_map
-
-
-def map_stratified_groups(observation, gen_times, p_early, p_late):
-    """"""
-    group_map = {
-        g: np.full(len(gen_times), False, dtype=bool)
-        for g in observation.data_groups
-    }
-
-    stratified_model = StratifiedMediumModel(
-        n17_1=p_early['rho0'], n17_2=p_late['rho0'],
-        k1=p_early['k'], k2=p_late['k'], E=p_early['E'],
-    )
-
-    # Calculate the observer-frame transition time [d]
-    t_trans = stratified_model.transition_time(p_early['z']) / 86_400
-
-    # Define the early time model
-    early_model = BlastWaveModel(
-        E=p_early['E'], n17=p_early['rho0'], k=p_early['k'])
-
-    # Calculate the observer-frame deceleration time [d]
-    t_dec = early_model.decel_time(z=p_early['z']) / 86_400
-
-    for i, t in enumerate(gen_times):
-        if (t + t_dec) < t_trans:
-            group_map['early'][i] = True
-        else:
-            group_map['late'][i] = True
 
     return group_map
 
@@ -375,6 +344,7 @@ class LightCurvePlot:
             modeled = np.full(times.size, np.nan)
 
             if p.get('shared') is not None:
+                # TODO: fts check
                 groups = map_groups(self.observation, times)
 
                 for group, pos in groups.items():
@@ -383,7 +353,14 @@ class LightCurvePlot:
                     modeled[pos] = afterglow_model.spectral_flux(times[pos], freq)
             else:
                 afterglow_model = self.model(**p.get('model'))
-                modeled = afterglow_model.spectral_flux(times, freq)
+
+                # fts check
+                fts = has_fts_transition(
+                    afterglow_model.nu_m(times),
+                    afterglow_model.nu_c(times)
+                )
+
+                modeled = afterglow_model.spectral_flux(times, freq, fts)
             return modeled
 
         def model_integrated_fluxes(p: dict, low, upp):
@@ -399,7 +376,14 @@ class LightCurvePlot:
                     modeled[pos] = afterglow_model.integrated_flux(times[pos], low, upp)
             else:
                 afterglow_model = self.model(**p.get('model'))
-                modeled = afterglow_model.integrated_flux(times, low, upp)
+
+                # fts check
+                fts = has_fts_transition(
+                    afterglow_model.nu_m(times),
+                    afterglow_model.nu_c(times)
+                )
+
+                modeled = afterglow_model.integrated_flux(times, low, upp, fts)
             return modeled
 
         # Only plot flux values

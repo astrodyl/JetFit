@@ -1,5 +1,3 @@
-import json
-import time
 import unittest
 
 import numpy as np
@@ -9,8 +7,9 @@ from matplotlib import pyplot as plt
 
 from jetfit.core.utils.math_utils import chi_squared
 from jetfit.models2.basemodels import PeakFluxModel, SynchrotronFrequencyModel, CoolingFrequencyModel, \
-    AbsorptionFrequencyModel, BlastWaveModel, StratifiedMediumModel, SpectralFluxModel
+    AbsorptionFrequencyModel, SpectralFluxModel
 from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
+
 
 # Constants in cgs units
 m_p = const.m_p.cgs  # noqa
