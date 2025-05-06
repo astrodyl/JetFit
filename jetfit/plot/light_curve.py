@@ -142,9 +142,9 @@ class FrequencyPlot:
                 afterglow_model = model(**p.get('model'), **model_kw)
                 if isinstance(afterglow_model, StratifiedFireballModel):
                     n_eff, k_eff = afterglow_model.smooth(times)
-                    nu_ms_all = afterglow_model.nu_m(k_eff, times)
-                    nu_cs_all = afterglow_model.nu_c(n_eff, k_eff, times)
-                    nu_as_all = afterglow_model.nu_a(n_eff, k_eff, times, nu_ms_all)
+                    nu_ms_all = afterglow_model.nu_m(times, k_eff)
+                    nu_cs_all = afterglow_model.nu_c(times, n_eff, k_eff)
+                    nu_as_all = afterglow_model.nu_a(times, n_eff, k_eff, nu_ms_all)
                 else:
                     nu_ms_all = afterglow_model.nu_m(times)
                     nu_cs_all = afterglow_model.nu_c(times)
@@ -208,9 +208,9 @@ class FrequencyPlot:
                 afterglow_model = model(**p.get('model'), **model_kw)
                 if isinstance(afterglow_model, StratifiedFireballModel):
                     n_eff, k_eff = afterglow_model.smooth(times)
-                    nu_ms_all = afterglow_model.nu_m(k_eff, times)
-                    nu_cs_all = afterglow_model.nu_c(n_eff, k_eff, times)
-                    nu_as_all = afterglow_model.nu_a(n_eff, k_eff, times, nu_ms_all)
+                    nu_ms_all = afterglow_model.nu_m(times, k_eff)
+                    nu_cs_all = afterglow_model.nu_c(times, n_eff, k_eff)
+                    nu_as_all = afterglow_model.nu_a(times, n_eff, k_eff, nu_ms_all)
                 else:
                     nu_ms_all = afterglow_model.nu_m(times)
                     nu_cs_all = afterglow_model.nu_c(times)
@@ -266,7 +266,6 @@ class FrequencyPlot:
 
         self.ax.legend(loc='best')
         self.ax.grid(alpha=0.5)
-
 
 
 class LightCurvePlot:
@@ -397,8 +396,8 @@ class LightCurvePlot:
             self.observation.as_arrays.filters[flux_mask], return_index=True
         )
         data = self.observation.data[flux_mask][filter_loc]
-        spectral_data = data[self.observation.as_arrays.types[filter_loc] == DataType.SPECTRAL_FLUX]
-        integrated_data = data[self.observation.as_arrays.types[filter_loc] == DataType.INTEGRATED_FLUX]
+        spectral_data = data[self.observation.as_arrays.types[flux_mask][filter_loc] == DataType.SPECTRAL_FLUX]
+        integrated_data = data[self.observation.as_arrays.types[flux_mask][filter_loc] == DataType.INTEGRATED_FLUX]
 
         # Modeling time [days]
         times = np.logspace(np.log10(flux_times.min()), np.log10(flux_times.max() * 2), num=ndata)

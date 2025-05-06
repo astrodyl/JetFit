@@ -223,6 +223,7 @@ class Parameters:
             'rv_mw': params.get('extinction').get('rv_milky_way'),
             'host_vals': params.get('host'),
             'host_pos': obs.host_groups,
+            'ext_pos': obs.sflux_loc,
         }
 
 

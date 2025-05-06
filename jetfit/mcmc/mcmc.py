@@ -195,14 +195,15 @@ class MCMC:
         # Model the observed afterglow flux
         modeled = self.model(self.observation, params, **self.meta)
 
+        # A nan will always result in -inf
+        if np.isnan(modeled.min()):
+            return -np.inf
+
         # Apply calibration offsets
         modeled = self.calibration_offsets(
             modeled, self.params.get(params, 'offsets')
         )
 
-        # A nan will always result in -inf
-        if np.isnan(modeled.min()):
-            return -np.inf
 
         # return log likelihood
         return -0.5 * self.chi_squared(modeled, self.slop(params))  # type: ignore

@@ -1,16 +1,28 @@
 import math
 
+import numpy as np
 import astropy.units as u
 import astropy.constants as const
-import numpy as np
 
 from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
 from jetfit.mcmc.parameters.parameters import Parameters
 
 
 def has_fts_transition(nu_m, nu_c) -> bool:
-    """"""
-    return (nu_m < nu_c).any() and (nu_m > nu_c).any()  # noqa
+    """
+    Is there a fast-to-slow cooling transition?
+
+    Parameters
+    ----------
+    nu_m, nu_c : np.ndarray or list
+        Synchrotron (nu_m) and cooling (nu_c) frequencies.
+
+    Returns
+    -------
+    bool
+        True if there is a transition from fast to slow.
+    """
+    return np.sign(nu_c[0] - nu_m[0]) < np.sign(nu_c[-1] - nu_m[-1])
 
 
 # noinspection PyPep8Naming
@@ -343,6 +355,181 @@ class OpeningAngleModel:
         ) ** (0.5 / (4 - self.k))
 
 
+class ObservedSpectrumModel:
+    """
+    GRB spectrum for an observational data set.
+
+    The fireball model classes are parameterized by the
+    intrinsic properties of the afterglow. However, the
+    critical frequencies and peak flux are time-dependent
+    and typically calculated using observation times.
+
+    Because of this, it doesn't really make sense to store
+    the characteristics in the Fireball classes. However,
+    they are used all over the place which means that I
+    was constantly passing them to methods which was very
+    cumbersome.
+
+    This class is a way to keep the calculations fast but
+    in an organized way. It can be used directly, but it
+    probably isn't very useful outside its original
+    purpose.
+
+    Parameters
+    ----------
+    nu_a, nu_m, nu_c : np.ndarray of float
+        The characteristic frequencies [Hz].
+
+    f_peak : np.ndarray of float
+        The peak fluxes [mJy].
+
+    p : float
+        The electron energy index.
+
+    k : np.ndarray of float or float
+        The density power-law index.
+
+    arrays : ObsArray
+        Array representation of the `Observation` object.
+
+    fts : bool, optional, default=`has_fts_transition()`
+        Model a fast-to-slow transition?
+    """
+    def __init__(self, nu_a, nu_m, nu_c, f_peak, p, k, arrays, fts=None):
+        self.nu_a = nu_a
+        self.nu_m = nu_m
+        self.nu_c = nu_c
+        self.f_peak = f_peak
+        self.p = p
+        self.k = k
+
+        self.arrays = arrays
+        self.has_fts = has_fts_transition(
+            self.nu_m, self.nu_c) if fts is None else fts
+
+    def model(self, subset=None) -> np.ndarray:
+        """
+        Model the observed spectrum using the observational
+        properties in `arrays`.
+
+        Returns
+        -------
+        np.ndarray of float
+            The unextinguished modeled GRB flux.
+        """
+        res = np.full(self.arrays.times.size, np.nan)
+
+        if (sfm := self.arrays.sflux_loc).any():
+            if subset: sfm = np.logical_and(sfm, subset)
+            res[sfm] = self.spectral_flux(sfm)
+
+        if (ifm := self.arrays.iflux_loc).any():
+            if subset: ifm = np.logical_and(ifm, subset)
+            res[ifm] = self.integrated_flux(ifm)
+
+        if (sim := self.arrays.sindex_loc).any():
+            if subset: sim = np.logical_and(sim, subset)
+            res[sim] = self.spectral_index(sim)
+
+        return res
+
+    def spectral_flux(self, mask):
+        """
+        Model the unextinguished spectral flux.
+
+        Parameters
+        ----------
+        mask : np.ndarray of bool
+            The spectral flux locations.
+
+        Returns
+        -------
+        np.ndarray of float
+            The unextinguished spectral flux.
+        """
+        return SpectralFluxModel(**self.spectrum(mask))(
+            self.arrays.frequencies[mask], self.has_fts
+        )
+
+    def integrated_flux(self, mask):
+        """
+        Model the unextinguished spectral flux.
+
+        Parameters
+        ----------
+        mask : np.ndarray of bool
+            The integrated flux locations.
+
+        Returns
+        -------
+        np.ndarray of float
+            The unextinguished integrated flux.
+        """
+        return IntegratedFluxModel(**self.spectrum(mask))(
+            self.arrays.if_lower_freqs[mask],
+            self.arrays.if_upper_freqs[mask],
+            self.has_fts
+        )
+
+    def spectral_index(self, mask):
+        """
+        Model the spectral indices.
+
+        Parameters
+        ----------
+        mask : np.ndarray of bool
+            The spectral index locations.
+
+        Returns
+        -------
+        np.ndarray of float
+            The spectral indices.
+        """
+        return SpectralIndexModel(**self.spectrum(mask))(
+            self.arrays.si_lower_freqs[mask],
+            self.arrays.si_upper_freqs[mask],
+            self.has_fts
+        )
+
+    def spectrum(self, mask=None):
+        """
+        Returns the spectrum properties as a dict and
+        filters based on `mask`.
+
+        Parameters
+        ----------
+        mask : np.ndarray of bool
+            The spectral index locations.
+
+        Returns
+        -------
+        dict
+            The spectrum properties.
+        """
+        k = nu_a = nu_m = nu_c = f_pk = None
+
+        if mask is not None:
+            # Can be an array for stratified mediums
+            if isinstance(self.k, np.ndarray):
+                k = self.k[mask]
+
+            # All or none are arrays
+            if isinstance(self.nu_m, np.ndarray):
+                nu_a = self.nu_a[mask]
+                nu_m = self.nu_m[mask]
+                nu_c = self.nu_c[mask]
+                f_pk = self.f_peak[mask]
+
+        # return a masked dict representation
+        return {
+            'nu_a': nu_a if nu_a is not None else self.nu_a,
+            'nu_m': nu_m if nu_m is not None else self.nu_m,
+            'nu_c': nu_c if nu_c is not None else self.nu_c,
+            'f_peak': f_pk if f_pk is not None else self.f_peak,
+            'k': k if k is not None else self.k, 'p': self.p
+        }
+
+
 class BaseFireballModel:
     """
     Base model. Not intended for direct use.
@@ -350,13 +537,10 @@ class BaseFireballModel:
     Implements the ultra-relativistic shock moving into an
     external medium with density rho = rho_0 * R^-k.
 
-    Attributes
+    Parameters
     ----------
     E : float or astropy.units.Quantity['energy']
         The explosion energy [1e52 ergs].
-
-    rho0 : float or astropy.units.Quantity['number density']
-        The density normalization [cm-3].
 
     dL : float or astropy.units.Quantity['length']
         The luminosity distance to the event [1e28 cm]. Requiring
@@ -365,9 +549,6 @@ class BaseFireballModel:
 
     p : float
         The electron energy index. Must be > 2.
-
-    k : float or np.ndarray of float
-        The density power-law index. Must be < 4.
 
     eps_b : float
         The fraction of thermal energy in the magnetic field.
@@ -384,6 +565,13 @@ class BaseFireballModel:
         The hydrogen mass fraction. Must be in the range [0, 1].
         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
+    tj : float, optional
+        The jet break time in days.
+
+    sj, sji : float, optional
+        The jet break smoothing factor. `sji` is the inverse
+        smoothing factor. Useful for changing MCMC basis.
+
     References
     ----------
     [1] Broadband view of blast wave physics: A study
@@ -392,24 +580,25 @@ class BaseFireballModel:
     m_p = const.m_p.cgs.value  # type: ignore
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X):
-        # intrinsic properties
+    def __init__(self, E, p, eps_b, eps_e, z, dL, X, tj=None, sj=None, sji=None):
+        # Intrinsic properties
         self.E = E
         self.p = p
         self.eps_b = eps_b
         self.eps_e = eps_e
-        self.k = k
-        self.rho0 = rho0
         self.X = X
 
-        # extrinsic properties
+        # Extrinsic properties
         self.dL = dL
         self.z = z
 
+        # Jet properties
+        self.tj = tj
+        self.sj = (sj or 1 / sji) if (sj or sji) else None
+
     def __repr__(self):
         """ Human-readable representation. """
-        name = self.__class__.__name__
-        return f'{name}(E={self.E}, n={self.rho0}, .., p={self.p}, k={self.k})'
+        return f'{self.__class__.__name__}(E={self.E}, p={self.p}, .., z={self.z})'
 
     # noinspection PyPep8Naming
     @property
@@ -432,43 +621,6 @@ class BaseFireballModel:
         if isinstance(e, u.Quantity):
             e = e.to_value('erg') / 1e52
         self._E = e
-
-    @property
-    def rho0(self) -> float:
-        """ Returns the density normalization, normalized to the proton mass. """
-        return self._rho0
-
-    @rho0.setter
-    def rho0(self, rho0) -> None:
-        """
-        TODO: rho0 -> n0
-        Sets the density normalization as a simple float.
-
-        Define rho as:
-
-        rho = rho_x * R^-k = rho_0 * (R/R_0)^-k
-
-        such that:
-
-        rho_x = rho_0 * R_0^k = n0 * m_p * R_0^k
-
-        where R_0 is the characteristic radius which is
-        taken to be 1e17 cm. Then, `n17` is defined as
-        the number density with respect to 1e17 cm.
-
-        Parameters
-        ----------
-        rho0 : float or u.Quantity['number density', 'mass density']
-            The number density at 1e17 cm.
-        """
-        if isinstance(rho0, u.Quantity):
-            if rho0.unit.physical_type == 'number density':
-                rho0 = rho0.cgs.value
-
-            elif rho0.unit.physical_type == 'mass density':
-                rho0 = rho0.cgs.value / self.m_p
-
-        self._rho0 = rho0
 
     # noinspection PyPep8Naming
     @property
@@ -493,9 +645,37 @@ class BaseFireballModel:
         self._dL = d
 
     @property
-    def is_physical(self) -> bool:
-        """ Whether the model is parameters are physically valid. """
-        return (self.eps_b + self.eps_e < 1.0) and self.p > 2
+    def is_valid(self) -> bool:
+        """ Whether the model is parameters are valid. """
+        # Smoothing parameters are unstable around 0
+        if self.sj is not None and abs(self.sj) <= 0.1:
+            return False
+        return (self.eps_b + self.eps_e) < 1.0 and self.p > 2
+
+    def smooth_jet_break(self, f, fj, t):
+        """
+        Smooths the flux `f` with the jet flux `fj` via
+        a smoothly broken power law.
+
+        Parameters
+        ----------
+        f : np.ndarray of float
+            The modeled flux [mJy or erg cm-2 s-1].
+
+        fj : np.ndarray of float
+            The jet break flux [mJy or erg cm-2 s-1].
+
+        t : np.ndarray of float
+            The times to smooth over [d].
+
+        Returns
+        -------
+        np.ndarray of float
+            The smoothed flux [mJy or erg cm-2 s-1].
+        """
+        return (
+            f ** -self.sj + (fj * (t / self.tj) ** -self.p) ** -self.sj
+        ) ** -(1 / self.sj)
 
 
 class BaseFluxModel:
@@ -666,6 +846,9 @@ class BaseFluxModel:
         Calculates the spectral indices using Sari, Piran,
         & Narayan 1998 [1]_.
 
+        fts : bool, optional, default=False
+            Is there a fast-to-slow cooling transition?
+
         Returns
         -------
         tuple of np.ndarray of float
@@ -713,8 +896,8 @@ class BaseFluxModel:
 
         Parameters
         ----------
-        fts : bool, optional
-            ??
+        fts : bool, optional, default=False
+            Is there a fast-to-slow cooling transition?
 
         Returns
         -------
@@ -768,8 +951,8 @@ class BaseFluxModel:
 
         Parameters
         ----------
-        fts : bool, optional
-            ??
+        fts : bool, optional, default=False
+            Is there a fast-to-slow cooling transition?
 
         Returns
         -------
@@ -892,6 +1075,9 @@ class SpectralFluxModel(BaseFluxModel):
         nu : float or np.ndarray
             The observed frequency [Hz].
 
+        fts : bool, optional, default=False
+            Is there a fast-to-slow cooling transition?
+
         Returns
         -------
         float or np.ndarray of float
@@ -969,6 +1155,9 @@ class IntegratedFluxModel(BaseFluxModel):
         upper : float or np.ndarray of float
             The upper integration limit measured in Hz.
 
+        fts : bool, optional, default=False
+            Is there a fast-to-slow cooling transition?
+
         Returns
         -------
         float or np.ndarray of float
@@ -1032,6 +1221,9 @@ class SpectralIndexModel(BaseFluxModel):
 
         upper : float or np.ndarray of float
             The upper integration limit.
+
+        fts : bool, optional, default=False
+            Is there a fast-to-slow cooling transition?
 
         Returns
         -------
@@ -1602,9 +1794,12 @@ class ObservedFluxModel:
         # Model the GRB afterglow flux
         modeled = self.model_afterglow(obs, params, **kwargs)
 
+        if np.isnan(modeled.min()):
+            return np.array([np.nan])
+
         # Apply dust extinction and host galaxy corrections
-        modeled[obs.sflux_loc] = self.model_extinction(
-            modeled[obs.sflux_loc], **Parameters.extinction(obs, params)
+        modeled = self.model_extinction(
+            modeled, **Parameters.extinction(obs, params)
         )
 
         return modeled
@@ -1687,7 +1882,7 @@ class ObservedFluxModel:
     def model_extinction(
         self, modeled, wn, z=None, ebv_sf=None,
         ebv_mw=None, host_pos=None, host_vals=None,
-        rv_sf=None, rv_mw=None
+        rv_sf=None, rv_mw=None, ext_pos=None
     ):
         """
         Corrects the afterglow flux, `modeled`, for
@@ -1727,6 +1922,9 @@ class ObservedFluxModel:
             Assumes that the values are measured in the same space
             as the intrinsic flux.
 
+        ext_pos : np.ndarray of bool, optional
+            The positions to apply the extinction correction.
+
         Returns
         -------
         np.ndarray of float
@@ -1735,28 +1933,28 @@ class ObservedFluxModel:
 
         # Apply source frame extinction
         if self.ext_sf is not None:
-            modeled *= self.ext_sf  # pre-computed
+            modeled[ext_pos] *= self.ext_sf  # pre-computed
 
         elif ebv_sf is not None:
             # Reuse model object if not fitting for Rv
             model = self.extinction_model if rv_sf is None \
                 else self.extinction_model.__class__(Rv=rv_sf)
-            modeled *= model.extinguish((1 + z) * wn, Ebv=ebv_sf)
+            modeled[ext_pos] *= model.extinguish((1 + z) * wn, Ebv=ebv_sf)
 
         # Apply host galaxy correction
         if host_vals is not None and host_pos is not None:
             for name, corr in host_vals.items():
-                modeled[np.where(host_pos[name])] += corr
+                modeled[host_pos[name]] += corr
 
         # Apply Milky Way extinction
         if self.ext_mw is not None:
-            modeled *= self.ext_mw  # pre-computed
+            modeled[ext_pos] *= self.ext_mw  # pre-computed
 
         elif ebv_mw is not None:
             # Reuse model object if not fitting for Rv
             model = self.extinction_model if rv_mw is None \
                 else self.extinction_model.__class__(Rv=rv_mw)
-            modeled *= model.extinguish(wn, Ebv=ebv_mw)
+            modeled[ext_pos] *= model.extinguish(wn, Ebv=ebv_mw)
 
         # return (afterglow_flux * ext_sf + host_correction) * ext_mw
         return modeled

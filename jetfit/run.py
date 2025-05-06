@@ -170,19 +170,6 @@ def main(
         ext_model=observed_flux_model.extinction_model,
     )
 
-    # Plot chi squared
-    # _, ax = plt.subplots()
-    #
-    # cs_vals = -2 * mcmc.sampler.get_log_prob(flat=False)
-    #
-    # for i in range(len(cs_vals[0])):
-    #     plt.plot(np.log10(cs_vals[:, i]), alpha=0.4)
-    #
-    # plt.xlabel("Step")
-    # plt.ylabel(r"$\chi^2$")
-    # plt.title("Chi-squared traces per walker")
-    # plt.savefig(results_dir / 'chi-squared.png')
-
     # Plot corner
     corner = PosteriorPlot(mcmc.sampler, mcmc.params.fitting, mcmc.param_pos)
     corner.plot(out_dir=results_dir)
@@ -239,7 +226,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'newer'
+    sub_dir = 'done'
 
     if args.event is None:
         # Specify the events to run
@@ -259,10 +246,9 @@ if __name__ == "__main__":
             # '140506A',
             # '160131A',
             # '171010A',
-            '210905A',
-            # '220101A',
+            # '210905A',
+            '220101A',
             # '221009A',
-            # '231118A',
         ]
     else:
         events = [args.event]

@@ -44,7 +44,10 @@ class CSVReader:
         live_dangerously : bool, optional
             If `True`, skips verification of CSV.
         """
-        self.df = pd.read_csv(path)
+        df = pd.read_csv(path)
+        df_sorted = df.sort_values(by='Time')
+        df_sorted = df_sorted.reset_index(drop=True)
+        self.df = df_sorted
 
         if not live_dangerously:
             self.validate()
