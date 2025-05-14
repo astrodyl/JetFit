@@ -167,6 +167,12 @@ class StratifiedFireballModel(BaseFireballModel):
         if not self.is_valid:
             return np.array([np.nan])
 
+        if self.sn < 0 and self.k1 < self.k2:
+            return np.array([np.nan])
+
+        if self.sn > 0 and self.k1 > self.k2:
+            return np.array([np.nan])
+
         # For speed, get observation as arrays
         arrays = obs.as_arrays
 
@@ -174,14 +180,18 @@ class StratifiedFireballModel(BaseFireballModel):
         n, k = self.smooth(arrays.times)
 
         # Modeled flux smoothed across breaks/regimes
-        modeled = ObservedSpectrumModel(
+        obs_spectrum = ObservedSpectrumModel(
             **self.spectrum(arrays.times, n, k), arrays=arrays
-        ).model()
+        )
+        modeled = obs_spectrum.model()
+
+        if np.isnan(modeled).any():
+            return modeled
 
         if self.tj:
             # Jet break spectrum
             jet_flux = ObservedSpectrumModel(
-                **self.spectrum(self.tj, n, k), arrays=arrays
+                **self.spectrum(self.tj), arrays=arrays, fts=obs_spectrum.has_fts
             ).model()
 
             modeled[obs.flux_loc] = self.smooth_jet_break(
@@ -579,6 +589,9 @@ class FireballModel(BaseFireballModel):
             **self.spectrum(arrays.times), arrays=arrays  # type: ignore
         )
         modeled = obs_spectrum.model(subset)
+
+        if np.isnan(modeled).any():
+            return modeled
 
         if self.tj:
             # Jet break spectrum

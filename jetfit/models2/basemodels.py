@@ -417,6 +417,9 @@ class ObservedSpectrumModel:
         np.ndarray of float
             The unextinguished modeled GRB flux.
         """
+        if (self.nu_a > self.nu_c).any():
+            return np.array(np.nan)
+
         res = np.full(self.arrays.times.size, np.nan)
 
         if (sfm := self.arrays.sflux_loc).any():
@@ -1103,6 +1106,16 @@ class SpectralFluxModel(BaseFluxModel):
             (x12 ** -(s12 * (b1 - b2a)) + 1) ** (s23 / s12) * x12 ** -(s23 * b2a) +
             ((nu23 / nu12) ** -(s23 * b2b)) * (x23 ** -(s23 * b3))
         ) ** -(1 / s23)
+
+        # Apply correction to f_peak for nu_m < nu_a < nu_c
+        if self.sabs.any():
+            corr = (self.nu_a[self.sabs] / self.nu_m[self.sabs]) ** b2a[self.sabs]
+
+            if flux.size == self.sabs.size:
+                flux[self.sabs] *= corr
+
+            else:
+                flux *= corr
 
         # return the smoothed spectral flux [mJy]
         return flux[0] if flux.size == 1 else flux

@@ -9,7 +9,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -2.0
-    upper = 9.0
+    upper = 4.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -65,8 +65,8 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
-    upper = 3.5
+    lower = -1.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -128,4 +128,3 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.3
-

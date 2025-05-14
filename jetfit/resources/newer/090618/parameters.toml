@@ -76,7 +76,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 2.0
+    upper = 1.2
 
 #-------------- MODEL --------------
 #---------------- sj ---------------

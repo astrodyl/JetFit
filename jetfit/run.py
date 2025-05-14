@@ -226,14 +226,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'done'
+    sub_dir = 'newer'
 
     if args.event is None:
         # Specify the events to run
         events = [
             # '050525A',
             # '050922C',
-            # '080413B',
+            '080413B',
             # '080319B_nature_mix',
             # '080319B_nature_mix_late',
             # '090424',
@@ -247,7 +247,7 @@ if __name__ == "__main__":
             # '160131A',
             # '171010A',
             # '210905A',
-            '220101A',
+            # '220101A',
             # '221009A',
         ]
     else:
