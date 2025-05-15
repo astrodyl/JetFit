@@ -417,9 +417,6 @@ class ObservedSpectrumModel:
         np.ndarray of float
             The unextinguished modeled GRB flux.
         """
-        if (self.nu_a > self.nu_c).any():
-            return np.array(np.nan)
-
         res = np.full(self.arrays.times.size, np.nan)
 
         if (sfm := self.arrays.sflux_loc).any():
@@ -711,11 +708,12 @@ class BaseFluxModel:
 
     Attributes
     ----------
-    slow, fast, sabs : np.ndarray of bool
+    slow, fast, mac, cam : np.ndarray of bool
         Bools indicating the regimes.
             - slow: nu_m < nu_c
             - fast: nu_c < nu_m
-            - sabs nu_m < nu_a < nu_c
+            - mac: nu_m < nu_a < nu_c
+            - cam: nu_c < nu_a < nu_m
     """
     def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
         self.f_peak = f_peak
@@ -736,8 +734,9 @@ class BaseFluxModel:
         # TODO: Not updated when frequencies are updated. Not good
         # TODO: practice, but its faster. Revisit this before release.
         self.slow = self.nu_m < self.nu_c
-        self.sabs = np.logical_and(self.slow, nu_m < nu_a)
         self.fast = ~self.slow
+        self.mac = np.logical_and(self.slow, nu_m < nu_a)
+        self.cam = np.logical_and(self.fast, nu_c < nu_a)
 
     @property
     def f_peak(self) -> float | np.ndarray:
@@ -833,14 +832,18 @@ class BaseFluxModel:
         nu12 = np.array(self.nu_m, copy=True)
         nu23 = np.array(self.nu_c, copy=True)
 
-        if self.sabs.any():
+        if self.mac.any():
             # Overwrite: nu_m < nu_a < nu_c
-            nu12[self.sabs] = self.nu_a[self.sabs]
+            nu12[self.mac] = self.nu_a[self.mac]
 
         if self.fast.any():
             # Overwrite: nu_a < nu_c < nu_m
             nu12[self.fast] = self.nu_c[self.fast]
             nu23[self.fast] = self.nu_m[self.fast]
+
+            if self.cam.any():
+                # Overwrite: nu_c < nu_a < nu_m
+                nu12[self.cam] = self.nu_a[self.cam]
 
         return nu12, nu23
 
@@ -868,13 +871,17 @@ class BaseFluxModel:
         b2 = np.full(self.fast.size, (1 - self.p) / 2)
         b3 = np.full(self.fast.size, -self.p / 2)
 
-        if self.sabs.any():
+        if self.mac.any():
             # Overwrite: nu_m < nu_a < nu_c
-            b1[self.sabs] = 2.5
+            b1[self.mac] = 2.5
 
         if self.fast.any():
             # Overwrite: nu_a < nu_c < nu_m
             b2[self.fast] = -0.5
+
+            if self.cam.any():
+                # Overwrite: nu_c < nu_a < nu_m
+                b1[self.cam] = 2
 
         # b2 smoothing
         if fts:
@@ -891,52 +898,6 @@ class BaseFluxModel:
             return b1, b2a, b2b, b3
 
         return b1, b2, b3
-
-    def temporal_indices(self, fts=False):
-        """
-        Calculates the temporal indices using Sari, Piran,
-        & Narayan 1998 [1]_.
-
-        Parameters
-        ----------
-        fts : bool, optional, default=False
-            Is there a fast-to-slow cooling transition?
-
-        Returns
-        -------
-        tuple of np.ndarray of float
-            The temporal indices for each frequency break.
-
-        References
-        ----------
-        .. [1] Sari, Piran, & Narayan (1998)
-            https://iopscience.iop.org/article/10.1086/311269/pdf
-        """
-        k, p = self.k, self.p
-
-        # Default: nu_a < nu_m < nu_c
-        a1 = np.full(self.fast.size, -(3 * k) / (5 * (4 - k)))
-        a2 = np.full(self.fast.size, -1.5)
-        a3 = np.full(self.fast.size, -(4 - 3 * k) / (2 * (4 - k)))
-
-        if self.sabs.any():
-            # Overwrite: nu_m < nu_a < nu_c
-            k_sabs = k[self.sabs] if isinstance(k, np.ndarray) else k
-
-            a1[self.sabs] = -1.5
-            a2[self.sabs] = -(
-                    4 * (3 * p + 2) - k_sabs * (3 * p - 2)
-            ) / (2 * (4 - k_sabs) * (p + 4))
-
-        if self.fast.any():
-            # Overwrite: nu_a < nu_c < nu_m
-            k_fast = k[self.fast] if isinstance(k, np.ndarray) else k
-
-            a1[self.fast] = -(10 + 3 * k_fast) / (5 * (4 - k_fast))
-            a2[self.fast] = -(4 - 3 * k_fast) / (2 * (4 - k_fast))
-            a3[self.fast] = -1.5
-
-        return a1, a2, a3
 
     def smoothing(self, fts=False):
         """
@@ -975,10 +936,10 @@ class BaseFluxModel:
         s23 = np.full(self.fast.size, 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p)
 
         # Generalized s(p) from GS02 for break 5 (s12)
-        if self.sabs.any():
+        if self.mac.any():
             # Overwrite: nu_m < nu_a < nu_c
-            sabs_k = k[self.sabs] if isinstance(k, np.ndarray) else k
-            s12[self.sabs] = 1.47 - 0.11 * sabs_k - (0.21 - 0.015 * sabs_k) * p
+            sabs_k = k[self.mac] if isinstance(k, np.ndarray) else k
+            s12[self.mac] = 1.47 - 0.11 * sabs_k - (0.21 - 0.015 * sabs_k) * p
 
         # Generalized s(p) from GS02 for break 9 (s23) and break 11 (s12)
         if self.fast.any():
@@ -986,6 +947,11 @@ class BaseFluxModel:
             fast_k = k[self.fast] if isinstance(k, np.ndarray) else k
             s23[self.fast] = 3.34 + 0.17 * fast_k - (0.82 + 0.035 * fast_k) * p
             s12[self.fast] = 0.597
+
+            # Generalized s(p) from GS02 for break 8 (s12)
+            if self.cam.any():
+                # Overwrite: nu_c < nu_a < nu_m
+                s12[self.cam] = 0.9
 
         # Fast-to-slow cooling smoothing
         if fts:
@@ -1107,18 +1073,68 @@ class SpectralFluxModel(BaseFluxModel):
             ((nu23 / nu12) ** -(s23 * b2b)) * (x23 ** -(s23 * b3))
         ) ** -(1 / s23)
 
-        # Apply correction to f_peak for nu_m < nu_a < nu_c
-        if self.sabs.any():
-            corr = (self.nu_a[self.sabs] / self.nu_m[self.sabs]) ** b2a[self.sabs]
+        # Apply flux normalization corrections
+        if self.mac.any():
+            flux = self.correct_mac_flux(flux, b2a)
 
-            if flux.size == self.sabs.size:
-                flux[self.sabs] *= corr
-
-            else:
-                flux *= corr
+        if self.cam.any():
+            flux = self.correct_cam_flux(flux, nu)
 
         # return the smoothed spectral flux [mJy]
         return flux[0] if flux.size == 1 else flux
+
+    def correct_mac_flux(self, flux, b2):
+        """
+        Applies the peak flux adjustment in the m < a < c regime.
+
+        Parameters
+        ----------
+        flux : np.ndarray of float
+            The flux to adjust [mJy].
+
+        b2 : np.ndarray of float
+            The spectral index of the second segment.
+
+        Returns
+        -------
+        np.ndarray of float
+            The corrected flux [mJy].
+        """
+        corr = (self.nu_a[self.mac] / self.nu_m[self.mac]) ** b2[self.mac]
+
+        if flux.size == self.mac.size:
+            flux[self.mac] *= corr
+        else:
+            flux *= corr
+
+        return flux
+
+    def correct_cam_flux(self, flux, nu):
+        """
+        Adjusts the flux at `nu` > `nu_a` that accounts
+        for the electron pile at low frequencies.
+
+        Parameters
+        ----------
+        flux : np.ndarray of float
+            The flux to adjust [mJy].
+
+        nu : np.ndarray of float
+            The observed frequencies [Hz].
+
+        Returns
+        -------
+        np.ndarray of float
+            The corrected flux [mJy].
+        """
+        mask = np.logical_and(nu > self.nu_a, self.cam)
+
+        if flux.size == self.cam.size:
+            flux[mask] *= (1 / 3) * np.sqrt(self.nu_c[mask] / self.nu_a[mask])
+        else:
+            flux[mask] *= (1 / 3) * np.sqrt(self.nu_c / self.nu_a)
+
+        return flux
 
 
 class IntegratedFluxModel(BaseFluxModel):
@@ -1645,7 +1661,23 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         return getattr(self, f'evaluate_{order}')(t, ref)
 
     def evaluate_amc(self, t, ref=17):
-        """"""
+        """
+        Calculates the self-absorption frequency in the weak
+        self-absorption regime (nu_c < nu_a < nu_m).
+
+        Parameters
+        ----------
+        t : np.ndarray of float or float
+            The observer-frame times [days].
+
+        ref : float
+            The log of the reference radius measured in cm.
+
+        Returns
+        -------
+        np.ndarray of float or float
+            The self-absorption frequency [Hz]
+        """
         if isinstance(t, u.Quantity):
             t = t.to_value('d')
 
@@ -1691,7 +1723,23 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         ) * ((self.p - 2) ** -1)  # electron energy index (avoids inf for p < 2)
 
     def evaluate_mac(self, t, ref=17):
-        """"""
+        """
+        Calculates the self-absorption frequency in the weak
+        self-absorption regime (nu_m < nu_a < nu_c).
+
+        Parameters
+        ----------
+        t : np.ndarray of float or float
+            The observer-frame times [days].
+
+        ref : float
+            The log of the reference radius measured in cm.
+
+        Returns
+        -------
+        np.ndarray of float or float
+            The self-absorption frequency [Hz]
+        """
         if isinstance(t, u.Quantity):
             t = t.to_value('d')
 
@@ -1733,6 +1781,112 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
             np.log10(rho0) * (8 / z / y) +
             np.log10(E) * exp_ae +
             np.log10(t) * exp_bt
+        )
+
+    def evaluate_cam(self, t, ref=17):
+        """
+        Calculates the self-absorption frequency in the strong
+        self-absorption regime (nu_c < nu_a < nu_m).
+
+        Parameters
+        ----------
+        t : np.ndarray of float or float
+            The observer-frame times [days].
+
+        ref : float
+            The log of the reference radius measured in cm.
+
+        Returns
+        -------
+        np.ndarray of float or float
+            The self-absorption frequency [Hz]
+        """
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
+
+        # Convenience variables
+        p, k = self.p, self.k
+        x = 3 * (4 - k)
+
+        # Transformations
+        t = t * 86_400
+        E = 1e52 * self.E
+        rho0 = self.rho0 * self.m_p * (10 ** ref) ** k
+
+        pre_factor = (
+            0.95188438 * self.m_p ** -(1 / 3) * (
+                self.alpha ** (k - 2) * self.beta ** -2 * np.pi ** (2 * (k - 3))
+            ) ** (1 / x)
+        ) * (0.5 * (1 + self.X)) ** (1 / 3)
+
+        # return self-absorption frequency [Hz]
+        return pre_factor * 10 ** (
+            (   # Model parameters
+                np.log10(1 + self.z) * 2 * (k - 3) +
+                np.log10(self.c) * 2 +
+                np.log10(rho0) * 2 +
+                np.log10(E) * (2 - k) +
+                np.log10(t) * (k - 6)
+            ) / x
+        )
+
+    def evaluate_acm(self, t, ref=17):
+        """
+        Calculates the self-absorption frequency in the weak
+        self-absorption regime (nu_a < nu_c < nu_m).
+
+        Evaluated in log-space to prevent overflow.
+
+        Parameters
+        ----------
+        t : np.ndarray of float or float
+            The observer-frame times [days].
+
+        ref : float
+            The log of the reference radius measured in cm.
+
+        Returns
+        -------
+        np.ndarray of float or float
+            The self-absorption frequency [Hz]
+        """
+        if isinstance(t, u.Quantity):
+            t = t.to_value('d')
+
+        # Convenience variables
+        p, k = self.p, self.k
+        x = 5 * (4 - k)
+
+        # Transformations
+        t = t * 86_400
+        E = 1e52 * self.E
+        rho0 = self.rho0 * self.m_p * (10 ** ref) ** k
+
+        # Shared exponents
+        exp_ae = (14 - 9 * k) / x
+
+        # Linear terms
+        pre_factor = 25.08968 * (
+            self.alpha ** -exp_ae *
+            self.beta ** -(2 * (15 - k) / x) *
+            (0.5 * (1 + self.X)) ** 0.6 *
+            np.pi ** ((2 + 5 * k) / x)
+        )
+
+        # return self-absorption frequency [Hz]
+        return pre_factor * 10 ** (
+            # Pre-factors
+            np.log10(self.q_e) * (28 / 5) +
+            np.log10(self.m_e) * -4 +
+            np.log10(self.m_p) * -0.6 +
+            np.log10(self.c) * (-2 * (65 - 19 * k) / x) +
+
+            # Model parameters
+            np.log10(1 + self.z) * -(2 * (5 - 4 * k) / x) +
+            np.log10(self.eps_b) * (6 / 5) +
+            np.log10(rho0) * (22 / x) +
+            np.log10(E) * exp_ae +
+            np.log10(t) * -(10 + 3 * k) / x
         )
 
 

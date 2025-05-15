@@ -137,18 +137,23 @@ class FrequencyPlot:
                     afterglow_model = model(**model_params, **model_kw)
                     nu_ms_all[pos] = afterglow_model.nu_m(times[pos])
                     nu_cs_all[pos] = afterglow_model.nu_c(times[pos])
-                    nu_as_all[pos] = afterglow_model.nu_a(times[pos], nu_ms_all[pos])
+                    nu_as_all[pos] = afterglow_model.nu_a(times[pos], nu_ms_all[pos], nu_cs_all[pos])
             else:
                 afterglow_model = model(**p.get('model'), **model_kw)
+
+                # Handle Stratified model
                 if isinstance(afterglow_model, StratifiedFireballModel):
                     n_eff, k_eff = afterglow_model.smooth(times)
                     nu_ms_all = afterglow_model.nu_m(times, k_eff)
                     nu_cs_all = afterglow_model.nu_c(times, n_eff, k_eff)
-                    nu_as_all = afterglow_model.nu_a(times, n_eff, k_eff, nu_ms_all)
+                    nu_as_all = afterglow_model.nu_a(times, n_eff, k_eff, nu_ms_all, nu_cs_all)
+
+                # Handle regular model
                 else:
                     nu_ms_all = afterglow_model.nu_m(times)
                     nu_cs_all = afterglow_model.nu_c(times)
-                    nu_as_all = afterglow_model.nu_a(times, nu_ms_all)
+                    nu_as_all = afterglow_model.nu_a(times, nu_ms_all, nu_cs_all)
+
             return nu_ms_all, nu_cs_all, nu_as_all
 
         # Get random locations from flattened chain
@@ -159,7 +164,7 @@ class FrequencyPlot:
         times = np.logspace(
             start=np.log10(obs.as_arrays.times[obs.flux_loc].min()),
             stop=np.log10(obs.as_arrays.times[obs.flux_loc].max()),
-            num=100  # Frequencies are straight lines, low num is OK.
+            num=200
         )
 
         for idx in indices:
@@ -198,29 +203,29 @@ class FrequencyPlot:
             if p.get('shared'):
                 groups = map_groups(obs, times)
 
-                for group in groups.keys():
+                for group, pos in groups.items():
                     model_params = p.get(group).get('model')
                     afterglow_model = model(**model_params, **model_kw)
-                    nu_ms_all[groups[group]] = afterglow_model.nu_m(times[groups[group]])
-                    nu_cs_all[groups[group]] = afterglow_model.nu_c(times[groups[group]])
-                    nu_as_all[groups[group]] = afterglow_model.nu_a(times[groups[group]], nu_ms_all[groups[group]])
+                    nu_ms_all[pos] = afterglow_model.nu_m(times[pos])
+                    nu_cs_all[pos] = afterglow_model.nu_c(times[pos])
+                    nu_as_all[pos] = afterglow_model.nu_a(times[pos], nu_ms_all[pos], nu_cs_all[pos])
             else:
                 afterglow_model = model(**p.get('model'), **model_kw)
                 if isinstance(afterglow_model, StratifiedFireballModel):
                     n_eff, k_eff = afterglow_model.smooth(times)
                     nu_ms_all = afterglow_model.nu_m(times, k_eff)
                     nu_cs_all = afterglow_model.nu_c(times, n_eff, k_eff)
-                    nu_as_all = afterglow_model.nu_a(times, n_eff, k_eff, nu_ms_all)
+                    nu_as_all = afterglow_model.nu_a(times, n_eff, k_eff, nu_ms_all, nu_cs_all)
                 else:
                     nu_ms_all = afterglow_model.nu_m(times)
                     nu_cs_all = afterglow_model.nu_c(times)
-                    nu_as_all = afterglow_model.nu_a(times, nu_ms_all)
+                    nu_as_all = afterglow_model.nu_a(times, nu_ms_all, nu_cs_all)
             return nu_ms_all, nu_cs_all, nu_as_all
 
         times = np.logspace(
             start=np.log10(obs.as_arrays.times[obs.flux_loc].min()),
             stop=np.log10(obs.as_arrays.times[obs.flux_loc].max()),
-            num=100  # Frequencies are straight lines, low num is OK.
+            num=200
         )
 
         best_params = get_best_params(self.sampler, self.parameters, cat='model')

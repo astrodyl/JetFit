@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 
 from jetfit.core.utils.math_utils import chi_squared
 from jetfit.models2.basemodels import PeakFluxModel, SynchrotronFrequencyModel, CoolingFrequencyModel, \
-    AbsorptionFrequencyModel, SpectralFluxModel
+    AbsorptionFrequencyModel
 from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
 
 
@@ -97,8 +97,67 @@ class TestCharacteristicModels(unittest.TestCase):
             plt.xscale('log')
         plt.show()
 
+    def test_nu_a_cam(self):
+        """
+        Tests the self-absorption frequency in the fast-cooling
+        regime with spectral ordering nu_c < nu_a < nu_m.
+        """
+        # ISM
+        af_ism = AbsorptionFrequencyModel(
+            E=1.0, rho0=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=0.0, X=0.7, p=2.2
+        ).evaluate_cam(1.0)
+
+        # Wind
+        af_wind = AbsorptionFrequencyModel(
+            E=1.0, rho0=5e11 / m_p.value / 1e34, eps_e=0.1, eps_b=0.1, k=2.0, z=0.0, X=0.7, p=2.2
+        ).evaluate_cam(1.0)
+
+        print(af_ism, af_wind)
+
+    def test_nu_a_acm(self):
+        """
+        Tests the self-absorption frequency in the fast-cooling
+        regime with spectral ordering nu_a < nu_c < nu_m.
+
+        True values are taken from Table 2.6 (ISM) and Table 2.7 (wind)
+        in VDH (2007) [1]_.
+
+        References
+        ----------
+        .. [1] Van Der Horst (2007): Broadband view of blast wave physics :
+            a study of gamma-ray burst afterglows.
+        """
+        # ISM
+        af_ism = AbsorptionFrequencyModel(
+            E=1.0, rho0=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=0.0, X=0.7, p=2.2
+        ).evaluate_acm(1.0) / (0.5 ** -0.5)
+
+        # Wind
+        af_wind = AbsorptionFrequencyModel(
+            E=1.0, rho0=5e11 / m_p.value / 1e34, eps_e=0.1, eps_b=0.1, k=2.0, z=0.0, X=0.7, p=2.2
+        ).evaluate_acm(1.0) / (0.5 ** 0.6)
+
+        # True values (Tables 2.6, 2.7)
+        af_ism_true = 1.25e9
+        af_wind_true = 9.23e10
+
+        # Assert equal within 1% (ISM) or 2% (WIND)
+        self.assertAlmostEqual(af_ism / af_ism_true, 1.0, delta=0.01)
+        self.assertAlmostEqual(af_wind / af_wind_true, 1.0, delta=0.02)
+
     def test_nu_a_amc(self):
-        """"""
+        """
+        Tests the self-absorption frequency in the slow-cooling
+        regime with spectral ordering nu_a < nu_m < nu_c.
+
+        True values are taken from Table 2.6 (ISM) and Table 2.7 (wind)
+        in VDH (2007) [1]_.
+
+        References
+        ----------
+        .. [1] Van Der Horst (2007): Broadband view of blast wave physics :
+            a study of gamma-ray burst afterglows.
+        """
         # ISM
         af_ism = AbsorptionFrequencyModel(
             E=1.0, rho0=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=0.0, X=0.7, p=2.2
@@ -109,6 +168,7 @@ class TestCharacteristicModels(unittest.TestCase):
             E=1.0, rho0=5e11 / m_p.value / 1e34, eps_e=0.1, eps_b=0.1, k=2.0, z=0.0, X=0.7, p=2.2
         ).evaluate_amc(1.0) / (0.5 ** (-2 / 5))
 
+        # True values (Tables 2.6, 2.7)
         af_ism_true = 7.75e10
         af_wind_true = 5.16e11
 
@@ -117,7 +177,18 @@ class TestCharacteristicModels(unittest.TestCase):
         self.assertAlmostEqual(af_wind / af_wind_true, 1.0, delta=0.01)
 
     def test_nu_a_mac(self):
-        """"""
+        """
+        Tests the self-absorption frequency in the slow-cooling
+        regime with spectral ordering nu_m < nu_a < nu_c.
+
+        True values are taken from Table 2.6 (ISM) and Table 2.7 (wind)
+        in VDH (2007) [1]_.
+
+        References
+        ----------
+        .. [1] Van Der Horst (2007): Broadband view of blast wave physics :
+            a study of gamma-ray burst afterglows.
+        """
         # ISM
         af_ism = AbsorptionFrequencyModel(
             E=1.0, rho0=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=0.0, X=0.7, p=2.2
@@ -128,6 +199,7 @@ class TestCharacteristicModels(unittest.TestCase):
             E=1.0, rho0=5e11 / m_p.value / 1e34, eps_e=0.1, eps_b=0.1, k=2.0, z=0.0, X=0.7, p=2.2
         ).evaluate_mac(1.0) / (0.5 ** 0.016)
 
+        # True values (Tables 2.6, 2.7)
         af_ism_true = 1.13e11
         af_wind_true = 4.38e11
 
@@ -411,13 +483,13 @@ class TestCharacteristicModels(unittest.TestCase):
         f_peak_true = 60.8 * (0.5**1.5)
         nu_m_true = 1.85e12 * (0.5 ** 0.5)
         nu_c_true = 9.97e11 * (0.5 ** -1.5)
-        nu_a_slow_true = 5.16e11 * (0.5 ** -0.4)
+        nu_amc_true = 5.16e11 * (0.5 ** -0.4)
 
         # Assert equal within 1%
         self.assertAlmostEqual(f_peak / f_peak_true, 1.0, delta=0.01)
         self.assertAlmostEqual(nu_m / nu_m_true, 1.0, delta=0.01)
         self.assertAlmostEqual(nu_c / nu_c_true, 1.0, delta=0.01)
-        self.assertAlmostEqual(nu_a / nu_a_slow_true, 1.0, delta=0.01)
+        self.assertAlmostEqual(nu_a / nu_amc_true, 1.0, delta=0.01)
 
     def test_spn_ism(self):
         """
@@ -468,7 +540,8 @@ class TestCharacteristicModels(unittest.TestCase):
         # True values
         f_peak_true = 20.0 * (
             (((np.sqrt(1 + z) - 1) / (np.sqrt(2) - 1)) ** -2) *
-            (((1 + z) / 2) ** 0.5) * norm)
+            (((1 + z) / 2) ** 0.5) * norm
+        )
         nu_m_true = 5e12 * ((1 + z) / 2) ** 0.5
         nu_c_true = (2e12 * ((1 + z) / 2) ** -1.5) / (norm**2)
 
@@ -477,29 +550,6 @@ class TestCharacteristicModels(unittest.TestCase):
         self.assertAlmostEqual(nu_m / nu_m_true, 1.0, delta=0.05)
         self.assertAlmostEqual(nu_c / nu_c_true, 1.0, delta=0.05)
 
-    def test_spectral_flux_model(self):
-        """"""
-        nu_m = np.array([50 * i * 1e12 for i in range(20)])
-        nu_c = np.array([2e14 for _ in range(20)])
-        nu_a = np.array([1e9 for _ in range(20)])
-        f = np.array([1 for _ in range(20)])
-
-        sfm = SpectralFluxModel(nu_m, nu_c, nu_a, f, 2.2, 2.0)
-        em1 = sfm.evaluate(np.array([1e14 for _ in range(20)]))
-        em2 = sfm.evaluate2(np.array([1e14 for _ in range(20)]))
-
-        sfm = SpectralFluxModel(1e12, 2e14, 1e15, 1, 2.2, 2.0)
-        es1 = sfm.evaluate(np.array([1e14 for _ in range(20)]))
-        es2 = sfm.evaluate2(np.array([1e14 for _ in range(20)]))
-
-        sfm = SpectralFluxModel(1e12, 2e14, 1e9, 1, 2.2, 2.0)
-        ea1 = sfm.evaluate(1e14)
-        ea2 = sfm.evaluate2(1e14)
-
-        sfm = SpectralFluxModel(nu_m, nu_c, nu_a, f, 2.2, 2.0)
-        ez1 = sfm.evaluate(1e14)
-        ez2 = sfm.evaluate2(1e14)
-        print()
 
 if __name__ == '__main__':
     unittest.main()

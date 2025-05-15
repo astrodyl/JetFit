@@ -1,14 +1,58 @@
-import json
 import unittest
 
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib.animation import FuncAnimation
 
-from jetfit.models2.basemodels import SpectralFluxModel, fast_to_slow_time
+from jetfit.models2.basemodels import SpectralFluxModel
 
 
 class TestSpectralFlux(unittest.TestCase):
+    def test_CAM(self):
+        """"""
+        # Define the frequencies
+        nu_c, nu_a, nu_m = 1e9, 1e11, 1e13
+        nu = np.geomspace(1e8, 1e18, 500)
+
+        # Define other
+        f_peak, p, k = 1, 2.5, 0.0
+
+        # Get smoothed flux
+        model = SpectralFluxModel(nu_m, nu_c, nu_a, f_peak, p, k)
+        smoothed_flux = model(nu)
+
+        # Get SPN98 spectral indices
+        b1, b2, b3 = model.spectral_indices()
+
+        # Determine the segments
+        seg1 = nu < nu_a
+        seg2 = np.logical_and(nu_a < nu, nu <= nu_m)
+        seg3 = nu > nu_m
+
+        # Discontinuity ratio
+        rat = (1 / 3) * np.sqrt(nu_c / nu_a)
+
+        # Calculate the sharply-broken flux
+        flux = np.empty(nu.size)
+        flux[seg1] = f_peak * (nu[seg1] / nu_a) ** 2
+        flux[seg2] = f_peak * rat * (nu[seg2] / nu_a) ** -0.5
+        flux[seg3] = f_peak * rat * (nu_m / nu_a) ** -0.5 * (nu[seg3] / nu_m) ** -(p / 2)
+
+        # Annotation for each break
+        plt.annotate(r'$\nu_m$', xy=(1.2 * nu_m, 1e-9), xytext=(1.2 * nu_m, 1e-9), fontsize=12)
+        plt.annotate(r'$\nu_a$', xy=(1.2 * nu_a, 1e-9), xytext=(1.2 * nu_a, 1e-9), fontsize=12)
+
+        # Plot the two
+        plt.vlines(nu_a, ymin=0.0, ymax=f_peak * rat, color='black', linestyle='--', alpha=0.6)
+        plt.vlines(nu_m, ymin=0.0, ymax=f_peak * rat * (nu_m / nu_a) ** b2, color='black', linestyle='--', alpha=0.6)
+        plt.title(r'$\nu_c < \nu_a < \nu_m$', fontsize=18)
+        plt.xlabel('Frequency [Hz]')
+        plt.ylabel('Flux [mJy]')
+        plt.grid(alpha=0.5)
+        plt.loglog(nu, smoothed_flux, label='Smoothly Broken')
+        plt.loglog(nu, flux, label='Sharply Broken')
+        plt.legend()
+        plt.show()
+
     def test_MAC(self):
         """"""
         # Define the frequencies
@@ -57,7 +101,7 @@ class TestSpectralFlux(unittest.TestCase):
         plt.legend()
         plt.show()
 
-    def test_slow_cooling_spectrum(self):
+    def test_AMC(self):
         """
         Visual inspection of slow-cooling smoothing approximation.
         """
@@ -95,49 +139,7 @@ class TestSpectralFlux(unittest.TestCase):
         plt.legend()
         plt.show()
 
-    def test_slow_cooling_spectrum(self):
-        """
-        Visual inspection of slow-cooling smoothing approximation.
-        """
-        # Define the frequencies
-        nu_a, nu_m, nu_c = 1e12, 1e10, 1e14
-        nu = np.geomspace(1e8, 1e18, 500)
-
-        # Define other
-        f_peak, p, k = 2e4, 2.5, 0.0
-
-        # Get smoothed flux
-        model = SpectralFluxModel(nu_m, nu_c, nu_a, f_peak, p, k)
-        smoothed_flux = model(nu)
-
-        # Get SPN98 flux
-        b1, b2, b3 = model.spectral_indices()
-
-        # Determine the segments
-        seg_a = nu < nu_m
-        # seg_b = np.logical_and(nu > nu_m, nu < nu_a)
-        seg_b = nu < nu_a
-        seg_c = np.logical_and(nu_c > nu, nu > nu_a)
-        seg_d = nu > nu_c
-
-        # Calculate the sharply-broken flux
-        flux = np.empty(nu.size)
-        # flux[seg_a] = f_peak * (nu[seg_a] / nu_m) ** b1
-        flux[seg_b] = f_peak * (nu[seg_b] / nu_c) ** b1
-        flux[seg_c] = f_peak * (nu[seg_c] / nu_c) ** b2
-        flux[seg_d] = f_peak * (nu_m / nu_c) ** b2 * (nu[seg_d] / nu_m) ** b3
-
-        # Plot the two
-        plt.vlines(nu_a, ymin=0.0, ymax=f_peak, color='black', linestyle='--', alpha=0.6)
-        plt.vlines(nu_c, ymin=0.0, ymax=f_peak * (nu_c / nu_a) ** b2, color='black', linestyle='--', alpha=0.6)
-        plt.title(r'Fast Cooling Spectral Flux $(\nu_m < \nu_a < \nu_c)$')
-        plt.xlabel(r'$\nu$ [Hz]')
-        plt.loglog(nu, smoothed_flux, label='Smoothly Broken')
-        plt.loglog(nu, flux, label='Sharply Broken')
-        plt.legend()
-        plt.show()
-
-    def test_equivalence(self):
+    def test_fts_smoothing(self):
         """"""
         # Define the frequencies
         nu_a, nu_m, nu_c = 6e9, 2e11, 5e12
@@ -176,23 +178,3 @@ class TestSpectralFlux(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-
-# fig, ax = plt.subplots()
-        # line, = ax.loglog([], [], lw=2)
-        # ax.set_xlim(nu[0], nu[-1])
-        # ax.set_ylim(1e-3, 1e4)
-        # title = ax.set_title("")
-        #
-        # def update(frame):
-        #     """"""
-        #     if frame == 0:
-        #         frame =1
-        #     nu_m1 = nu_m * frame
-        #     model1 = SpectralFluxModel(nu_m1, nu_c, nu_a, f_peak, p, k)
-        #     line.set_data(nu, model1(nu))
-        #     # title.set_text(f"nu_m = {nu_m}")
-        #     return line, title
-        #
-        # ani = FuncAnimation(fig, update, frames=500)
-        # plt.show()

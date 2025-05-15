@@ -181,7 +181,7 @@ class StratifiedFireballModel(BaseFireballModel):
 
         # Modeled flux smoothed across breaks/regimes
         obs_spectrum = ObservedSpectrumModel(
-            **self.spectrum(arrays.times, n, k), arrays=arrays
+            **self.spectrum(arrays.times, n, k), arrays=arrays  # type: ignore
         )
         modeled = obs_spectrum.model()
 
@@ -225,8 +225,8 @@ class StratifiedFireballModel(BaseFireballModel):
         return {
             'f_peak': self.f_peak(t, n, k),
             'nu_m': (nu_m := self.nu_m(t, k)),
-            'nu_a': self.nu_a(t, n, k, nu_m),
-            'nu_c': self.nu_c(t, n, k),
+            'nu_c': (nu_c := self.nu_c(t, n, k)),
+            'nu_a': self.nu_a(t, n, k, nu_m, nu_c),
             'p': self.p, 'k': k
         }
 
@@ -314,7 +314,7 @@ class StratifiedFireballModel(BaseFireballModel):
         return SynchrotronFrequencyModel(
             self.E, self.eps_e, self.eps_b, k, self.z, self.X, self.p)(t)
 
-    def nu_a(self, t, n=None, k=None, nu_m=None):
+    def nu_a(self, t, n=None, k=None, nu_m=None, nu_c=None):
         """
         Calculates the self-absorption frequency.
 
@@ -341,6 +341,9 @@ class StratifiedFireballModel(BaseFireballModel):
         nu_m : float or np.ndarray of float, optional
             The synchrotron frequencies [Hz] at time `t`.
 
+        nu_c : float or np.ndarray of float, optional
+            The cooling frequencies [Hz] at time `t`.
+
         Returns
         -------
         float or np.ndarray of float
@@ -353,11 +356,24 @@ class StratifiedFireballModel(BaseFireballModel):
             self.E, n, self.eps_e, self.eps_b, k, self.z, self.X, self.p
         )
 
-        nu_m = self.nu_m(k, t) if nu_m is None else nu_m
-        nu_amc = model.evaluate_amc(t, np.log10(self.rt))
-        nu_mac = model.evaluate_mac(t, np.log10(self.rt))
+        nu_m = self.nu_m(t, k) if nu_m is None else nu_m
+        nu_c = self.nu_c(t, n, k) if nu_c is None else nu_c
+        fast = nu_c < nu_m
 
-        return np.where(nu_amc < nu_m, nu_amc, nu_mac)
+        # Evaluate nu_a for all orderings
+        ref = np.log10(self.rt)
+        nu_amc = model.evaluate_amc(t, ref)
+        nu_mac = model.evaluate_mac(t, ref)
+        nu_cam = model.evaluate_cam(t, ref)
+        nu_acm = model.evaluate_acm(t, ref)
+
+        # Initialize with slow cooling values
+        res = np.where(nu_amc < nu_m, nu_amc, nu_mac)
+
+        if fast.any():  # Overwrite with fast cooling values
+            res[fast] = np.where(nu_acm < nu_c, nu_acm, nu_cam)[fast]
+
+        return res
 
     def spectral_flux(self, t, f, fts=None):
         """
@@ -797,7 +813,7 @@ class FireballModel(BaseFireballModel):
         return SynchrotronFrequencyModel(
             self.E, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p)(t)
 
-    def nu_a(self, t, nu_m=None):
+    def nu_a(self, t, nu_m=None, nu_c=None):
         """
         Calculates the self-absorption frequency.
 
@@ -818,6 +834,9 @@ class FireballModel(BaseFireballModel):
         nu_m : float or np.ndarray of float, optional
             The synchrotron frequencies [Hz] at time `t`.
 
+        nu_c : float or np.ndarray of float, optional
+            The cooling frequencies [Hz] at time `t`.
+
         Returns
         -------
         float or np.ndarray of float
@@ -829,7 +848,19 @@ class FireballModel(BaseFireballModel):
         )
 
         nu_m = self.nu_m(t) if nu_m is None else nu_m
+        nu_c = self.nu_c(t) if nu_c is None else nu_c
+        fast = nu_c < nu_m
+
+        # Evaluate nu_a for all orderings
         nu_amc = model.evaluate_amc(t)
         nu_mac = model.evaluate_mac(t)
+        nu_cam = model.evaluate_cam(t)
+        nu_acm = model.evaluate_acm(t)
 
-        return np.where(nu_amc < nu_m, nu_amc, nu_mac)
+        # Initialize with slow cooling values
+        res = np.where(nu_amc < nu_m, nu_amc, nu_mac)
+
+        # Overwrite with fast cooling values
+        res[fast] = np.where(nu_acm < nu_c, nu_acm, nu_cam)[fast]
+
+        return res
