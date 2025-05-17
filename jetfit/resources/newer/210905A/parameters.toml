@@ -33,7 +33,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = 15.0
-    upper = 25.0
+    upper = 19.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -65,7 +65,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.0
+    lower = 1.9
     upper = 3.5
     initial_guess = 2.25
     initial_sigma = 0.25
@@ -78,7 +78,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
+    lower = -1.0
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -89,7 +89,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
+    lower = -1.0
     upper = 3.0
 
 #-------------- MODEL --------------

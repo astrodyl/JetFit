@@ -187,6 +187,83 @@ scale = "linear"
     mu    = 0.0
     sigma = 0.3
 
+#----------- CALIBRATION -----------
+#-------------- g-band -------------
+[[offsets]]
+name  = "g_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- r-band -------------
+[[offsets]]
+name  = "r_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- i-band -------------
+[[offsets]]
+name  = "i_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- z-band -------------
+[[offsets]]
+name  = "z_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#-------------- J-band -------------
+[[offsets]]
+name  = "J_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#-------------- H-band -------------
+[[offsets]]
+name  = "H_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.05
+
+#----------- CALIBRATION -----------
+#-------------- K-band -------------
+[[offsets]]
+name  = "K_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.06
+
 #----------- HOST GALAXY -----------
 #-------------- g-band -------------
 [[host]]

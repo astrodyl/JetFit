@@ -12,15 +12,28 @@ scale = "log"
     upper = 4.0
 
 #-------------- MODEL --------------
-#---------------- n ----------------
+#----------- TRANSITION ------------
+#--------------- nt ----------------
 [[model]]
-name  = "rho0"
+name  = "nt"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
     lower = -6.0
     upper = 6.0
+
+#-------------- MODEL --------------
+#----------- TRANSITION ------------
+#--------------- rt ----------------
+[[model]]
+name  = "rt"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 15.0
+    upper = 19.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -58,13 +71,37 @@ scale = "linear"
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#---------------- k ----------------
+#--------------- k1 ----------------
 [[model]]
-name  = "k"
+name  = "k1"
 scale = "linear"
+
 [model.prior]
     type  = "uniform"
-    lower = -10.0
+    lower = -1.0
+    upper = 3.0
+
+#-------------- MODEL --------------
+#--------------- k2 ----------------
+[[model]]
+name  = "k2"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = -1.0
+    upper = 3.0
+
+#-------------- MODEL --------------
+#----------- TRANSITION ------------
+#--------------- sn ----------------
+[[model]]
+name  = "sn"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = -3.0
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -83,11 +120,7 @@ scale = "log"
 [[model]]
 name  = "sj"
 scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = 0.1
-    upper = 3.0
+value = 3.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------

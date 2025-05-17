@@ -102,7 +102,7 @@ class Profiler:
         best_options = self.best_options | best_kw if dist_kw else self.best_options
 
         for i, dx in enumerate(dist_x):
-            ax.plot(dx, dist_y[i], **dist_options)
+            ax.plot(dx, dist_y[i], **dist_options)  # noqa
 
         if best_x is not None and best_y is not None:
             ax.plot(best_x, best_y, **best_options)

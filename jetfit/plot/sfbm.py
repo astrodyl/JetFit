@@ -2,10 +2,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from jetfit.core.core import save_plot_unique
-from jetfit.models2.basemodels import BlastWaveModel
 from jetfit.models2.fireball import StratifiedFireballModel
 from jetfit.plot.base import Profiler
-from jetfit.plot.light_curve import sec_to_days
 
 
 class SFBMDensityProfiler(Profiler):
@@ -22,7 +20,7 @@ class SFBMDensityProfiler(Profiler):
 
     Attributes
     ----------
-    n : dict
+    n0 : dict
         The density normalizations [cm-3].
 
     k : dict
@@ -44,7 +42,7 @@ class SFBMDensityProfiler(Profiler):
     def __init__(self, sampler, params):
         super().__init__(sampler, params)
 
-        self.n = {'best': [], 'dist': []}
+        self.n0 = {'best': [], 'dist': []}
         self.k = {'best': [], 'dist': []}
         self.r = {'best': [], 'dist': []}
         self.r_trans = {'best': [], 'dist': []}
@@ -102,7 +100,7 @@ class SFBMDensityProfiler(Profiler):
 
         # Store the interesting values
         self.r[loc].append(radii)
-        self.n[loc].append(n_eff)
+        self.n0[loc].append(n_eff)
         self.k[loc].append(k_eff)
         self.r_trans[loc].append(model.rt)
 
@@ -117,8 +115,45 @@ class SFBMDensityProfiler(Profiler):
         """
         self.plot_k(out_dir)
         self.plot_n(out_dir)
+        self.plot_n0(out_dir)
 
     def plot_n(self, out_dir=None):
+        """"
+        Plots the density profile.
+
+        Parameters
+        ----------
+        out_dir : Path or str, optional
+            The directory to output the plot.
+        """
+        dist = []
+
+        for i in range(len(self.n0['dist'])):
+            dist.append(
+                np.array(self.n0['dist'][i]) *
+                (np.array(self.r['dist'][i]) / np.array(self.r_trans['dist'][i])) ** -np.array(self.k['dist'][i])
+            )
+
+        best = (
+            np.array(self.n0['best'][0]) *
+            (np.array(self.r['best'][0]) / np.array(self.r_trans['best'][0])) ** -np.array(self.k['best'][0])
+        )
+
+        ax = self.plot(
+            self.r['dist'], dist,
+            self.r['best'][0], best
+        )
+
+        ax.axvline(self.r_trans['best'][0], **self.r_trans_options)
+        ax.set_title(r'Number Density Profile')
+        ax.set_ylabel(r'$n [cm^{3-k}]$')
+        ax.set_xlabel(r'Radius [cm]')
+
+        if out_dir:
+            save_plot_unique('n_profile', 'png', str(out_dir))
+        plt.close()
+
+    def plot_n0(self, out_dir=None):
         """"
         Plots the density normalization profile.
 
@@ -128,17 +163,17 @@ class SFBMDensityProfiler(Profiler):
             The directory to output the plot.
         """
         ax = self.plot(
-            self.r['dist'], self.n['dist'],
-            self.r['best'][0], self.n['best'][0]
+            self.r['dist'], self.n0['dist'],
+            self.r['best'][0], self.n0['best'][0]
         )
 
         ax.axvline(self.r_trans['best'][0], **self.r_trans_options)
-        ax.set_title(r'Density Normalization Profile')
+        ax.set_title(r'Number Density Normalization Profile')
         ax.set_ylabel(r'$n_{0} [cm^{-3}]$')
         ax.set_xlabel(r'Radius [cm]')
 
         if out_dir:
-            save_plot_unique('n_profile', 'png', str(out_dir))
+            save_plot_unique('n0_profile', 'png', str(out_dir))
         plt.close()
 
     def plot_k(self, out_dir=None):
@@ -228,11 +263,11 @@ class SFBMIndexProfiler(Profiler):
             for j, s in enumerate(samples):
                 # Model and store using random distribution of params
                 params = self.params.samples_to_dict(s).get('model')
-                distribution[j] = self.model(t, lowers[i], uppers[i], params)
+                distribution[j] = self.model(t, lowers[i], uppers[i], params)  # noqa
 
             # Model and store using the best fitting params
             best_params = self.best().get('model')
-            best = self.model(t, lowers[i], uppers[i], best_params)
+            best = self.model(t, lowers[i], uppers[i], best_params)  # noqa
 
             # Store
             self.indices['dist'].append(distribution)
