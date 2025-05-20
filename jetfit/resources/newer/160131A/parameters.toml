@@ -78,7 +78,7 @@ scale = "log"
     upper = 0.4
 
 #-------------- MODEL --------------
-#---------------- sj ---------------
+#--------------- sji ---------------
 [[model]]
 name  = "sji"
 scale = "linear"
@@ -86,7 +86,7 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 0.1
-    upper = 3.0
+    upper = 1.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------

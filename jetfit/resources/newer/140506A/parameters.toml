@@ -8,7 +8,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
+    lower = 0.0
     upper = 9.0
 
 #-------------- MODEL --------------
@@ -53,9 +53,9 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.0
-    upper = 3.5
-    initial_guess = 2.25
-    initial_sigma = 0.25
+    upper = 2.6
+    initial_guess = 2.30
+    initial_sigma = 0.30
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -66,7 +66,7 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = -5.0
-    upper = 3.0
+    upper = 2.5
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -98,7 +98,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 1.0
+    upper = 0.4
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -270,4 +270,4 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.3
+    upper = 0.1

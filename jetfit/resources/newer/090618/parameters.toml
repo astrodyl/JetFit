@@ -12,28 +12,15 @@ scale = "log"
     upper = 4.0
 
 #-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- nt ----------------
+#---------------- n ----------------
 [[model]]
-name  = "nt"
+name  = "rho0"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-
-#-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- rt ----------------
-[[model]]
-name  = "rt"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = 15.0
-    upper = 19.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -66,42 +53,18 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.0
-    upper = 3.5
+    upper = 2.5
     initial_guess = 2.25
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#--------------- k1 ----------------
+#---------------- k ----------------
 [[model]]
-name  = "k1"
+name  = "k"
 scale = "linear"
-
 [model.prior]
     type  = "uniform"
-    lower = -1.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#--------------- k2 ----------------
-[[model]]
-name  = "k2"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- sn ----------------
-[[model]]
-name  = "sn"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = -3.0
+    lower = -10.0
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -120,7 +83,11 @@ scale = "log"
 [[model]]
 name  = "sj"
 scale = "linear"
-value = 3.0
+
+[model.prior]
+    type  = "uniform"
+    lower = 0.1
+    upper = 1.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -152,7 +119,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 1.0
+    upper = 0.2
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -214,4 +181,4 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.3
+    upper = 0.06

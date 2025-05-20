@@ -2,8 +2,8 @@ import numpy as np
 import astropy.units as u
 
 from jetfit.core.input import Observation
-from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel, BlastWaveModel, has_fts_transition, \
-    ObservedSpectrumModel
+from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel, BlastWaveModel, \
+    ObservedSpectrumModel, JetBreakModel
 from jetfit.models2.basemodels import AbsorptionFrequencyModel, BaseFireballModel
 from jetfit.models2.basemodels import SynchrotronFrequencyModel, SpectralFluxModel
 from jetfit.models2.basemodels import CoolingFrequencyModel, PeakFluxModel
@@ -78,6 +78,12 @@ class StratifiedFireballModel(BaseFireballModel):
     @property
     def is_valid(self) -> bool:
         """ Whether the model is parameters are valid. """
+        if self.sn < 0 and self.k1 < self.k2:
+            return False
+
+        if self.sn > 0 and self.k1 > self.k2:
+            return False
+
         return super().is_valid and abs(self.sn) > 0.1
 
     def smooth(self, t):
@@ -150,7 +156,7 @@ class StratifiedFireballModel(BaseFireballModel):
 
         return self.rt * (2 ** (1 / s)) * (x1 ** -s + x2 ** -s) ** -(1 / s)
 
-    def model(self, obs):
+    def model(self, obs: Observation):
         """
         Models an `observation` object.
 
@@ -167,37 +173,10 @@ class StratifiedFireballModel(BaseFireballModel):
         if not self.is_valid:
             return np.array([np.nan])
 
-        if self.sn < 0 and self.k1 < self.k2:
-            return np.array([np.nan])
-
-        if self.sn > 0 and self.k1 > self.k2:
-            return np.array([np.nan])
-
-        # For speed, get observation as arrays
-        arrays = obs.as_arrays
-
-        # Smooth the density profile
-        n, k = self.smooth(arrays.times)
-
-        # Modeled flux smoothed across breaks/regimes
-        obs_spectrum = ObservedSpectrumModel(
-            **self.spectrum(arrays.times, n, k), arrays=arrays  # type: ignore
-        )
-        modeled = obs_spectrum.model()
-
-        if np.isnan(modeled).any():
-            return modeled
-
-        if self.tj:
-            # Jet break spectrum
-            jet_flux = ObservedSpectrumModel(
-                **self.spectrum(self.tj), arrays=arrays, fts=obs_spectrum.has_fts
-            ).model()
-
-            modeled[obs.flux_loc] = self.smooth_jet_break(
-                modeled[obs.flux_loc], jet_flux[obs.flux_loc], arrays.times[obs.flux_loc])
-
-        return modeled
+        # return the modeled smoothed, unextinguished flux
+        return ObservedSpectrumModel(**self.spectrum(obs.as_arrays.times),
+            arrays=obs.as_arrays, jet=self.jet_break(obs.as_arrays.times),
+        ).model()
 
     def spectrum(self, t, n=None, k=None):
         """
@@ -318,13 +297,16 @@ class StratifiedFireballModel(BaseFireballModel):
         """
         Calculates the self-absorption frequency.
 
-        Since the self-absorption frequency has different relations
-        depending on its relative position to the other critical
-        frequencies, I calculate the self-absorption frequency
-        for both slow-cooling cases (nu_m < nu_a and nu_a < nu_m).
+        The self-absorption frequency has a circular definition.
+        For example, to calculate nu_a, you must first know how
+        nu_a relates to the nu_m and nu_c, but nu_a isn't known
+        because it needs to be known before it can be known >:)
 
-        The result is a combined array where the self-absorption
-        is compared to the synchrotron frequency.
+        This solution is weak, but the self-absorption frequency
+        is calculated for every case (except nu_a > both nu_c and
+        nu_m, not supported). The result is a combined array where
+        the self-absorptions are compared to the synchrotron and
+        cooling frequencies.
 
         Parameters
         ----------
@@ -374,108 +356,6 @@ class StratifiedFireballModel(BaseFireballModel):
             res[fast] = np.where(nu_acm < nu_c, nu_acm, nu_cam)[fast]
 
         return res
-
-    def spectral_flux(self, t, f, fts=None):
-        """
-        Calculates the spectral fluxes at times `t` for the
-        frequencies `f`.
-
-        Parameters
-        ----------
-        t : float or np.ndarray of float u.Quantity['time']
-            The observer times measured in days since trigger.
-
-        f : float or np.ndarray of float
-            The average band frequencies.
-
-        fts : bool, optional, default=False
-            Is there a fast-to-slow cooling transition?
-
-        Returns
-        -------
-        float np.ndarray of float
-            The modeled spectral flux.
-        """
-        n, k = self.smooth(t)
-
-        # Model the flux at all times `t`
-        res = SpectralFluxModel(**self.spectrum(t, n, k))(f, fts)
-
-        if self.tj:
-            # Model the flux at the jet break time
-            f_jet = SpectralFluxModel(**self.spectrum(self.tj, n, k))(f, fts)
-            return self.smooth_jet_break(res, f_jet, t)
-
-        # return the spectral flux [mJy]
-        return res
-
-    def integrated_flux(self, t, lower, upper, fts=None):
-        """
-        Calculates the integrated fluxes at times `t` for the
-        lower and upper integration bounds, `lower` and `upper`.
-
-        Parameters
-        ----------
-        t : float or np.ndarray of float u.Quantity['time']
-            The observer times measured in days since trigger.
-
-        lower, upper : float or np.ndarray of float
-            The integration bounds measured in Hz.
-
-        fts : bool, optional, default=False
-            Is there a fast-to-slow cooling transition?
-
-        Returns
-        -------
-        float np.ndarray of float
-            The modeled spectral flux.
-        """
-        n, k = self.smooth(t)
-
-        # Model the flux at all times `t`
-        res = IntegratedFluxModel(
-            **self.spectrum(t, n, k))(lower, upper, fts)
-
-        if self.tj:
-            # Model the flux at the jet break time
-            f_jet = IntegratedFluxModel(
-                **self.spectrum(self.tj, n, k))(lower, upper, fts)
-            return self.smooth_jet_break(res, f_jet, t)
-
-        # return the integrated flux [erg s-1 cm-2]
-        return res
-
-    def spectral_index(self, t, lower, upper, fts=None):
-        """
-        Calculates the spectral index at times `t` for the
-        lower and upper integration bounds, `lower` and `upper`.
-
-        Parameters
-        ----------
-        t : float or np.ndarray of float u.Quantity['time']
-            The observer times measured in days since trigger.
-
-        lower, upper : float or np.ndarray of float
-            The integration bounds measured in Hz.
-
-        fts : bool, optional, default=False
-            Is there a fast-to-slow cooling transition?
-
-        Returns
-        -------
-        float np.ndarray of float
-            The modeled spectral flux.
-
-        See Also
-        --------
-        `models2.basemodels.SpectralFluxModel.evaluate`
-            See for information on how various shapes
-            of t, lower, upper are handled.
-        """
-        n, k = self.smooth(t)
-
-        return SpectralIndexModel(
-            **self.spectrum(t, n, k))(lower, upper, fts)
 
 
 class FireballModel(BaseFireballModel):
@@ -567,14 +447,21 @@ class FireballModel(BaseFireballModel):
         ----------
         rho0 : float or u.Quantity['number density', 'mass density']
             The number density at 1e17 cm.
+
+        Raises
+        ------
+        astropy.units.UnitTypeError
+            If `rho0` is a `u.Quantity` but not a mass or number density.
         """
         if isinstance(rho0, u.Quantity):
             if rho0.unit.physical_type == 'number density':
                 rho0 = rho0.cgs.value
-
             elif rho0.unit.physical_type == 'mass density':
                 rho0 = rho0.cgs.value / self.m_p
-
+            else:
+                raise u.UnitTypeError(
+                    f'rho0 must be a number/mass density'
+                )
         self._rho0 = rho0
 
     def model(self, obs: Observation, subset: np.ndarray = None):
@@ -597,30 +484,10 @@ class FireballModel(BaseFireballModel):
         if not self.is_valid:
             return np.array([np.nan])
 
-        # For speed, get observation as arrays
-        arrays = obs.as_arrays
-
-        # Modeled flux smoothed across breaks/regimes
-        obs_spectrum = ObservedSpectrumModel(
-            **self.spectrum(arrays.times), arrays=arrays  # type: ignore
-        )
-        modeled = obs_spectrum.model(subset)
-
-        if np.isnan(modeled).any():
-            return modeled
-
-        if self.tj:
-            # Jet break spectrum
-            jet_flux = ObservedSpectrumModel(
-                **self.spectrum(self.tj), arrays=arrays, fts=obs_spectrum.has_fts
-            ).model(subset)
-
-            modeled[obs.flux_loc] = self.smooth_jet_break(
-                modeled[obs.flux_loc], jet_flux[obs.flux_loc], arrays.times[obs.flux_loc]
-            )
-
-        # return the modeled unextinguished flux
-        return modeled[subset] if subset is not None else modeled
+        # Model the smoothed, unextinguished flux
+        return ObservedSpectrumModel(**self.spectrum(obs.as_arrays.times),
+            jet=self.jet_break(obs.as_arrays.times), arrays=obs.as_arrays
+        ).model(subset)
 
     def spectrum(self, t):
         """
@@ -643,115 +510,6 @@ class FireballModel(BaseFireballModel):
             'nu_c': self.nu_c(t),
             'p': self.p, 'k': self.k
         }
-
-    def spectral_flux(self, t, f, fts=False):
-        """
-        Calculates the spectral fluxes at times `t` for the
-        frequencies `f`.
-
-        Parameters
-        ----------
-        t : float or np.ndarray of float u.Quantity['time']
-            The observer times measured in days since trigger.
-
-        f : float or np.ndarray of float
-            The average band frequencies.
-
-        fts : bool, optional, default=False
-            Is there a fast-to-slow cooling transition?
-
-        Returns
-        -------
-        float np.ndarray of float
-            The modeled spectral flux.
-
-        See Also
-        --------
-        `models2.basemodels.SpectralFluxModel.evaluate`
-            See for information on how various shapes
-            of t and f are handled.
-        """
-        res = SpectralFluxModel(**self.spectrum(t))(f, fts)
-
-        if self.tj:
-            f_jet = SpectralFluxModel(**self.spectrum(self.tj))(f, fts)
-
-            # return the jet-broken spectral flux [mJy]
-            return self.smooth_jet_break(res, f_jet, t)
-
-        # return the spectral flux [mJy]
-        return res
-
-    def integrated_flux(self, t, lower, upper, fts=False):
-        """
-        Calculates the integrated fluxes at times `t` for the
-        lower and upper integration bounds, `lower` and `upper`.
-
-        Parameters
-        ----------
-        t : float or np.ndarray of float u.Quantity['time']
-            The observer times measured in days since trigger.
-
-        lower, upper : float or np.ndarray of float
-            The integration bounds measured in Hz.
-
-        fts : bool, optional, default=False
-            Is there a fast-to-slow cooling transition?
-
-        Returns
-        -------
-        float np.ndarray of float
-            The modeled spectral flux.
-
-        See Also
-        --------
-        `models2.basemodels.SpectralFluxModel.evaluate`
-            See for information on how various shapes
-            of t, lower, upper are handled.
-        """
-        res = IntegratedFluxModel(
-            **self.spectrum(t))(lower, upper, fts)
-
-        if self.tj:
-            f_jet = IntegratedFluxModel(
-                **self.spectrum(self.tj))(lower, upper, fts)
-
-            # return the jet-broken integrated flux [erg s-1 cm-2]
-            return self.smooth_jet_break(res, f_jet, t)
-
-        # return the integrated flux [erg s-1 cm-2]
-        return res
-
-    def spectral_index(self, t, lower, upper, fts=False):
-        """
-        Calculates the spectral index at times `t` for the
-        lower and upper integration bounds, `lower` and `upper`.
-
-        Parameters
-        ----------
-        t : float or np.ndarray of float u.Quantity['time']
-            The observer times measured in days since trigger.
-
-        lower, upper : float or np.ndarray of float
-            The integration bounds measured in Hz.
-
-        fts : bool, optional, default=False
-            Is there a fast-to-slow cooling transition?
-
-        Returns
-        -------
-        float np.ndarray of float
-            The modeled spectral flux.
-
-        See Also
-        --------
-        `models2.basemodels.SpectralFluxModel.evaluate`
-            See for information on how various shapes
-            of t, lower, upper are handled.
-        """
-        # return the spectral indices [dimension less]
-        return SpectralIndexModel(
-            **self.spectrum(t))(lower, upper, fts)
 
     def f_peak(self, t):
         """

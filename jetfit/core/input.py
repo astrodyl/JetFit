@@ -21,38 +21,38 @@ class ObsArray:
 
     Parameters
     ----------
-    values : np.ndarray
+    values : np.ndarray of float
         The measurement values (e.g., spectral flux measured
         in mJy, integrated flux measured in erg cm-2 s-1 and
         spectral index (dimensionless)).
 
-    errors : np.ndarray
+    errors : np.ndarray of float
         The errors associated with the measurement values.
         Measured in same units as its value.
 
-    times : np.ndarray
+    times : np.ndarray of float
         The times associated with the measurements. Measured
         in days since trigger.
 
     types : np.ndarray
         The types associated with the measurements.
 
-    filters : np.ndarray
+    filters : np.ndarray of str
         The filters associated with the measurements.
 
-    frequencies : np.ndarray
+    frequencies : np.ndarray of float
         The frequencies associated with the spectral flux
         values. Measured in Hz.
 
-    if_lower_freqs, if_upper_freqs : np.ndarray
+    if_lower_freqs, if_upper_freqs : np.ndarray of float
         The lower and upper frequencies associated with the
         integrated flux values. Measured in Hz.
 
-   si_lower_freqs, si_upper_freqs : np.ndarray
+   si_lower_freqs, si_upper_freqs : np. of float
         The lower and upper frequencies associated with the
         spectral index values. Measured in Hz.
 
-    wave_numbers : np.ndarray
+    wave_numbers : np.ndarray of float
         The wave numbers corresponding to the frequencies.
         Measured in micro-meters.
     """

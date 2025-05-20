@@ -12,28 +12,15 @@ scale = "log"
     upper = 4.0
 
 #-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- nt ----------------
+#---------------- n ----------------
 [[model]]
-name  = "nt"
+name  = "rho0"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-
-#-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- rt ----------------
-[[model]]
-name  = "rt"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = 15.0
-    upper = 19.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -71,37 +58,14 @@ scale = "linear"
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#--------------- k1 ----------------
+#---------------- k ----------------
 [[model]]
-name  = "k1"
+name  = "k"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
     lower = -1.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#--------------- k2 ----------------
-[[model]]
-name  = "k2"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- sn ----------------
-[[model]]
-name  = "sn"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = -3.0
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -175,7 +139,6 @@ scale = "linear"
     type  = "gaussian"
     mu    = 0.0
     sigma = 0.05
-
 
 #----------- CALIBRATION -----------
 #-------------- K-band -------------

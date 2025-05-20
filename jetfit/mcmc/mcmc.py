@@ -204,7 +204,6 @@ class MCMC:
             modeled, self.params.get(params, 'offsets')
         )
 
-
         # return log likelihood
         return -0.5 * self.chi_squared(modeled, self.slop(params))  # type: ignore
 

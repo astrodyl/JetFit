@@ -89,6 +89,28 @@ name  = "dL"
 scale = "linear"
 value = 5.52
 
+#-------------- MODEL --------------
+#------------ tj (days) ------------
+[[model]]
+name  = "tj"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -1.0
+    upper = 1.0
+
+#-------------- MODEL --------------
+#--------------- sj ----------------
+[[model]]
+name  = "sj"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = 0.1
+    upper = 3.0
+
 #----------- EXTINCTION ------------
 #---------- source_frame -----------
 [[extinction]]

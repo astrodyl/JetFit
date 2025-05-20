@@ -5,6 +5,7 @@ import astropy.units as u
 import astropy.constants as const
 from matplotlib import pyplot as plt
 
+from jetfit.core.input import Observation
 from jetfit.core.utils.math_utils import chi_squared
 from jetfit.models2.basemodels import PeakFluxModel, SynchrotronFrequencyModel, CoolingFrequencyModel, \
     AbsorptionFrequencyModel
@@ -550,6 +551,59 @@ class TestCharacteristicModels(unittest.TestCase):
         self.assertAlmostEqual(nu_m / nu_m_true, 1.0, delta=0.05)
         self.assertAlmostEqual(nu_c / nu_c_true, 1.0, delta=0.05)
 
+    def test_new_without_jet(self):
+        """
+        Test that the spectral values match CL 2000.
+        """
+
+        model = StratifiedFireballModel(
+            E=1.0, nt=1.0, rt=17, p=2.5, k1=2.0, k2=0.0, z=1.0, dL=1.0,
+            eps_e=0.1, eps_b=0.1, X=0.0, sn=-3.0, tj=1.0, sj=3.0
+        )
+
+        obs = Observation.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\newer\080413B\080413B.csv")
+        # obs = Observation.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\newer\130612A\130612A.csv")
+
+        # True values
+        modeled_true = model.model(obs)
+
+        # Modeled values
+        modeled_new = model.model2(obs)
+
+        # Assert almost equal
+        np.testing.assert_array_almost_equal(modeled_true, modeled_new)
+
+    def test_new_with_jet(self):
+        """
+        Test that the spectral values match CL 2000.
+        """
+
+        model = StratifiedFireballModel(
+            E=1.0, nt=1.0, rt=17, p=2.5, k1=2.0, k2=0.0, z=1.0, dL=1.0,
+            eps_e=0.1, eps_b=0.1, X=0.0, sn=-3.0, tj=1.0, sj=3.0
+        )
+
+        t = np.geomspace(0.01, 3, 100)
+        f = np.geomspace(1e8, 1e18, 100)
+        lowers = np.geomspace(1e16, 1e17, 100)
+        uppers = np.geomspace(1e17, 1e18, 100)
+
+        fts = True
+
+        # True values
+        sf_true = model.spectral_flux(t, f, fts)
+        if_true = model.integrated_flux(t, lowers, uppers, fts)
+        si_true = model.spectral_index(t, lowers, uppers, fts)
+
+        # Modeled values
+        sf_new = model.spectral_flux_jet(t, f, fts)
+        if_new = model.integrated_flux_jet(t, lowers, uppers, fts)
+        si_new = model.spectral_index_jet(t, lowers, uppers, fts)
+
+        # Assert equal within 5%
+        np.testing.assert_array_almost_equal(sf_true, sf_new)
+        np.testing.assert_array_almost_equal(if_true, if_new)
+        np.testing.assert_array_almost_equal(si_true, si_new, decimal=2)
 
 if __name__ == '__main__':
     unittest.main()

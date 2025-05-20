@@ -3,6 +3,7 @@ import json
 import os.path
 from pathlib import Path
 
+import emcee
 from dust_extinction.parameter_averages import CCM89
 from matplotlib import pyplot as plt
 
@@ -187,8 +188,12 @@ def main(
     # -------------------------- DIAGNOSTICS --------------------------
     # -----------------------------------------------------------------
     # import arviz as az
-
     # az.style.use("arviz-darkgrid")
+    # backend = emcee.backends.HDFBackend(r"C:\Projects\repos\JetFit\jetfit\results\080413B\080413B_chain.h5", read_only=True)
+    # inf_data = az.from_emcee(backend, var_names=[p.name for p in mcmc.params.fitting])
+    # az.plot_trace(inf_data)
+    # plt.savefig(results_dir / "trace.png")
+
     # inf_data = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.params.fitting])
     # inf_data_burn = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.params.fitting])
 
@@ -233,7 +238,7 @@ if __name__ == "__main__":
         events = [
             # '050525A',
             # '050922C',
-            '080413B',
+            # '080413B',
             # '080319B_nature_mix',
             # '080319B_nature_mix_late',
             # '090424',
