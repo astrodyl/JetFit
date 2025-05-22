@@ -5,6 +5,7 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 192412.8,,,s,0.03829102,0.00105802,0.00105802,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset
 364521.6,,,s,0.017502373,0.000644811,0.000644811,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset
 367632,,,s,0.004552907,0.00054514,0.00054514,mJy,Spectral Flux,4.56E+14,,,Hz,R,R_offset
+623894.4,,,s,0.01538498,0.000850205,0.000850205,mJy,Spectral Flux,3.72E+14,,,Hz,I,I_offset
 28252.8,,,s,0.069187279,0.00382343,0.00382343,mJy,Spectral Flux,4.81E+14,,,Hz,r,r_offset
 39225.6,,,s,0.056497112,0.003122146,0.003122146,mJy,Spectral Flux,4.81E+14,,,Hz,r,r_offset
 40953.6,,,s,0.187079521,0.005169198,0.005169198,mJy,Spectral Flux,3.94E+14,,,Hz,i,i_offset

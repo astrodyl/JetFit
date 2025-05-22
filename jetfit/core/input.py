@@ -21,16 +21,16 @@ class ObsArray:
 
     Parameters
     ----------
-    values : np.ndarray of float
+    values : np.ndarray of float64
         The measurement values (e.g., spectral flux measured
         in mJy, integrated flux measured in erg cm-2 s-1 and
         spectral index (dimensionless)).
 
-    errors : np.ndarray of float
+    errors : np.ndarray of float64
         The errors associated with the measurement values.
         Measured in same units as its value.
 
-    times : np.ndarray of float
+    times : np.ndarray of float64
         The times associated with the measurements. Measured
         in days since trigger.
 
@@ -48,7 +48,7 @@ class ObsArray:
         The lower and upper frequencies associated with the
         integrated flux values. Measured in Hz.
 
-   si_lower_freqs, si_upper_freqs : np. of float
+   si_lower_freqs, si_upper_freqs : np.ndarray of float
         The lower and upper frequencies associated with the
         spectral index values. Measured in Hz.
 
@@ -75,7 +75,8 @@ class ObsArray:
             if_upper_freqs,
             si_lower_freqs,
             si_upper_freqs,
-            wave_numbers
+            wave_numbers,
+            extinguishable
     ):
         self.values = values
         self.errors = errors
@@ -88,6 +89,7 @@ class ObsArray:
         self.si_lower_freqs = si_lower_freqs
         self.si_upper_freqs = si_upper_freqs
         self.wave_numbers = wave_numbers
+        self.extinguishable = extinguishable
 
         # Static truth arrays of data
         self.flux_loc = self.types != DataType.SPECTRAL_INDEX
@@ -116,6 +118,7 @@ class ObsArray:
         errors = np.full(len(data), np.nan, dtype=np.float64)
         times  = np.full(len(data), np.nan, dtype=np.float64)
         types  = np.full(len(data), np.nan, dtype=DataType)
+        extinguishable = np.full(len(data), False, dtype=bool)
 
         # Initializes info for flux data types
         filters = np.full(len(data), np.nan, dtype='U10')
@@ -138,6 +141,9 @@ class ObsArray:
 
             if f.type != DataType.SPECTRAL_INDEX:
                 filters[i] = f.filter
+
+                if 3e13 < f.frequency.to_value('Hz') < 1e15:
+                    extinguishable[i] = True
 
             if f.type == DataType.SPECTRAL_FLUX:
                 values[i] = f.value.to_value(cls.sf_units)
@@ -169,7 +175,8 @@ class ObsArray:
             if_upper_freqs=if_upper_freqs,
             si_lower_freqs=si_lower_freqs,
             si_upper_freqs=si_upper_freqs,
-            wave_numbers=wave_numbers
+            extinguishable=extinguishable,
+            wave_numbers=wave_numbers,
         )
 
 
@@ -318,3 +325,8 @@ class Observation:
     def sindex_loc(self) -> np.array:
         """ Returns bools indicating the spectral index locations. """
         return self.as_arrays.sindex_loc
+
+    @property
+    def extinguishable(self) -> np.array:
+        """ Returns bools indicating the flux affected by dust extinction locations. """
+        return self.as_arrays.extinguishable

@@ -17,7 +17,7 @@ class TestSpectralFlux(unittest.TestCase):
         f_peak, p, k = 1, 2.5, 0.0
 
         # Get smoothed flux
-        model = SpectralFluxModel(nu_m, nu_c, nu_a, f_peak, p, k)
+        model = SpectralFluxModel(nu_m, nu_c, f_peak, p, k, nu_a=nu_a)
         smoothed_flux = model(nu)
 
         # Get SPN98 spectral indices
@@ -56,37 +56,34 @@ class TestSpectralFlux(unittest.TestCase):
     def test_MAC(self):
         """"""
         # Define the frequencies
-        nu_m, nu_a, nu_c = 1e9, 1e11, 1e13
+        nu_m, nu_a, nu_c = np.full(500, 1e9), np.full(500, 1e11), np.full(500, 1e13)
         nu = np.geomspace(1e8, 1e18, 500)
 
         # Define other
         f_peak, p, k = 1, 2.5, 0.0
 
         # Get smoothed flux
-        model = SpectralFluxModel(nu_m, nu_c, nu_a, f_peak, p, k)
-
-        # Get SPN98 flux
-        b1, b2, b3 = model.spectral_indices()
-
-        smoothed_flux = model(nu) #* (nu_a / nu_m) ** b2
+        model = SpectralFluxModel(nu_m, nu_c, f_peak, p, k, nu_a=nu_a)
+        smoothed_flux = model(nu)
 
         # Determine the segments
         seg0 = nu <= nu_m
-        seg1 = np.logical_and(nu > nu_m, nu <= nu_c)
-        seg2 = np.logical_and(nu_a < nu, nu_c >= nu_m)
+        seg1 = np.logical_and(nu > nu_m, nu <= nu_a)
+        seg2 = np.logical_and(nu_a < nu, nu <= nu_c)
         seg3 = nu > nu_c
 
         # Calculate the sharply-broken flux
         flux = np.empty(nu.size)
-        flux[seg0] = f_peak * (nu_m / nu_a) ** ((p + 4) / 2) * (nu[seg0] / nu_m) ** 2
-        flux[seg1] = f_peak * (nu_a / nu_m) ** ((1 - p) / 2) * (nu[seg1] / nu_a) ** 2.5
-        flux[seg2] = f_peak * (nu[seg2] / nu_m) ** ((1 - p) / 2)
-        flux[seg3] = f_peak * (nu_c / nu_m) ** ((1 - p) / 2) * (nu[seg3] / nu_c) ** (-p / 2)
+        flux[seg0] = f_peak * (nu_m[seg0] / nu_a[seg0]) ** ((p + 4) / 2) * (nu[seg0] / nu_m[seg0]) ** 2
+        flux[seg1] = f_peak * (nu_a[seg1] / nu_m[seg1]) ** ((1 - p) / 2) * (nu[seg1] / nu_a[seg1]) ** 2.5
+        flux[seg2] = f_peak * (nu[seg2]   / nu_m[seg2]) ** ((1 - p) / 2)
+        flux[seg3] = f_peak * (nu_c[seg3] / nu_m[seg3]) ** ((1 - p) / 2) * (nu[seg3] / nu_c[seg3]) ** (-p / 2)
 
         # Annotation for each break
-        plt.annotate(r'$\nu_m$', xy=(1.2 * nu_m, 1e-9), xytext=(1.2 * nu_m, 1e-9), fontsize=12)
-        plt.annotate(r'$\nu_a$', xy=(1.2 * nu_a, 1e-9), xytext=(1.2 * nu_a, 1e-9), fontsize=12)
-        plt.annotate(r'$\nu_c$', xy=(1.2 * nu_c, 1e-9), xytext=(1.2 * nu_c, 1e-9), fontsize=12)
+        b1, b2, b3 = model.spectral_indices()
+        plt.annotate(r'$\nu_m$', xy=(1.2 * nu_m[0], 1e-9), xytext=(1.2 * nu_m[0], 1e-9), fontsize=12)
+        plt.annotate(r'$\nu_a$', xy=(1.2 * nu_a[0], 1e-9), xytext=(1.2 * nu_a[0], 1e-9), fontsize=12)
+        plt.annotate(r'$\nu_c$', xy=(1.2 * nu_c[0], 1e-9), xytext=(1.2 * nu_c[0], 1e-9), fontsize=12)
 
         # Plot the two
         plt.vlines(nu_m, ymin=0.0, ymax=f_peak * (nu_m / nu_a) ** ((p + 4) / 2), color='black', linestyle='--', alpha=0.6)
@@ -113,7 +110,7 @@ class TestSpectralFlux(unittest.TestCase):
         f_peak, p, k = 2e4, 2.5, 0.0
 
         # Get smoothed flux
-        model = SpectralFluxModel(nu_m, nu_c, nu_a, f_peak, p, k)
+        model = SpectralFluxModel(nu_m, nu_c, f_peak, p, k, nu_a=nu_a)
         smoothed_flux = model(nu)
 
         # Get SPN98 flux
@@ -151,7 +148,7 @@ class TestSpectralFlux(unittest.TestCase):
         f_peak, p, k = 2e4, 2.5, 0.0
 
         # Get smoothed flux
-        model = SpectralFluxModel(nu_m, nu_c, nu_a, f_peak, p, k)
+        model = SpectralFluxModel(nu_m, nu_c, f_peak, p, k, nu_a=nu_a)
 
         b1, b2, b3 = model.spectral_indices()
         s12, s23 = model.smoothing()

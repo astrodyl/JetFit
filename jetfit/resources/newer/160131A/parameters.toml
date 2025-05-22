@@ -8,7 +8,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
+    lower = -2.0
     upper = 4.0
 
 #-------------- MODEL --------------
@@ -19,7 +19,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
+    lower = -6.0
     upper = 6.0
 
 #-------------- MODEL --------------
@@ -52,8 +52,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.0
-    upper = 2.2
+    lower = 1.9
+    upper = 3.5
+    initial_guess = 2.25
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -63,30 +65,8 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 0.8
-    upper = 2.4
-
-#-------------- MODEL --------------
-#------------ tj (days) ------------
-[[model]]
-name  = "tj"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = -0.4
-    upper = 0.4
-
-#-------------- MODEL --------------
-#--------------- sji ---------------
-[[model]]
-name  = "sji"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = 0.1
-    upper = 1.0
+    lower = -1.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -118,7 +98,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.2
+    upper = 1.0
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -201,7 +181,7 @@ scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
-    mu = 0.0
+    mu    = 0.0
     sigma = 0.03
 
 #----------- CALIBRATION -----------
@@ -212,7 +192,7 @@ scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
-    mu = 0.0
+    mu    = 0.0
     sigma = 0.02
 
 #----------- CALIBRATION -----------
@@ -223,7 +203,7 @@ scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
-    mu = 0.0
+    mu    = 0.0
     sigma = 0.02
 
 #--------------- SLOP --------------

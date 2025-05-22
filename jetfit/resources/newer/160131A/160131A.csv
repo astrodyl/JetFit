@@ -111,7 +111,7 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 101779.2,,,s,0.107,0.008,0.008,mJy,Spectral Flux,4.03E+14,,,Hz,i,i_offset
 171849.6,,,s,0.036,0.006,0.006,mJy,Spectral Flux,4.03E+14,,,Hz,i,i_offset
 257990.4,,,s,0.021,0.002,0.002,mJy,Spectral Flux,4.03E+14,,,Hz,i,i_offset
-306115.2,,,s,0.015,0,0,mJy,Spectral Flux,4.03E+14,,,Hz,i,i_offset
+306115.2,,,s,0.015,0.001,0.001,mJy,Spectral Flux,4.03E+14,,,Hz,i,i_offset
 473212.8,,,s,0.007,0.001,0.001,mJy,Spectral Flux,4.03E+14,,,Hz,i,i_offset
 565315.2,,,s,0.005,0.001,0.001,mJy,Spectral Flux,4.03E+14,,,Hz,i,i_offset
 4492.8,,,s,3.373,0.062,0.062,mJy,Spectral Flux,4.90E+14,,,Hz,r,r_offset
@@ -190,7 +190,7 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 172800,,,s,0.025,0.005,0.005,mJy,Spectral Flux,4.90E+14,,,Hz,r,r_offset
 257126.4,,,s,0.013,0.001,0.001,mJy,Spectral Flux,4.90E+14,,,Hz,r,r_offset
 344044.8,,,s,0.008,0.001,0.001,mJy,Spectral Flux,4.90E+14,,,Hz,r,r_offset
-474163.2,,,s,0.005,0,0,mJy,Spectral Flux,4.90E+14,,,Hz,r,r_offset
+474163.2,,,s,0.005,0.001,0.001,mJy,Spectral Flux,4.90E+14,,,Hz,r,r_offset
 566265.6,,,s,0.003,0.001,0.001,mJy,Spectral Flux,4.90E+14,,,Hz,r,r_offset
 4665.6,,,s,4.966,0.18,0.18,mJy,Spectral Flux,3.37E+14,,,Hz,z,z_offset
 4752,,,s,4.921,0.178,0.178,mJy,Spectral Flux,3.37E+14,,,Hz,z,z_offset
@@ -262,6 +262,17 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 79833.6,,,s,0.035,0.005,0.005,mJy,Spectral Flux,1.15E+15,,,Hz,uvw1,uvw1_offset
 108432,,,s,0.02,0.004,0.004,mJy,Spectral Flux,1.15E+15,,,Hz,uvw1,uvw1_offset
 192672,,,s,0.013,0.005,0.005,mJy,Spectral Flux,1.15E+15,,,Hz,uvw1,uvw1_offset
+0.825,,,d,0.09,0.023,0.023,mJy,Spectral Flux,4.87E+09,,,Hz,C,
+1.726,,,d,0.27,0.055,0.055,mJy,Spectral Flux,4.87E+09,,,Hz,C,
+2.819,,,d,0.173,0.036,0.036,mJy,Spectral Flux,4.87E+09,,,Hz,C,
+12.74,,,d,0.125,0.052,0.052,mJy,Spectral Flux,4.87E+09,,,Hz,C,
+25.813,,,d,0.151,0.044,0.044,mJy,Spectral Flux,4.87E+09,,,Hz,C,
+44.767,,,d,0,0.045,0.045,mJy,Spectral Flux,4.87E+09,,,Hz,C,
+0.747,,,d,0.805,0.051,0.051,mJy,Spectral Flux,3.74E+10,,,Hz,Ka,
+2.741,,,d,0.74,0.058,0.058,mJy,Spectral Flux,3.74E+10,,,Hz,Ka,
+5.78,,,d,0.451,0.036,0.036,mJy,Spectral Flux,3.74E+10,,,Hz,Ka,
+12.662,,,d,0.18,0.054,0.054,mJy,Spectral Flux,3.74E+10,,,Hz,Ka,
+0.825,,,d,0,0.05,0.15,mJy,Spectral Flux,5.38E+09,,,Hz,C2,
 170.3693,,,s,2.20E-09,3.28E-10,3.28E-10,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
 171.192,,,s,2.44E-09,3.72E-10,3.72E-10,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
 172.0736,,,s,2.07E-09,3.54E-10,3.54E-10,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,

@@ -216,14 +216,14 @@ class Parameters:
 
         return {
             'z': params.get('model').get('z'),
-            'wn': obs.as_arrays.wave_numbers[obs.sflux_loc],
+            'wn': obs.as_arrays.wave_numbers[obs.extinguishable],
             'ebv_sf': params.get('extinction').get('ebv_source_frame'),
             'rv_sf': params.get('extinction').get('sf_source_frame'),
             'ebv_mw': params.get('extinction').get('ebv_milky_way'),
             'rv_mw': params.get('extinction').get('rv_milky_way'),
             'host_vals': params.get('host'),
             'host_pos': obs.host_groups,
-            'ext_pos': obs.sflux_loc,
+            'ext_pos': obs.extinguishable,
         }
 
 
@@ -291,9 +291,9 @@ class MCMCFixedParameter(MCMCParameter):
     def __repr__(self) -> str:
         """ Human-readable string. """
         return (
-            f'FixedParameter(name={self.name}, '
-            f'category={self.category}, '
-            f'value={self.value})'
+            f'MCMCFixedParameter(name={self.name}, '
+            f'cat={self.category}, '
+            f'val={self.value})'
         )
 
     @classmethod
@@ -358,7 +358,11 @@ class MCMCFittingParameter(MCMCParameter):
 
     def __repr__(self) -> str:
         """ Human-readable string. """
-        return f'FittingParameter(name={self.name}, category={self.category})'
+        return (
+            f'MCMCFittingParameter('
+            f'name={self.name}, '
+            f'cat={self.category})'
+        )
 
     @classmethod
     def from_dict(cls, d: dict):

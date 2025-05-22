@@ -173,61 +173,13 @@ scale = "linear"
     mu    = 0.0
     sigma = 0.02
 
-#----------- CALIBRATION -----------
-#-------------- r-band -------------
-[[offsets]]
-name  = "r_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- CALIBRATION -----------
-#-------------- i-band -------------
-[[offsets]]
-name  = "i_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- HOST GALAXY -----------
-#-------------- r-band -------------
-[[host]]
-name  = "r_host"
-scale = "log"
-
-[host.prior]
-    type = "uniform"
-    lower = -3.0
-    upper = 0.0
-
-#----------- HOST GALAXY -----------
-#-------------- i-band -------------
-[[host]]
-name  = "i_host"
-scale = "log"
-
-[host.prior]
-    type = "uniform"
-    lower = -3.0
-    upper = 0.0
-
 #--------------- SLOP --------------
 #--------------- slop --------------
 [[slop]]
 name  = "slop"
 scale = "linear"
 group = "uvot"
-
-[slop.prior]
-    type  = "uniform"
-    lower = 0.0
-    upper = 0.3
+value = 0.0
 
 #--------------- SLOP --------------
 #--------------- slop --------------

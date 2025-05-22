@@ -35,7 +35,7 @@ class MCMC:
             model,
             observation,
             parameters,
-            filename=None,
+            backend=None,
             meta=None,
     ):
         # Model
@@ -56,7 +56,7 @@ class MCMC:
         # Evidence
         self.observation = observation
 
-        self.filename = filename
+        self.backend = backend
 
         # Setters
         self.set_sampler()
@@ -77,27 +77,19 @@ class MCMC:
         self.param_pos = {p.name : i for i, p in enumerate(self.params.fitting)}
 
     def set_start_positions(self) -> None:
-        """ Calculates the start positions for each MCMC walker. """
+        """ Sets the starting burn-in positions by drawing from the priors. """
         self.start_burn_pos = np.zeros((self.num_walkers, self.num_dims))
 
         for i, p in enumerate(self.params.fitting):
             self.start_burn_pos[:, i] = p.prior.draw(self.num_walkers)
 
-    def set_sampler(self) -> None:
+    def set_sampler(self, backend=None) -> None:
         """ Initializes the MCMC sampler. """
-        backend = None
-
-        if self.filename is not None:
-            backend = emcee.backends.HDFBackend(self.filename)
-            if os.path.exists(self.filename):
-                backend.reset(self.num_walkers, self.num_dims)
-
         self.sampler = emcee.EnsembleSampler(
             nwalkers=self.num_walkers,
             ndim=self.num_dims,
             log_prob_fn=self.log_posterior,
-            # moves=emcee.moves.DEMove(),  # type: ignore
-            backend=backend  # type: ignore
+            backend=backend
         )
 
     def get_best_params(self, as_dict=True, **kwargs):
@@ -133,17 +125,28 @@ class MCMC:
     # <editor-fold desc="Sampling Routine">
     def run(self) -> None:
         """ Performs a burn-in and runs the MCMC routine. """
+
+        # Run the burn in and save the last position as the
+        # starting position for the actual run.
         self.start_run_pos = (
             self.sampler.run_mcmc(
                 self.start_burn_pos,
                 self.burn_length,
                 progress=True,
+                # store=False
             )
         )
 
+        # Save the sampler if desired for diagnostics
         self.burn_sampler = copy.deepcopy(self.sampler)
         self.sampler.reset()
 
+        #
+        if self.backend is not None:
+            self.backend.reset(self.num_walkers, self.num_dims)
+        self.set_sampler(self.backend)
+
+        # Run the sampler
         self.sampler.run_mcmc(
             self.start_run_pos,
             self.run_length,
@@ -195,7 +198,8 @@ class MCMC:
         # Model the observed afterglow flux
         modeled = self.model(self.observation, params, **self.meta)
 
-        # A nan will always result in -inf
+        # A nan will always result in -inf likelihood, so do a quick
+        # check here to avoid unnecessary calculations.
         if np.isnan(modeled.min()):
             return -np.inf
 

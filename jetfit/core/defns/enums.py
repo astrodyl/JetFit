@@ -40,6 +40,6 @@ class Prior(Enum):
 
 class DataType(Enum):
     """"""
-    SPECTRAL_FLUX = 'spectral flux'
+    SPECTRAL_FLUX   = 'spectral flux'
+    SPECTRAL_INDEX  = 'spectral index'
     INTEGRATED_FLUX = 'integrated flux'
-    SPECTRAL_INDEX = 'spectral index'

@@ -21,11 +21,11 @@ OPTION_MAP = {
     'K': {'color': '#FE2712', 'marker': '.'},
 
     # SDSS Optical (squares)
-    'u': {'color': 'tab:purple', 'marker': '.'},
-    'g': {'color': 'tab:blue',   'marker': '.'},
-    'r': {'color': 'tab:orange', 'marker': '.'},
-    'i': {'color': 'tab:red',    'marker': '.'},
-    'z': {'color': 'tab:pink',   'marker': '.'},
+    'u': {'color': 'tab:purple', 'marker': 's'},
+    'g': {'color': 'tab:blue',   'marker': 's'},
+    'r': {'color': 'tab:orange', 'marker': 's'},
+    'i': {'color': 'tab:red',    'marker': 's'},
+    'z': {'color': 'tab:pink',   'marker': 's'},
 
     # Swift Optical/UV/XRAY (diamonds, hexagons)
     'uvot-u': {'color': 'cyan',       'marker': '.'},
@@ -39,6 +39,11 @@ OPTION_MAP = {
     # HST
     'F775W': {'color': 'yellow', 'marker': '.'},
     'F125W': {'color': 'grey',   'marker': '.'},
+
+    # Radio
+    'C': {'color': 'royalblue', 'marker': '.'},
+    'C2': {'color': 'purple', 'marker': '.'},
+    'Ka': {'color': 'peachpuff', 'marker': '.'}
 }
 
 # Aliases
@@ -428,8 +433,9 @@ class LightCurvePlot:
             rv_milky_way = params.get('extinction').get('rv_milky_way')
 
             # Apply source dust extinction before host galaxy correction
-            if ext_model is not None and ebv_sf is not None:
-                sflux *= ext_model.extinguish((1 + z) / wavelength, Ebv=ebv_sf)
+            if 3e13 < frequency < 1e15:
+                if ext_model is not None and ebv_sf is not None:
+                    sflux *= ext_model.extinguish((1 + z) / wavelength, Ebv=ebv_sf)
 
             # Add host galaxy contribution before Milky Way dust correction
             filter_host = sdata.filter + '_host'
@@ -437,13 +443,14 @@ class LightCurvePlot:
                 sflux += host_corr[filter_host]
 
             # Apply Milky Way dust extinction
-            if ext_model is not None:
-                model = ext_model
+            if 3e13 < frequency < 1e15:
+                if ext_model is not None:
+                    model = ext_model
 
-                if rv_milky_way is not None:
-                    model = ext_model.__class__(Rv=rv_milky_way)
+                    if rv_milky_way is not None:
+                        model = ext_model.__class__(Rv=rv_milky_way)
 
-                sflux *= model.extinguish(1 / wavelength, Ebv=ebv_mw)
+                    sflux *= model.extinguish(1 / wavelength, Ebv=ebv_mw)
 
             # Plot the modeled spectral flux
             self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.0, color=OPTION_MAP[sdata.filter]['color'])
@@ -495,7 +502,7 @@ class LightCurvePlot:
                 errors.append(d.uncertainty.center.to_value('mJy'))
 
             # Plot the band
-            ms = 1.0 if OPTION_MAP[dfilter]['marker'] == 's' else 3.0
+            ms = 0.6 if OPTION_MAP[dfilter]['marker'] == 's' else 3.0
             self.ax.errorbar(times, flux, yerr=errors, fmt='.', label=dfilter, **OPTION_MAP[dfilter], markersize=ms, elinewidth=0.5)
 
         self.ax.legend(loc='best')

@@ -290,7 +290,7 @@ class TestMilkyWayRvPrior(unittest.TestCase):
         log_rv = np.linspace(0.35, 1.0, n)
 
         # Plot the probability distribution function
-        pdf = np.asarray([rv_prior.evaluate(xx) for xx in log_rv])
+        pdf = np.asarray([rv_prior.evaluate(xx, True) for xx in log_rv])
         ax.plot(log_rv, pdf, 'r-', lw=5, alpha=0.6, label='Sampled PDF')
 
         # Plot the histogram of samples for comparison

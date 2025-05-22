@@ -58,11 +58,14 @@ class StratifiedFireballModel(BaseFireballModel):
     sj, sji : float, optional
         The jet break smoothing factor. `sji` is the inverse of the
         smoothing factor. Useful for changing fitting basis in MCMC.
+
+    use_sa : bool, optional, default=True
+        Should self-absorption be modeled?
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, nt, rt, k1, k2, X, tj=None, sj=None, sji=None, sn=None, sni=None):
-        super().__init__(E, p, eps_b, eps_e, z, dL, X, tj, sj, sji)
+    def __init__(self, E, p, eps_b, eps_e, z, dL, nt, rt, k1, k2, X, tj=None, sj=None, sji=None, sn=None, sni=None, use_sa=True):
+        super().__init__(E, p, eps_b, eps_e, z, dL, X, tj, sj, sji, use_sa)
 
         if sn is None and sni is None:
             raise ValueError("Must specify either sn or sni.")
@@ -202,11 +205,11 @@ class StratifiedFireballModel(BaseFireballModel):
             n, k = self.smooth(t)
 
         return {
+            'p': self.p, 'k': k,
             'f_peak': self.f_peak(t, n, k),
             'nu_m': (nu_m := self.nu_m(t, k)),
             'nu_c': (nu_c := self.nu_c(t, n, k)),
-            'nu_a': self.nu_a(t, n, k, nu_m, nu_c),
-            'p': self.p, 'k': k
+            'nu_a': self.nu_a(t, n, k, nu_m, nu_c) if self.use_sa else None,
         }
 
     def f_peak(self, t, n=None, k=None):
@@ -407,6 +410,9 @@ class FireballModel(BaseFireballModel):
     sj : float, optional
         The jet break smoothing factor.
 
+    use_sa : bool, optional, default=True
+        Should self-absorption be modeled?
+
     References
     ----------
     [1] Broadband view of blast wave physics: A study
@@ -414,8 +420,8 @@ class FireballModel(BaseFireballModel):
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, tj=None, sj=None, sji=None):
-        super().__init__(E, p, eps_b, eps_e, z, dL, X, tj, sj, sji)
+    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, tj=None, sj=None, sji=None, use_sa=True):
+        super().__init__(E, p, eps_b, eps_e, z, dL, X, tj, sj, sji, use_sa)
 
         self.rho0 = rho0
         self.k = k
@@ -504,11 +510,11 @@ class FireballModel(BaseFireballModel):
             keys: f_peak, nu_a, nu_m, nu_c, p, k.
         """
         return {
+            'p': self.p, 'k': self.k,
             'f_peak': self.f_peak(t),
             'nu_m': (nu_m := self.nu_m(t)),
-            'nu_a': self.nu_a(t, nu_m),
-            'nu_c': self.nu_c(t),
-            'p': self.p, 'k': self.k
+            'nu_c': (nu_c := self.nu_c(t)),
+            'nu_a': self.nu_a(t, nu_m, nu_c) if self.use_sa else None,
         }
 
     def f_peak(self, t):

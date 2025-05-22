@@ -89,17 +89,19 @@ class GaussianPrior:
         GaussianPrior
             Instantiated from dictionary
         """
-        if not nav_utils.is_expected_type(mu := d.get('mu'), float):
-            raise TypeError('Gaussian mu must be of type float.')
+        if (mu := d.get('mu')) is not None:
+            if not isinstance(mu, (int, float)):
+                raise TypeError('Mu must be a number.')
 
-        if not nav_utils.is_expected_type(sigma := d.get('sigma'), float):
-            raise TypeError('Gaussian sigma must be of type float.')
+        if (sigma := d.get('sigma')) is not None:
+            if not isinstance(sigma, (int, float)):
+                raise TypeError('Sigma must be a number.')
 
         return cls(mu, sigma)
 
     def draw(self, n: int) -> float | np.ndarray:
         """
-        Draws ``n`` samples from the Gaussian distribution.
+        Draws `n` samples from the Gaussian distribution.
 
         Parameters
         ----------
@@ -130,7 +132,7 @@ class GaussianPrior:
 
     def evaluate(self, x) -> float | np.ndarray:
         """
-        Evaluates the prior at the sampled value ``x``.
+        Evaluates the prior at the sampled value `x`.
 
         Parameters
         ----------
@@ -140,11 +142,11 @@ class GaussianPrior:
         Returns
         -------
         float
-            The prior evaluated at ``x``.
+            The prior evaluated at `x`.
 
         Examples
         --------
-        Evaluate the Gaussian prior at ``x``:
+        Evaluate the Gaussian prior at `x`:
 
         >>> prior = GaussianPrior(mu=0.3, sigma=0.1)
         >>> p = prior.evaluate(x)
@@ -206,7 +208,7 @@ class MilkyWayRvPrior:
 
     def draw(self, n: int) -> float | np.ndarray:
         """
-        Draws `n` samples from the Gaussian distribution.
+        Draws `n` samples from the asymmetric distribution.
 
         Parameters
         ----------
@@ -252,14 +254,12 @@ class MilkyWayRvPrior:
             The sampled value.
 
         norm : bool, optional, default: False
-            Normalize the prior? Normalization is not
-            needed for maximizing likelihoods and introduces
-            unnecessary computations. However, it's provided
-            as option for those that want it.
+            Should the prior be normalized? Normalization is
+            not required for maximizing likelihoods with MCMC.
 
         Returns
         -------
-        float
+        float or np.ndarray of float
             The prior evaluated at `x`.
         """
 
@@ -400,11 +400,11 @@ class UniformPrior(BoundedMixin):
     type = Prior.UNIFORM
 
     def __init__(
-            self,
-            lower: float,
-            upper: float,
-            initial_guess: float = None,
-            initial_sigma: float = None
+        self,
+        lower: float,
+        upper: float,
+        initial_guess: float = None,
+        initial_sigma: float = None
     ):
         BoundedMixin.__init__(self, lower, upper)
         self.initial_guess = initial_guess
@@ -423,12 +423,16 @@ class UniformPrior(BoundedMixin):
         Parameters
         ----------
         d : dict
-            Includes lower and upper bound information.
+            Dictionary containing key, value pairs of class parameters.
 
         Returns
         -------
         UniformPrior
             Instantiated from dictionary.
+
+        Raises
+        ------
+        TypeError
         """
         if not isinstance(lower := d.get('lower'), (int, float)):
             raise TypeError('Uniform lower must be a number.')
@@ -448,19 +452,19 @@ class UniformPrior(BoundedMixin):
 
     def draw(self, n: int, initial: bool = True) -> float | np.ndarray:
         """
-        Draws ``n`` samples from the uniform distribution.
+        Draws `n` samples from the uniform distribution.
 
-        Draws from ``initial_guess`` +/- ``initial_sigma`` if they are both
-        defined. Else, draws between ``lower`` and ``upper``.
+        Draws from `initial_guess` +/- `initial_sigma` if they are both
+        defined. Else, draws between `lower` and `upper`.
 
         Parameters
         ----------
-        n : float
+        n : int
             The number of samples to draw.
 
         initial : bool
-            If ``True`` only samples from the initial region (if defined).
-            Else, draws from between ``lower`` and ``upper``.
+            If `True` only samples from the initial region (if defined).
+            Else, draws from between `lower` and `upper`.
 
         Returns
         -------
@@ -478,7 +482,7 @@ class UniformPrior(BoundedMixin):
 
     def evaluate(self, x: float) -> float:
         """
-        Evaluates the uniform prior at the sampled value ``x``.
+        Evaluates the uniform prior at the sampled value `x`.
 
         Parameters
         ----------
@@ -488,7 +492,7 @@ class UniformPrior(BoundedMixin):
         Returns
         -------
         float
-            `Zero` if the ``x`` is within the bounds else `-np.inf`.
+            `Zero` if the `x` is within the bounds else `-np.inf`.
         """
         return 0.0 if self.encompasses(x) else -np.inf
 
@@ -497,13 +501,15 @@ class SinePrior(UniformPrior):
     """
     Sine prior.
 
-    GRBs are statistically much more likely to be pointed away from us than
-    toward us. The probability of a jet being oriented at an angle
-    :math:`\Theta` depends on the solid angle distribution, which scales with
-    the area of a spherical cap :math:`2\pi sin(\Theta) d\Theta`.
+    GRBs are statistically much more likely to be
+    pointed away from us than toward us. The
+    probability of a jet being oriented at an angle
+    :math:`\Theta` depends on the solid angle distribution,
+    which scales with the area of a spherical cap
+    :math:`2\pi sin(\Theta) d\Theta`.
 
-    So that the probability density function for theta should be proportional
-    to :math:`sin(\Theta)`.
+    So that the probability density function for theta
+    should be proportional to :math:`sin(\Theta)`.
 
     Attributes
     ----------

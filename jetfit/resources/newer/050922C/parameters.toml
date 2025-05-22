@@ -54,8 +54,8 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.5
-    initial_guess = 2.25
-    initial_sigma = 0.25
+    initial_guess = 2.4
+    initial_sigma = 0.4
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -67,6 +67,8 @@ scale = "linear"
     type  = "uniform"
     lower = -1.0
     upper = 3.5
+    initial_guess = 2.0
+    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -171,4 +173,4 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.3
+    upper = 0.1

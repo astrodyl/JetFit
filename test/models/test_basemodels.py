@@ -1,3 +1,4 @@
+import time
 import unittest
 
 import numpy as np
@@ -551,59 +552,103 @@ class TestCharacteristicModels(unittest.TestCase):
         self.assertAlmostEqual(nu_m / nu_m_true, 1.0, delta=0.05)
         self.assertAlmostEqual(nu_c / nu_c_true, 1.0, delta=0.05)
 
-    def test_new_without_jet(self):
-        """
-        Test that the spectral values match CL 2000.
-        """
-
-        model = StratifiedFireballModel(
-            E=1.0, nt=1.0, rt=17, p=2.5, k1=2.0, k2=0.0, z=1.0, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.0, sn=-3.0, tj=1.0, sj=3.0
-        )
-
-        obs = Observation.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\newer\080413B\080413B.csv")
-        # obs = Observation.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\newer\130612A\130612A.csv")
-
-        # True values
-        modeled_true = model.model(obs)
-
-        # Modeled values
-        modeled_new = model.model2(obs)
-
-        # Assert almost equal
-        np.testing.assert_array_almost_equal(modeled_true, modeled_new)
-
-    def test_new_with_jet(self):
-        """
-        Test that the spectral values match CL 2000.
-        """
-
-        model = StratifiedFireballModel(
-            E=1.0, nt=1.0, rt=17, p=2.5, k1=2.0, k2=0.0, z=1.0, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.0, sn=-3.0, tj=1.0, sj=3.0
-        )
-
+    def test_nu_a_optional(self):
+        """"""
         t = np.geomspace(0.01, 3, 100)
         f = np.geomspace(1e8, 1e18, 100)
         lowers = np.geomspace(1e16, 1e17, 100)
         uppers = np.geomspace(1e17, 1e18, 100)
 
-        fts = True
+        fts = False
 
-        # True values
-        sf_true = model.spectral_flux(t, f, fts)
-        if_true = model.integrated_flux(t, lowers, uppers, fts)
-        si_true = model.spectral_index(t, lowers, uppers, fts)
+        # Model amc such that a shouldn't impact flux
+        model_with = FireballModel(
+            E=1.0, rho0=1.0, p=2.5, k=2.0, z=1.0, dL=1.0,
+            eps_e=0.1, eps_b=0.1, X=0.0
+        )
 
-        # Modeled values
-        sf_new = model.spectral_flux_jet(t, f, fts)
-        if_new = model.integrated_flux_jet(t, lowers, uppers, fts)
-        si_new = model.spectral_index_jet(t, lowers, uppers, fts)
+        sf_true = model_with.spectral_flux(t, f, fts)
+        if_true = model_with.integrated_flux(t, lowers, uppers, fts)
+        si_true = model_with.spectral_index(t, lowers, uppers, fts)
+
+        # Model without nu_a
+        model_without = FireballModel(
+            E=1.0, rho0=100.0, p=2.5, k=2.0, z=1.0, dL=1.0,
+            eps_e=0.1, eps_b=0.1, X=0.0, use_sa=False
+        )
+
+        sf_test = model_without.spectral_flux(t, f, fts)
+        if_test = model_without.integrated_flux(t, lowers, uppers, fts)
+        si_test = model_without.spectral_index(t, lowers, uppers, fts)
 
         # Assert equal within 5%
-        np.testing.assert_array_almost_equal(sf_true, sf_new)
-        np.testing.assert_array_almost_equal(if_true, if_new)
-        np.testing.assert_array_almost_equal(si_true, si_new, decimal=2)
+        np.testing.assert_array_almost_equal(sf_true, sf_test)
+        np.testing.assert_array_almost_equal(if_true, if_test)
+        np.testing.assert_array_almost_equal(si_true, si_test, decimal=2)
+
+    def test_nu_a_optional_stratified(self):
+        """"""
+        t = np.geomspace(0.01, 3, 100)
+        f = np.geomspace(1e8, 1e18, 100)
+        lowers = np.geomspace(1e16, 1e17, 100)
+        uppers = np.geomspace(1e17, 1e18, 100)
+
+
+        # Model amc such that a shouldn't impact flux
+        model_with = StratifiedFireballModel(
+            E=1.0, nt=1.0, rt=17, sn=-3.0, p=2.5, k1=2.0, k2=0.0, z=1.0, dL=1.0,
+            eps_e=0.1, eps_b=0.1, X=0.0
+        )
+
+        sf_true = model_with.spectral_flux(t, f)
+        if_true = model_with.integrated_flux(t, lowers, uppers)
+        si_true = model_with.spectral_index(t, lowers, uppers)
+
+        # Model without nu_a
+        model_without = StratifiedFireballModel(
+            E=1.0, nt=1.0, rt=17, sn=-3.0, p=2.5, k1=2.0, k2=0.0, z=1.0, dL=1.0,
+            eps_e=0.1, eps_b=0.1, X=0.0, use_sa=False
+        )
+
+        sf_test = model_without.spectral_flux(t, f)
+        if_test = model_without.integrated_flux(t, lowers, uppers)
+        si_test = model_without.spectral_index(t, lowers, uppers)
+
+        # Assert equal within 5%
+        np.testing.assert_array_almost_equal(sf_true, sf_test)
+        np.testing.assert_array_almost_equal(if_true, if_test)
+        np.testing.assert_array_almost_equal(si_true, si_test, decimal=2)
+
+    def test_nu_a_speed(self):
+        """"""
+        obs = Observation.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\newer\130612A\130612A.csv")
+
+        # Model amc such that a shouldn't impact flux
+        model = FireballModel(
+            E=1.0, rho0=1.0, p=2.5, k=2.0, z=1.0, dL=1.0,
+            eps_e=0.1, eps_b=0.1, X=0.0
+        )
+
+        start1 = time.time()
+        for _ in range(5_000):
+            model.model(obs)
+        end1 = time.time()
+
+        # Model without nu_a
+        model = FireballModel(
+            E=1.0, rho0=1.0, p=2.5, k=2.0, z=1.0, dL=1.0,
+            eps_e=0.1, eps_b=0.1, X=0.0, use_sa=False
+        )
+
+        start2 = time.time()
+        for _ in range(5_000):
+            model.model(obs)
+        end2 = time.time()
+
+        print('With nu_a........', end1 - start1)
+        print('Without nu_a.....', end2 - start2)
+        print('With / Without...', (end1 - start1) / (end2 - start2))
+
 
 if __name__ == '__main__':
     unittest.main()

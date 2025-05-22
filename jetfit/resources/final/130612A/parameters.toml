@@ -8,7 +8,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
+    lower = -1.5
     upper = 4.0
 
 #-------------- MODEL --------------
@@ -52,10 +52,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.0
-    upper = 3.5
-    initial_guess = 2.25
-    initial_sigma = 0.25
+    lower = 1.95
+    upper = 2.20
+    initial_guess = 2.02
+    initial_sigma = 0.03
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -65,30 +65,8 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#------------ tj (days) ------------
-[[model]]
-name  = "tj"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = -0.5
-    upper = 1.5
-
-#-------------- MODEL --------------
-#---------------- sj ---------------
-[[model]]
-name  = "sji"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = 0.1
-    upper = 1.0
+    lower = -6.0
+    upper = 2.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -102,14 +80,14 @@ value = 0.7
 [[model]]
 name  = "z"
 scale = "linear"
-value = 4.61
+value = 2.006
 
 #-------------- MODEL --------------
 #---------------- dL ---------------
 [[model]]
 name  = "dL"
 scale = "linear"
-value = 13.39
+value = 4.94
 
 #----------- EXTINCTION ------------
 #---------- source_frame -----------
@@ -120,14 +98,38 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 1.0
+    upper = 0.28
+    initial_guess = 0.14
+    initial_sigma = 0.05
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
 [[extinction]]
 name  = "ebv_milky_way"
 scale = "linear"
-value = 0.05
+value = 0.0647
+
+#----------- CALIBRATION -----------
+#-------------- V-band -------------
+[[offsets]]
+name  = "V_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.3
+
+#----------- CALIBRATION -----------
+#-------------- R-band -------------
+[[offsets]]
+name  = "R_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.3
 
 #----------- CALIBRATION -----------
 #-------------- I-band -------------
@@ -138,106 +140,7 @@ scale = "linear"
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#-------------- R-band -------------
-[[offsets]]
-name  = "R_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 4.0
-
-#----------- CALIBRATION -----------
-#-------------- J-band -------------
-[[offsets]]
-name  = "J_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#-------------- H-band -------------
-[[offsets]]
-name  = "H_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.05
-
-#----------- CALIBRATION -----------
-#-------------- K-band -------------
-[[offsets]]
-name  = "K_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#-------------- r-band -------------
-[[offsets]]
-name  = "r_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 3.0
-
-#----------- CALIBRATION -----------
-#-------------- i-band -------------
-[[offsets]]
-name  = "i_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- CALIBRATION -----------
-#-------------- z-band -------------
-[[offsets]]
-name  = "z_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#------------- HST-band ------------
-[[offsets]]
-name  = "F775W_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- CALIBRATION -----------
-#------------- HST-band ------------
-[[offsets]]
-name  = "F125W_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
+    sigma = 0.3
 
 #--------------- SLOP --------------
 #--------------- slop --------------
@@ -248,4 +151,6 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.3
+    upper = 0.09
+    initial_guess = 0.03
+    initial_sigma = 0.01

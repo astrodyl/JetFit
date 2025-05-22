@@ -73,7 +73,7 @@ def main(
     # -----------------------------------------------------------------
     # Pre-compute extinction values (if applicable)
     ebv = {'ebv_milky_way': None}
-    wn = observation.as_arrays.wave_numbers[observation.sflux_loc]
+    wn = observation.as_arrays.wave_numbers[observation.extinguishable]
     extinction_model = CCM89(Rv=3.1)
 
     for p in parameters.fixed:
@@ -94,7 +94,12 @@ def main(
     # -----------------------------------------------------------------
     # Define a filename to save the sampler to disk.
     # Warning: The sampler files are very large ~1 GB each.
-    filename = None  # str(results_dir / f'{event}_chain.h5')
+    backend = None
+    filename = str(results_dir / f'{event}_chain.h5')
+
+    if filename is not None:
+        backend = emcee.backends.HDFBackend(filename)
+        backend.reset(mcmc_params.num_walkers, len(parameters.fitting))
 
     # Create the MCMC object and run. See you in a few hours!
     mcmc = MCMC(
@@ -102,7 +107,7 @@ def main(
         model=observed_flux_model,
         observation=observation,
         parameters=parameters,
-        filename=filename
+        backend=backend
     )
     mcmc.run()
 
@@ -132,10 +137,10 @@ def main(
             out_dir=results_dir
         )
 
-        # Plot distributions
+        # # Plot distributions
         dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
 
-        # Plot the opening angle and energy distribution
+        # # Plot the opening angle and energy distribution
         if parameters.has('tj'):
             dist_plotter.beaming(out_dir=results_dir)
 
@@ -208,11 +213,11 @@ def main(
     # az.plot_trace(inf_data_burn)
     # plt.savefig(results_dir / "trace_burn.png")
 
-    # try:  # Optional stats
-    #     print(f"Autocorrelation........{mcmc.sampler.acor}\n")
-    #     print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
-    # except Exception as e:
-    #     pass
+    try:  # Optional stats
+        print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
+        print(f"Autocorrelation........{mcmc.sampler.acor}\n")
+    except Exception as e:
+        pass
 
     plt.close()
     print(f'AMPy completed modeling of {event} successfully.')
@@ -231,29 +236,29 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'newer'
+    sub_dir = 'final'
 
     if args.event is None:
         # Specify the events to run
         events = [
-            # '050525A',
+            # '050525A_uncorr',
             # '050922C',
             # '080413B',
             # '080319B_nature_mix',
-            # '080319B_nature_mix_late',
             # '090424',
             # '090618',
+            # '090618_1',
             # '111228A',
             # '111228A_early',
             # '111228A_late',
-            # '130612A',
+            '130612A',
             # '131030A',
             # '140506A',
             # '160131A',
-            # '171010A',
+            '171010A',
             # '210905A',
-            # '220101A',
-            # '221009A',
+            '220101A',
+            '221009A',
         ]
     else:
         events = [args.event]

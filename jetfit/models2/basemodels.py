@@ -1,6 +1,4 @@
 import math
-import time
-
 import numpy as np
 import astropy.units as u
 import astropy.constants as const
@@ -378,8 +376,11 @@ class ObservedSpectrumModel:
 
     Parameters
     ----------
-    nu_a, nu_m, nu_c : np.ndarray of float
+    nu_m, nu_c : np.ndarray of float
         The characteristic frequencies [Hz].
+
+    nu_a : np.ndarray of float, optional
+        The self-absorption frequency.
 
     f_peak : np.ndarray of float
         The peak fluxes [mJy].
@@ -399,7 +400,7 @@ class ObservedSpectrumModel:
     jet : JetBreakModel, optional
         The jet break spectrum and smoothing parameters.
     """
-    def __init__(self, nu_a, nu_m, nu_c, f_peak, p, k, arrays, fts=None, jet=None):
+    def __init__(self, nu_m, nu_c, f_peak, p, k, arrays, nu_a=None, fts=None, jet=None):
         self.nu_a = nu_a
         self.nu_m = nu_m
         self.nu_c = nu_c
@@ -413,12 +414,13 @@ class ObservedSpectrumModel:
         self.jet = jet
 
     @property
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """ Not valid when nu_a > nu_m and nu_c. """
-        return not np.logical_and(
-            self.nu_a > self.nu_m,
-            self.nu_a > self.nu_c
-        ).any()
+        if self.nu_a is not None:
+            return not np.logical_and(
+                self.nu_a > self.nu_m, self.nu_a > self.nu_c
+            ).any()
+        return True
 
     def model(self, subset=None) -> np.ndarray:
         """
@@ -542,7 +544,8 @@ class ObservedSpectrumModel:
 
             # All or none are arrays
             if isinstance(self.nu_m, np.ndarray):
-                nu_a = self.nu_a[mask]
+                if self.nu_a is not None:
+                    nu_a = self.nu_a[mask]
                 nu_m = self.nu_m[mask]
                 nu_c = self.nu_c[mask]
                 f_pk = self.f_peak[mask]
@@ -599,6 +602,9 @@ class BaseFireballModel:
         The jet break smoothing factor. `sji` is the inverse
         smoothing factor. Useful for changing MCMC basis.
 
+    use_sa : bool, optional, default=True
+        Should self-absorption be modeled?
+
     References
     ----------
     [1] Broadband view of blast wave physics: A study
@@ -607,7 +613,7 @@ class BaseFireballModel:
     m_p = const.m_p.cgs.value  # type: ignore
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, X, tj=None, sj=None, sji=None):
+    def __init__(self, E, p, eps_b, eps_e, z, dL, X, tj=None, sj=None, sji=None, use_sa=True):
         # Intrinsic properties
         self.E = E
         self.p = p
@@ -622,6 +628,8 @@ class BaseFireballModel:
         # Jet properties
         self.tj = tj
         self.sj = (sj or 1 / sji) if (sj or sji) else None
+
+        self.use_sa = use_sa
 
     def __repr__(self):
         """ Human-readable representation. """
@@ -820,11 +828,11 @@ class BaseFluxModel:
             - mac: nu_m < nu_a < nu_c
             - cam: nu_c < nu_a < nu_m
     """
-    def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
+    def __init__(self, nu_m, nu_c, f_peak, p, k, nu_a=None):
         self.f_peak = f_peak
         self.nu_m = np.atleast_1d(nu_m)
         self.nu_c = np.atleast_1d(nu_c)
-        self.nu_a = np.atleast_1d(nu_a)
+        self.nu_a = np.atleast_1d(nu_a) if nu_a is not None else None
 
         if self.nu_m.size != self.nu_c.size != self.nu_a.size:
             raise ValueError(
@@ -840,8 +848,12 @@ class BaseFluxModel:
         # TODO: practice, but its faster. Revisit this before release.
         self.slow = self.nu_m < self.nu_c
         self.fast = ~self.slow
-        self.mac = np.logical_and(self.slow, nu_m < nu_a)
-        self.cam = np.logical_and(self.fast, nu_c < nu_a)
+
+        if self.nu_a is not None:
+            self.mac = np.logical_and(self.slow, nu_m < nu_a)
+            self.cam = np.logical_and(self.fast, nu_c < nu_a)
+        else:
+            self.mac = self.cam = None
 
     @property
     def f_peak(self) -> float | np.ndarray:
@@ -937,7 +949,7 @@ class BaseFluxModel:
         nu12 = np.array(self.nu_m, copy=True)
         nu23 = np.array(self.nu_c, copy=True)
 
-        if self.mac.any():
+        if self.mac is not None and self.mac.any():
             # Overwrite: nu_m < nu_a < nu_c
             nu12[self.mac] = self.nu_a[self.mac]
 
@@ -946,7 +958,7 @@ class BaseFluxModel:
             nu12[self.fast] = self.nu_c[self.fast]
             nu23[self.fast] = self.nu_m[self.fast]
 
-            if self.cam.any():
+            if self.cam is not None and self.cam.any():
                 # Overwrite: nu_c < nu_a < nu_m
                 nu12[self.cam] = self.nu_a[self.cam]
 
@@ -976,7 +988,7 @@ class BaseFluxModel:
         b2 = np.full(self.fast.size, (1 - self.p) / 2)
         b3 = np.full(self.fast.size, -self.p / 2)
 
-        if self.mac.any():
+        if self.mac is not None and self.mac.any():
             # Overwrite: nu_m < nu_a < nu_c
             b1[self.mac] = 2.5
 
@@ -984,7 +996,7 @@ class BaseFluxModel:
             # Overwrite: nu_a < nu_c < nu_m
             b2[self.fast] = -0.5
 
-            if self.cam.any():
+            if self.cam is not None and self.cam.any():
                 # Overwrite: nu_c < nu_a < nu_m
                 b1[self.cam] = 2
 
@@ -1041,7 +1053,7 @@ class BaseFluxModel:
         s23 = np.full(self.fast.size, 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p)
 
         # Generalized s(p) from GS02 for break 5 (s12)
-        if self.mac.any():
+        if self.mac is not None and self.mac.any():
             # Overwrite: nu_m < nu_a < nu_c
             sabs_k = k[self.mac] if isinstance(k, np.ndarray) else k
             s12[self.mac] = 1.47 - 0.11 * sabs_k - (0.21 - 0.015 * sabs_k) * p
@@ -1054,7 +1066,7 @@ class BaseFluxModel:
             s12[self.fast] = 0.597
 
             # Generalized s(p) from GS02 for break 8 (s12)
-            if self.cam.any():
+            if self.cam is not None and self.cam.any():
                 # Overwrite: nu_c < nu_a < nu_m
                 s12[self.cam] = 0.9
 
@@ -1102,8 +1114,8 @@ class SpectralFluxModel(BaseFluxModel):
     ├───────────────────────────────────────────▶ ν
             v_0          v_1          v_2
     """
-    def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
-        super().__init__(nu_m, nu_c, nu_a, f_peak, p, k)
+    def __init__(self, nu_m, nu_c, f_peak, p, k, nu_a=None):
+        super().__init__(nu_m, nu_c, f_peak, p, k, nu_a)
 
     def __call__(self, *args, **kwargs):
         """ Calls the `evaluate` method. """
@@ -1182,10 +1194,10 @@ class SpectralFluxModel(BaseFluxModel):
         ) ** -(1 / s23)
 
         # Apply flux normalization corrections
-        if self.mac.any():
-            flux = self.correct_mac_flux(flux, b2a)
+        if self.mac is not None and self.mac.any():
+            flux = self.correct_mac_flux(flux, b2a, nu)
 
-        if self.cam.any():
+        if self.cam is not None and self.cam.any():
             flux = self.correct_cam_flux(flux, nu)  # noqa
 
         # Smooth across the jet break
@@ -1195,7 +1207,7 @@ class SpectralFluxModel(BaseFluxModel):
         # return the smoothed spectral flux [mJy]
         return flux[0] if flux.size == 1 else flux
 
-    def correct_mac_flux(self, flux, b2):
+    def correct_mac_flux(self, flux, b2, nu):
         """
         Applies the peak flux adjustment in the m < a < c regime.
 
@@ -1213,6 +1225,9 @@ class SpectralFluxModel(BaseFluxModel):
             The corrected flux [mJy].
         """
         corr = (self.nu_a[self.mac] / self.nu_m[self.mac]) ** b2[self.mac]
+
+        # mask = np.logical_and(np.logical_and(nu > self.nu_m, nu <= self.nu_a), self.mac)
+        # corr = (self.nu_a[mask] / self.nu_m[mask]) ** b2[mask]
 
         if flux.size == self.mac.size:
             flux[self.mac] *= corr
@@ -1256,8 +1271,8 @@ class IntegratedFluxModel(BaseFluxModel):
     Provides methods for calculating integrated fluxes
     using the spectrum for the GRB fireball model.
     """
-    def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
-        super().__init__(nu_m, nu_c, nu_a, f_peak, p, k)
+    def __init__(self, nu_m, nu_c, f_peak, p, k, nu_a=None):
+        super().__init__(nu_m, nu_c, f_peak, p, k, nu_a)
 
     def __call__(self, *args, **kwargs):
         """ Calls the `evaluate` method. """
@@ -1308,11 +1323,11 @@ class IntegratedFluxModel(BaseFluxModel):
             The integrated flux with units of erg cm-2 s-1.
         """
         beta = SpectralIndexModel(
-            self.nu_m, self.nu_c, self.nu_a, self.f_peak, self.p, self.k
+            self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a
         ).evaluate(lower, upper, fts, jet)
 
         flux = SpectralFluxModel(
-            self.nu_m, self.nu_c, self.nu_a, self.f_peak, self.p, self.k
+            self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a
         ).evaluate(lower, fts, jet)
 
         # return the smoothed integrated flux [erg cm-2 s-1]
@@ -1326,8 +1341,8 @@ class SpectralIndexModel(BaseFluxModel):
     """
     Spectral Index Model
     """
-    def __init__(self, nu_m, nu_c, nu_a, f_peak, p, k):
-        super().__init__(nu_m, nu_c, nu_a, f_peak, p, k)
+    def __init__(self, nu_m, nu_c, f_peak, p, k, nu_a=None):
+        super().__init__(nu_m, nu_c, f_peak, p, k, nu_a)
 
     def __call__(self, *args, **kwargs):
         """ Calls the `evaluate` method. """
@@ -1378,7 +1393,7 @@ class SpectralIndexModel(BaseFluxModel):
             The modeled spectral index.
         """
         model = SpectralFluxModel(
-            self.nu_m, self.nu_c, self.nu_a, self.f_peak, self.p, self.k)
+            self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a)
 
         # return the spectral index [dimension less]
         return (
