@@ -4,7 +4,6 @@ from typing_extensions import override
 
 from jetfit.core.defns.enums import Prior
 from jetfit.core.defns.mixins import BoundedMixin
-from jetfit.core.utils import nav_utils
 
 
 def prior_factory(d: dict):
@@ -311,17 +310,19 @@ class TruncatedGaussianPrior(GaussianPrior, BoundedMixin):
         TruncatedGaussianPrior
             Instantiated from dictionary
         """
-        if not nav_utils.is_expected_type(mu := d.get('mu'), (int, float)):
-            raise TypeError('TGaussian mu must be of type float.')
+        valid_types = (int, float)
 
-        if not nav_utils.is_expected_type(sigma := d.get('sigma'), (int, float)):
-            raise TypeError('TGaussian sigma must be of type float.')
+        if not isinstance(mu := d.get('mu'), valid_types):
+            raise TypeError('TGaussian `mu` must be a number.')
 
-        if not nav_utils.is_expected_type(lower := d.get('lower'), (int, float)):
-            raise TypeError('TGaussian lower must be of type float.')
+        if not isinstance(sigma := d.get('sigma'), valid_types):
+            raise TypeError('TGaussian `sigma` must be a number.')
 
-        if not nav_utils.is_expected_type(upper := d.get('upper'), (int, float)):
-            raise TypeError('TGaussian upper must be of type float.')
+        if not isinstance(lower := d.get('lower'), valid_types):
+            raise TypeError('TGaussian lower must be a number.')
+
+        if not isinstance(upper := d.get('upper'), valid_types):
+            raise TypeError('TGaussian upper must be a number.')
 
         return cls(mu, sigma, lower, upper)
 

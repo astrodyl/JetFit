@@ -71,15 +71,15 @@ scale = "linear"
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#--------------- k1 ----------------
+#--------------- k1i ---------------
 [[model]]
-name  = "k1"
+name  = "k1i"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -10.0
-    upper = 3.0
+    lower = -1.0
+    upper = -0.1
 
 #-------------- MODEL --------------
 #--------------- k2 ----------------
@@ -134,7 +134,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 1.0
+    upper = 0.4
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------

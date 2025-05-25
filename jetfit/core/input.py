@@ -142,7 +142,8 @@ class ObsArray:
             if f.type != DataType.SPECTRAL_INDEX:
                 filters[i] = f.filter
 
-                if 3e13 < f.frequency.to_value('Hz') < 1e15:
+                # TODO: Temp use CCM range
+                if 9e13 <= f.frequency.to_value('Hz') <= 2.99e15:
                     extinguishable[i] = True
 
             if f.type == DataType.SPECTRAL_FLUX:

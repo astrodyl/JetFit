@@ -263,7 +263,7 @@ class MCMC:
 
         return modeled
 
-    def slop(self, params) -> float | np.ndarray:
+    def slop(self, params) -> float | np.ndarray | None:
         """
         Formats the slop according to data groups.
 
@@ -274,7 +274,7 @@ class MCMC:
 
         Returns
         -------
-        float or np.ndarray of float
+        float or np.ndarray of float or None
             The slop value(s).
         """
 
@@ -327,7 +327,8 @@ class MCMC:
                 self.observation.as_arrays.errors,
             )
 
-        # Chi-squared for flux
+        # TODO: Just set slop[sindex_loc] = 0 then one call.
+        # Chi-squared for flux (uses slop)
         flux_mask = self.observation.flux_loc
 
         cs_flux = math_utils.chi_squared(
@@ -337,7 +338,7 @@ class MCMC:
             slop if isinstance(slop, float) else slop[flux_mask]
         )
 
-        # Chi-squared for spectral indices
+        # Chi-squared for spectral indices (does not use slop)
         index_mask = self.observation.sindex_loc
 
         if not index_mask.any():

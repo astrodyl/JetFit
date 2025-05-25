@@ -64,19 +64,19 @@ class StratifiedFireballModel(BaseFireballModel):
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, nt, rt, k1, k2, X, tj=None, sj=None, sji=None, sn=None, sni=None, use_sa=True):
+    def __init__(self, E, p, eps_b, eps_e, z, dL, nt, rt, X, k1=None, k2=None, tj=None, sj=None, sji=None, sn=None, sni=None, k1i=None, k2i=None, use_sa=True):
         super().__init__(E, p, eps_b, eps_e, z, dL, X, tj, sj, sji, use_sa)
 
         if sn is None and sni is None:
             raise ValueError("Must specify either sn or sni.")
 
         # Medium
-        self.k1 = k1
-        self.k2 = k2
+        self.k1 = k1 or (1 / k1i)
+        self.k2 = k2 or (1 / k2i)
 
         self.rt = rt
         self.nt = nt
-        self.sn = (sn or 1 / sni) if (sn or sni) else None
+        self.sn = sn or 1 / sni
 
     @property
     def is_valid(self) -> bool:

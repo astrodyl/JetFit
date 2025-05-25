@@ -43,7 +43,8 @@ OPTION_MAP = {
     # Radio
     'C': {'color': 'royalblue', 'marker': '.'},
     'C2': {'color': 'purple', 'marker': '.'},
-    'Ka': {'color': 'peachpuff', 'marker': '.'}
+    'Ka': {'color': 'peachpuff', 'marker': '.'},
+    'S': {'color': 'teal', 'marker': '.'},
 }
 
 # Aliases
@@ -433,7 +434,7 @@ class LightCurvePlot:
             rv_milky_way = params.get('extinction').get('rv_milky_way')
 
             # Apply source dust extinction before host galaxy correction
-            if 3e13 < frequency < 1e15:
+            if 9e13 <= frequency <= 2.99e15:
                 if ext_model is not None and ebv_sf is not None:
                     sflux *= ext_model.extinguish((1 + z) / wavelength, Ebv=ebv_sf)
 
@@ -443,7 +444,7 @@ class LightCurvePlot:
                 sflux += host_corr[filter_host]
 
             # Apply Milky Way dust extinction
-            if 3e13 < frequency < 1e15:
+            if 9e13 <= frequency <= 2.99e15:
                 if ext_model is not None:
                     model = ext_model
 
@@ -498,11 +499,21 @@ class LightCurvePlot:
                      d = d.to_spectral('mJy')
 
                 times.append(d.time.to_value('s'))
-                flux.append(d.value.to_value('mJy'))
-                errors.append(d.uncertainty.center.to_value('mJy'))
+
+                if d.value.to_value('mJy') != 0.0:
+                    flux.append(d.value.to_value('mJy'))
+                    errors.append(d.uncertainty.center.to_value('mJy'))
+
+                # Upper limits
+                else:
+                    # Assumes error is 3-sigma limit
+                    flux.append(d.uncertainty.center.to_value('mJy') * 3)
+                    errors.append(d.uncertainty.center.to_value('mJy'))
+
+            # Handle options
+            ms = 0.6 if OPTION_MAP[dfilter]['marker'] != '.' else 3.0
 
             # Plot the band
-            ms = 0.6 if OPTION_MAP[dfilter]['marker'] == 's' else 3.0
             self.ax.errorbar(times, flux, yerr=errors, fmt='.', label=dfilter, **OPTION_MAP[dfilter], markersize=ms, elinewidth=0.5)
 
         self.ax.legend(loc='best')

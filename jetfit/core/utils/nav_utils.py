@@ -147,32 +147,3 @@ def get_valid_model_names() -> list[str]:
             valid.append(entry.name)
     return valid
 #</editor-fold>
-
-
-# <editor-fold desc="Validation">
-def is_expected_type(value, expected, allow_none: bool = False) -> bool:
-    """
-    Determines if the value is not `None` the expected type.
-
-    Parameters
-    ----------
-    value : any
-        The value to check.
-
-    expected : type or tuple of type
-        The expected type.
-
-    allow_none : bool, optional, default: False
-        If ``allow_none`` is ``True``, returns ``True`` when the
-        value is ``None`` or of type ``expected``.
-
-    Returns
-    -------
-    bool
-        `True` if the value is not `None` the expected type.
-    """
-    if value is None:
-        return True if allow_none else False
-
-    return isinstance(value, expected)
-# </editor-fold>

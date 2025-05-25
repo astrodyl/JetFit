@@ -8,32 +8,21 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
-    upper = 4.0
+    lower = 0.0
+    upper = 1.5
+    initial_guess = 0.79
+    initial_sigma = 0.15
 
 #-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- nt ----------------
+#---------------- n ----------------
 [[model]]
-name  = "nt"
+name  = "rho0"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
     lower = -6.0
-    upper = 6.0
-
-#-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- rt ----------------
-[[model]]
-name  = "rt"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = 15.0
-    upper = 19.0
+    upper = 2.5
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -43,7 +32,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -1.5
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -54,8 +43,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
-    upper = 0.0
+    lower = -5.0
+    upper = -1.5
+    initial_guess = -3.89
+    initial_sigma = 0.3
 
 #-------------- MODEL --------------
 #---------------- p ----------------
@@ -65,44 +56,22 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.0
-    upper = 3.5
-    initial_guess = 2.25
-    initial_sigma = 0.25
+    lower = 2.15
+    upper = 2.4
+    initial_guess = 2.27
+    initial_sigma = 0.2
 
 #-------------- MODEL --------------
-#--------------- k1 ----------------
+#---------------- k ----------------
 [[model]]
-name  = "k1"
+name  = "k"
 scale = "linear"
-
 [model.prior]
     type  = "uniform"
-    lower = -1.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#--------------- k2 ----------------
-[[model]]
-name  = "k2"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = -1.0
-    upper = 3.0
-
-#-------------- MODEL --------------
-#----------- TRANSITION ------------
-#--------------- sn ----------------
-[[model]]
-name  = "sn"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = -3.0
-    upper = -0.1
+    lower = -10.0
+    upper = 1.0
+    initial_guess = -6.17
+    initial_sigma = 3.5
 
 #-------------- MODEL --------------
 #------------ tj (days) ------------
@@ -112,15 +81,23 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = 0.0
+    lower = 0.3
     upper = 1.2
+    initial_guess = 0.75
+    initial_sigma = 0.09
 
 #-------------- MODEL --------------
 #---------------- sj ---------------
 [[model]]
 name  = "sj"
 scale = "linear"
-value = 3.0
+
+[model.prior]
+    type  = "uniform"
+    lower = 0.1
+    upper = 0.4
+    initial_guess = 0.2
+    initial_sigma = 0.02
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -152,7 +129,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.3
+    upper = 0.04
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -214,4 +191,4 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.3
+    upper = 0.03

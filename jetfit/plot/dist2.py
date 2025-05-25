@@ -5,7 +5,7 @@ import astropy.constants as const
 
 from jetfit.core.core import save_plot_unique
 from jetfit.core.values import SpectralIndex
-from jetfit.models2.basemodels import SpectralIndexModel, BlastWaveModel, StratifiedMediumModel
+from jetfit.models2.basemodels import SpectralIndexModel, BlastWaveModel
 
 # Constants in cgs units
 m_p = const.m_p.cgs  # noqa
@@ -350,7 +350,7 @@ class SpectralIndexPlot(Distribution):
         cts, bins, _ = plt.hist(dist, **options)
 
 
-class StratifiedDensityProfilePlot(Distribution):
+class DensityProfilePlot(Distribution):
     """
     Plots n(r / r17) vs. r / r17
     """
@@ -363,70 +363,7 @@ class StratifiedDensityProfilePlot(Distribution):
         self.n017 = {'best': [], 'dist': []}
         self.times = {'best': [], 'dist': []}
 
-    def model_stratified(self, p_early, p_late, start, stop, loc):
-        """
-        Models stratified density profiles.
-
-        Parameters
-        ----------
-        p_early : dict
-
-        p_late : dict
-
-        start : float
-
-        stop : float
-
-        loc : str, {'best', 'dist'}
-
-        Returns
-        -------
-        tuple of length 3
-        """
-        times = np.geomspace(start, stop, 200)
-
-        # Initialize return arrays
-        ks = np.full(len(times), np.nan)
-        n017s = np.full(len(times), np.nan)
-        radii = np.full(len(times), np.nan)
-
-        # Define the stratified medium model
-        stratified_model = StratifiedMediumModel(
-            n17_1=p_early['rho0'], n17_2=p_late['rho0'],
-            k1=p_early['k'], k2=p_late['k'], E=p_early['E'],
-        )
-
-        # Calculate the transition radius and time
-        r_trans = stratified_model.transition_radius()
-        t_trans = stratified_model.transition_time(p_early['z']) / 86_400
-
-        # Define the early time model
-        early_model = BlastWaveModel(
-            E=p_early['E'], n17=p_early['rho0'], k=p_early['k'])
-
-        # Calculate the observer-frame deceleration time [d]
-        t_dec = early_model.decel_time(z=p_early['z']) / 86_400
-
-        for i, t_obs in enumerate(times):
-
-            if t_obs < t_trans:  # noqa
-                r = early_model.shock_radius(p_early['z'], t_obs, t_dec)
-                p = p_early
-            else:
-                r = r_trans * ((t_dec + t_obs) / t_trans) ** (1 / (4 - p_late['k'])) # noqa
-                p = p_late
-
-            ks[i], n017s[i] = p['k'], p['rho0']
-            radii[i] = r
-
-        # Store the things
-        self.n17[loc].append(n017s * (radii / 1e17) ** -ks)
-        self.n017[loc].append(n017s)
-        self.r[loc].append(radii)
-        self.k[loc].append(ks)
-        self.times[loc].append(t_trans)
-
-    def model_single(self, p, start, stop, loc):
+    def model(self, p, start, stop, loc):
         """"""
         times = np.geomspace(start, stop, 200)
 
@@ -467,23 +404,10 @@ class StratifiedDensityProfilePlot(Distribution):
             Number of samples to draw.
 
         """
-        # Draw the samples
-        samples = self.draw(thin, nsamps)
-
-        for s in samples:
-
-            if self.regimes and 'early' in self.regimes.keys():
-                p_early = self.params.samples_to_dict(s, group='early').get('model')
-                p_late = self.params.samples_to_dict(s, group='late').get('model')
-                self.model_stratified(p_early, p_late, start, stop, 'dist')
-
-            else:
-                p = self.params.samples_to_dict(s).get('model')
-
-                if p is None:
-                    p = self.params.samples_to_dict(s).get('shared').get('model')
-
-                self.model_single(p, start, stop, 'dist')
+        for s in self.draw(thin, nsamps):
+            if (p := self.params.samples_to_dict(s).get('model')) is None:
+                p = self.params.samples_to_dict(s).get('shared').get('model')
+            self.model(p, start, stop, 'dist')
 
     def model_best(self, start, stop):
         """
@@ -496,18 +420,10 @@ class StratifiedDensityProfilePlot(Distribution):
         stop : float
             The stop time measured in days.
         """
-        if self.regimes and 'early' in self.regimes.keys():
-            p_early = self.best(group='early').get('model')
-            p_late = self.best(group='late').get('model')
-            self.model_stratified(p_early, p_late, start, stop, 'best')
+        if (p := self.best().get('model')) is None:
+            p = self.best().get('shared').get('model')
 
-        else:
-            p = self.best().get('model')
-
-            if p is None:
-                p = self.best().get('shared').get('model')
-
-            self.model_single(p, start, stop, 'best')
+        self.model(p, start, stop, 'best')
 
     def plot(self, start, stop, thin=10, nsamps=100, out_dir=None):
         """

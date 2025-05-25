@@ -688,11 +688,22 @@ class BaseFireballModel:
         return (self.eps_b + self.eps_e) < 1.0 and self.p > 2
 
     def spectrum(self, *args, **kwargs):
-        """  """
+        """ Placeholder. """
         raise NotImplementedError('spectrum is not implemented.')
 
     def jet_break(self, t):
-        """"""
+        """
+        Jet break model.
+
+        Parameters
+        ----------
+        t : np.ndarray of float
+            The observer times [d] used to smooth the break.
+
+        Returns
+        -------
+        JetBreakModel
+        """
         if self.tj is not None and self.sj is not None:
             return JetBreakModel(SpectralFluxModel(
                 **self.spectrum(self.tj)), self.tj, t, self.p, self.sj)
@@ -1195,7 +1206,7 @@ class SpectralFluxModel(BaseFluxModel):
 
         # Apply flux normalization corrections
         if self.mac is not None and self.mac.any():
-            flux = self.correct_mac_flux(flux, b2a, nu)
+            flux = self.correct_mac_flux(flux, b2a)
 
         if self.cam is not None and self.cam.any():
             flux = self.correct_cam_flux(flux, nu)  # noqa
@@ -1207,7 +1218,7 @@ class SpectralFluxModel(BaseFluxModel):
         # return the smoothed spectral flux [mJy]
         return flux[0] if flux.size == 1 else flux
 
-    def correct_mac_flux(self, flux, b2, nu):
+    def correct_mac_flux(self, flux, b2):
         """
         Applies the peak flux adjustment in the m < a < c regime.
 
@@ -1225,9 +1236,6 @@ class SpectralFluxModel(BaseFluxModel):
             The corrected flux [mJy].
         """
         corr = (self.nu_a[self.mac] / self.nu_m[self.mac]) ** b2[self.mac]
-
-        # mask = np.logical_and(np.logical_and(nu > self.nu_m, nu <= self.nu_a), self.mac)
-        # corr = (self.nu_a[mask] / self.nu_m[mask]) ** b2[mask]
 
         if flux.size == self.mac.size:
             flux[self.mac] *= corr
@@ -2325,95 +2333,3 @@ class ObservedFluxModel:
 
         # return (afterglow_flux * ext_sf + host_correction) * ext_mw
         return modeled
-
-
-# noinspection PyPep8Naming
-class StratifiedMediumModel:
-    """
-
-    Parameters
-    ----------
-    E : float
-        The energy normalized to 1e52 ergs.
-
-    n17_1 : float
-        The density before the transition.
-
-    n17_2 : float
-        The density after the transition.
-
-    k1 : float
-        The density power-law index for `n1`.
-
-    k2 : float
-        The density power-law index for `n2`.
-    """
-    m_p = const.m_p.cgs.value  # type: ignore
-    c = const.c.cgs.value  # type: ignore
-
-    def __init__(self, E, n17_1, n17_2, k1, k2, ref=1e17):
-        self.E = E
-        self.n17_1 = n17_1
-        self.n17_2 = n17_2
-        self.k1 = k1
-        self.k2 = k2
-        self.r_ref = ref
-
-    @staticmethod
-    def alpha(k) -> float:
-        """ Returns the hydrodynamic coefficient. """
-        return 16 / (17 - 4 * k)
-
-    @staticmethod
-    def beta(k) -> float:
-        """ Returns the hydrodynamic coefficient. """
-        return 4 - k
-
-    def rho17(self, n17, k) -> float:
-        """ Returns the density at 1e17cm. """
-        return n17 * self.m_p * (self.r_ref ** k)
-
-    def transition_radius(self):
-        """
-        Calculates the transition radius in a stratified
-        density.
-
-        Returns
-        -------
-        float
-            The transition radius [cm].
-        """
-        # Evaluate in log space to prevent overflow when k1 ~= k2
-        return 10 ** (np.log10(self.r_ref) + np.log10(self.n17_2 / self.n17_1) / (self.k2 - self.k1))
-
-    def transition_time(self, z):
-        """
-        Calculates the observer-frame transition time
-        in a stratified density.
-
-        Uses the relation R = beta * gamma ** 2 * c * t and
-        the definition of gamma to solve for t.
-
-        Parameters
-        ----------
-        z : float
-            The redshift.
-
-        Returns
-        -------
-        float
-            The observer-frame transition time [s].
-
-        See Also
-        --------
-        `models2.basemodels.BlastWaveModel.lorentz_factor`
-            See for the definition of gamma.
-        """
-        r = self.transition_radius()
-        a, b = self.alpha(self.k1), self.beta(self.k1)
-        rho17 = self.rho17(self.n17_1, self.k1)
-
-        return (1 + z) * (
-            (a * b ** (3 - self.k1) * np.pi *
-            self.c * rho17 / (1e52 * self.E))
-        ) * (r / b) ** (4 - self.k1)

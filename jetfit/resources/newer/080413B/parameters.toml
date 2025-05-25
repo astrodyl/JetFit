@@ -82,15 +82,15 @@ scale = "linear"
     upper = 3.0
 
 #-------------- MODEL --------------
-#--------------- k2 ----------------
+#--------------- k2i ---------------
 [[model]]
-name  = "k2"
+name  = "k2i"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -10.0
-    upper = 3.0
+    lower = -1.0
+    upper = -0.1
 
 #-------------- MODEL --------------
 #----------- TRANSITION ------------

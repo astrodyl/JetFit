@@ -206,14 +206,3 @@ scale = "log"
     upper = -1.05
     initial_guess = -1.24
     initial_sigma = 0.03
-
-#--------------- SLOP --------------
-#--------------- slop --------------
-[[slop]]
-name  = "slop"
-scale = "linear"
-
-[slop.prior]
-    type  = "uniform"
-    lower = 0.0
-    upper = 0.04

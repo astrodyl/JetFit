@@ -65,7 +65,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -3.0
     upper = 2.0
 
 #-------------- MODEL --------------

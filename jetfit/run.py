@@ -18,7 +18,7 @@ from jetfit.models2.boosted import BoostedFireballModel
 from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
 from jetfit.plot.sfbm import SFBMDensityProfiler
 from jetfit.plot.dist import DistributionPlot
-from jetfit.plot.dist2 import SpectralIndexPlot, StratifiedDensityProfilePlot
+from jetfit.plot.dist2 import SpectralIndexPlot, DensityProfilePlot
 from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
 from jetfit.plot.posterior import PosteriorPlot
 
@@ -128,7 +128,7 @@ def main(
 
     else:
         # Plot the density profiles
-        density_plotter = StratifiedDensityProfilePlot(
+        density_plotter = DensityProfilePlot(
             mcmc.sampler, parameters, observation.data_regimes)
 
         density_plotter.plot(
@@ -236,7 +236,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'final'
+    sub_dir = 'newer'
 
     if args.event is None:
         # Specify the events to run
@@ -247,16 +247,13 @@ if __name__ == "__main__":
             # '080319B_nature_mix',
             # '090424',
             # '090618',
-            # '090618_1',
             # '111228A',
-            # '111228A_early',
-            # '111228A_late',
             '130612A',
             # '131030A',
             # '140506A',
-            # '160131A',
+            '160131A',
             '171010A',
-            # '210905A',
+            '210905A',
             '220101A',
             '221009A',
         ]
