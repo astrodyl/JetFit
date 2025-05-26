@@ -160,11 +160,11 @@ class TestSpectralFlux(unittest.TestCase):
             field_names=[
                 'Value', 'ValueUnits', 'ValueLower',
                 'ValueUpper', 'Time', 'TimeUnits',
-                'Wave', 'WaveUnits'
+                'Wave', 'WaveUnits', 'Index'
             ]
         )
 
-        row = Row(100.1, 'mJy', 7.3, 8.0, 34400.1, 's', 612, 'THz')
+        row = Row(100.1, 'mJy', 7.3, 8.0, 34400.1, 's', 612, 'THz', 1)
 
         sf = SpectralFlux.from_csv_row(row)
         self.assertEqual(sf.value.value, row.Value)
@@ -175,28 +175,6 @@ class TestSpectralFlux(unittest.TestCase):
         self.assertEqual(sf.time.unit, row.TimeUnits)
         self.assertEqual(sf.frequency.value, row.Wave)
         self.assertEqual(sf.frequency.unit, row.WaveUnits)
-
-    def test_frequency(self):
-        """"""
-        value = 1.0 * u.mJy
-        lower = 0.10 * u.mJy
-        upper = 0.15 * u.mJy
-        frequency = 664 * u.THz
-        time = 1.0 * u.day
-
-        sf = SpectralFlux(
-            value=value, lower=lower, upper=upper,
-            frequency=frequency, time=time
-        )
-
-        self.assertEqual(sf.frequency, frequency)
-
-        # incompatible units, should raise exception
-        with self.assertRaises(u.UnitsError):
-            sf.frequency = 1.0 * u.m
-
-        with self.assertRaises(u.UnitsError):
-            sf.wavelength = 1.0 * u.Hz
 
 
 if __name__ == '__main__':

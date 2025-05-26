@@ -102,6 +102,12 @@ class BoostedFireballModel:
         eq3 = self.E50 * (self.n ** 0.5) * (self.eps_b ** 0.5)
         eq4 = self.zeta
 
+        # return self.zeta * (
+        #     (1 + self.z) / (self.dL28 ** 2) *
+        #     (self.p - 1) / (3 * self.p - 1) *
+        #     self.E50 * (self.n ** 0.5) * (self.eps_b ** 0.5)
+        # )
+
         return eq1 * eq2 * eq3 * eq4
 
     @property
@@ -201,12 +207,12 @@ class BoostedFireballModel:
 
         Parameters
         ----------
-        times : np.ndarray
-            Observation times measured in time since the GRB trigger.
+        times : np.ndarray of float
+            The observer times [d].
 
         Returns
         -------
-        np.ndarray
+        np.ndarray of float
             The scaled times.
         """
         return times * ((self.n / self.E50) ** (1 / 3)) / (1 + self.z)
@@ -219,12 +225,12 @@ class BoostedFireballModel:
 
         Parameters
         ----------
-        times : np.ndarray
-            Observation times measured in time since the GRB trigger.
+        times : np.ndarray of float
+            The observer times [d].
 
         Returns
         -------
-        tuple of np.ndarray, with shapes ??
+        tuple of np.ndarray of float
             Spectral function values corresponding to sampled params.
         """
         # HydroSimTable stores time in natural log scale.
@@ -245,7 +251,7 @@ class BoostedFireballModel:
             nans = np.full(len(position), np.nan)
             return nans, nans, nans
 
-        if np.isnan(peak_fluxes[0]):
+        if np.isnan(peak_fluxes.min()):
             return peak_fluxes, cooling_frequencies, synchrotron_frequencies
 
         return (

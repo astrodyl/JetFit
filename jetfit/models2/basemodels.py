@@ -25,40 +25,6 @@ def has_fts_transition(nu_m, nu_c) -> bool:
 
 
 # noinspection PyPep8Naming
-def fast_to_slow_time(E52, n, p, k, eps_b, eps_e, z, X, ref=1e17):
-    """
-    Calculates the observer time for the fast-to-slow
-    cooling transition.
-
-    Returns
-    -------
-    float
-        The observer-frame transition time [d].
-    """
-    # Constants
-    c = const.c.cgs.value  # noqa
-    m_p = const.m_p.cgs.value  # noqa
-    m_e = const.m_e.cgs.value  # noqa
-    q_e = 4.8032e-10
-
-    # return the fast-to-slow transition time
-    x = 4 - k
-
-    return (1 + z) * (
-        np.pi * (81 / 16_384) ** -(x / 4) *
-        (16 / (17 - 4 * k)) ** -((2 - k) / 2) *
-        (4 - k) ** -((6 - k) / 2) *
-        ((1 + X) / 2) ** -(x / 2) *
-        q_e ** (2 * x) * m_e ** -(2 * x) *
-        m_p ** (x / 2) * c ** -(11 - 3 * k) *
-        m_p * n * ref ** k *
-        (1e52 * E52) ** ((2 - k) / 2) *
-        (p - 2) ** (x / 2) * (p - 1) ** -(x / 2) *
-        eps_b ** (x / 2) * eps_e ** (x / 2)
-    ) / 86_400
-
-
-# noinspection PyPep8Naming
 class BaseBlastWaveModel:
     """
     Base BlastWaveModel. Not intended for direct use.
@@ -589,7 +555,7 @@ class BaseFireballModel:
         electrons. Must be in the range [0, 1].
 
     z : float
-        The redshift to the event.
+        The redshift of the event.
 
     X : float
         The hydrogen mass fraction. Must be in the range [0, 1].
@@ -1512,7 +1478,10 @@ class BaseSpectralModel:
         return f"{name}(E={self.E}, z={self.z}, k={self.k})"
 
     def __call__(self, *args, **kwargs):
-        """ Wrapper for the evaluate method. """
+        """
+        Makes the class instance callable. This behaves like
+        self.evaluate(*args, **kwargs).
+        """
         return self.evaluate(*args, **kwargs)
 
     # noinspection PyPep8Naming
@@ -1556,6 +1525,11 @@ class PeakFluxModel(BaseSpectralModel):
     """
     Peak flux model. Assumes an ultra-relativistic shock moving
     through an external medium with rho = rho0 * R^-k density.
+
+    Parameters
+    ----------
+    rho0 : float or u.Quantity
+        The number density normalization [cm-3].
     """
 
     # noinspection PyPep8Naming
@@ -1572,26 +1546,21 @@ class PeakFluxModel(BaseSpectralModel):
 
     def evaluate(self, t, ref=17):
         """
-        Calculates the peak flux at time `t` for a shock's
-        movement that is described by `evo`.
+        Calculates the peak flux at time `t`.
 
         Parameters
         ----------
-        t : float or np.array of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, must
-            be measured in days since trigger.
+        t : float or np.array of float
+            The observer time(s) [d].
 
-        ref : float
-            The radius normalization [cm] in log space.
+        ref : float, default=17
+            The log of the characteristic radius [cm].
 
         Returns
         -------
-        float or np.array of u.Quantity['time']
-            The peak flux at time `t` measured in mJy.
+        float or np.array of float
+            The peak flux [mJy] at time `t`.
         """
-        if isinstance(t, u.Quantity):
-            t = t.to_value('d')
-
         # Convenience variables
         k, x = self.k, 4 - self.k
 
@@ -1655,26 +1624,21 @@ class CoolingFrequencyModel(BaseSpectralModel):
 
     def evaluate(self, t, ref=17):
         """
-        Calculates the cooling frequency at time `t`
-        for a shock's movement that is described by `evo`.
+        Calculates the cooling frequencies at times `t`.
 
         Parameters
         ----------
-        t : float or np.array of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, must
-            be measured in days since trigger.
+        t : float or np.array of float
+            The observer time(s) [d].
 
-        ref : float
-            The radius normalization [cm] in log space.
+        ref : float, default=17
+            The log of the characteristic radius [cm].
 
         Returns
         -------
         float or np.array of float
-            The cooling frequency at time `t` measured in Hz.
+            The cooling frequency [Hz] at time(s) `t`.
         """
-        if isinstance(t, u.Quantity):
-            t = t.to_value('d')
-
         # convenience variables
         k, x = self.k, 4 - self.k
 
@@ -1727,14 +1691,15 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
     Attributes
     ----------
     eps_e : float
-        The fraction of thermal energy carried by relativistic
-        electrons, unit=None.
+        The fraction of thermal energy in the electric field.
+        Must be in the range [0, 1].
 
     X : float
-        The hydrogen mass fraction, unit=None.
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
     p : float
-        The electron energy power-law index, unit=None.
+        The electron energy power-law index.
     """
 
     # noinspection PyPep8Naming
@@ -1764,18 +1729,14 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
 
         Parameters
         ----------
-        t : float or np.array of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, must
-            be measured in days since trigger.
+        t : float or np.array of float
+            The observer times [d].
 
         Returns
         -------
         float or np.array of float
             The cooling frequency at time `t` measured in Hz.
         """
-        if isinstance(t, u.Quantity):
-            t = t.to_value('d')
-
         # return synchrotron frequency [Hz]
         return (
             # all constants evaluated
@@ -1804,34 +1765,18 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
     shock moving through an external medium with rho = rho0
     * R^-k density.
 
-    I implement only the slow-cooling scenarios:
-        - nu_a < nu_m < nu_c
-        - nu_m < nu_a < nu_c
-
-    Although nu_a < nu_c < nu_m is perfectly valid, only the
-    upper two of three breaks are considered when smoothing
-    the flux. Thus, this scenario will never be applied.
-
-    All other combinations, though physically plausible in
-    extreme scenarios, are not implemented because they are
-    considered physically unrealistic [1]_.
-
     Attributes
     ----------
     eps_e : float
-        The fraction of thermal energy carried by relativistic
-        electrons, unit=None.
+        The fraction of thermal energy in the electric field.
+        Must be in the range [0, 1].
 
     X : float
-        The hydrogen mass fraction, unit=None.
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
     p : float
-        The electron energy power-law index, unit=None.
-
-    References
-    ----------
-    .. [1] Gao et al. (2013)
-        https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2520G/abstract
+        The electron energy power-law index.
     """
     c = const.c.cgs.value      # noqa
     m_p = const.m_p.cgs.value  # noqa
@@ -1851,20 +1796,19 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
 
         Parameters
         ----------
-        t : float or np.array of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, must
-            be measured in days since trigger.
+        t : float or np.array of float
+            The observer times [d].
 
-        order : str, {'amc', 'mac'}
+        order : str, {'amc', 'mac', 'cam', 'acm'}
             The order of the spectral breaks.
 
         ref : float, optional, default=17
-            The reference radius [cm] in log space.
+            The log of the characteristic radius [cm].
 
         Returns
         -------
         float or np.array of float
-            The self-absorption frequency at time `t` measured in Hz.
+            The self-absorption frequency [Hz] at time(s) `t`.
         """
         return getattr(self, f'evaluate_{order}')(t, ref)
 
@@ -1876,19 +1820,16 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         Parameters
         ----------
         t : np.ndarray of float or float
-            The observer-frame times [days].
+            The observer times [d].
 
         ref : float
-            The log of the reference radius measured in cm.
+            The log of the characteristic radius [cm].
 
         Returns
         -------
         np.ndarray of float or float
-            The self-absorption frequency [Hz]
+            The self-absorption frequencies [Hz] at time(s) t.
         """
-        if isinstance(t, u.Quantity):
-            t = t.to_value('d')
-
         # convenience variables
         k, x = self.k, 4 - self.k
 
@@ -1938,19 +1879,16 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         Parameters
         ----------
         t : np.ndarray of float or float
-            The observer-frame times [days].
+            The observer times [d].
 
         ref : float
-            The log of the reference radius measured in cm.
+            The log of the characteristic radius [cm].
 
         Returns
         -------
         np.ndarray of float or float
-            The self-absorption frequency [Hz]
+            The self-absorption frequencies [Hz] at time(s) t.
         """
-        if isinstance(t, u.Quantity):
-            t = t.to_value('d')
-
         # Convenience variables
         p, k = self.p, self.k
         x, y, z = p + 2, p + 4, 4 - k
@@ -1999,15 +1937,15 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         Parameters
         ----------
         t : np.ndarray of float or float
-            The observer-frame times [days].
+            The observer times [d].
 
         ref : float
-            The log of the reference radius measured in cm.
+            The log of the characteristic radius [cm].
 
         Returns
         -------
         np.ndarray of float or float
-            The self-absorption frequency [Hz]
+            The self-absorption frequencies [Hz] at time(s) t.
         """
         if isinstance(t, u.Quantity):
             t = t.to_value('d')
@@ -2203,7 +2141,7 @@ class ObservedFluxModel:
         if params.get('shared') is not None:
             # Model the afterglow flux with sets of parameters
             # applied to different subsets of the data.
-            modeled = self.model_segmented_afterglow(
+            modeled = self.model_grouped_afterglow(
                 obs, params, **kwargs
             )
 
@@ -2215,7 +2153,7 @@ class ObservedFluxModel:
         # return the unextinguished GRB afterglow flux
         return modeled
 
-    def model_segmented_afterglow(self, obs, params, **kwargs):
+    def model_grouped_afterglow(self, obs, params, **kwargs):
         """
         Models the unextinguished GRB afterglow flux divided
         into an arbitrarily defined number of subsets.
@@ -2246,7 +2184,7 @@ class ObservedFluxModel:
         """
         modeled = np.full(obs.length, np.nan, dtype=float)
 
-        for group, mask in obs.data_groups.items():
+        for group, mask in obs.groups.items():
             model_params = params.get(group).get('model')
 
             modeled[mask] = self.afterglow_model(

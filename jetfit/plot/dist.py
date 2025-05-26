@@ -73,10 +73,10 @@ class DistributionPlot:
         str or None
             The group name or None.
         """
-        if self.obs.data_groups is None:
+        if self.obs.groups is None:
             return
 
-        for group, pos in self.obs.data_groups.items():
+        for group, pos in self.obs.groups.items():
             group_times = self.obs.as_arrays.times[pos]
 
             if (group_times.min() - 1e-6) <= t <= (group_times.max() + 1e-6):

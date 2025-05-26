@@ -95,7 +95,7 @@ def main(
     # Define a filename to save the sampler to disk.
     # Warning: The sampler files are very large ~1 GB each.
     backend = None
-    filename = str(results_dir / f'{event}_chain.h5')
+    filename = None  # str(results_dir / f'{event}_chain.h5')
 
     if filename is not None:
         backend = emcee.backends.HDFBackend(filename)
@@ -236,19 +236,19 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'newer'
+    sub_dir = 'final'
 
     if args.event is None:
         # Specify the events to run
         events = [
-            # '050525A_uncorr',
+            # '050525A',
             # '050922C',
             # '080413B',
             # '080319B_nature_mix',
             # '090424',
             # '090618',
-            # '111228A',
-            '130612A',
+            '111228A',
+            # '130612A',
             # '131030A',
             # '140506A',
             '160131A',

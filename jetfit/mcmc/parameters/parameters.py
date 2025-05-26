@@ -222,7 +222,7 @@ class Parameters:
             'ebv_mw': params.get('extinction').get('ebv_milky_way'),
             'rv_mw': params.get('extinction').get('rv_milky_way'),
             'host_vals': params.get('host'),
-            'host_pos': obs.host_groups,
+            'host_pos': obs.hosts,
             'ext_pos': obs.extinguishable,
         }
 

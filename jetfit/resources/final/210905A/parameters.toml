@@ -65,7 +65,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.5
+    lower = -4.0
     upper = 0.8
     initial_guess = 0.09
     initial_sigma = 0.3

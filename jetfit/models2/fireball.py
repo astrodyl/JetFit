@@ -71,12 +71,12 @@ class StratifiedFireballModel(BaseFireballModel):
             raise ValueError("Must specify either sn or sni.")
 
         # Medium
-        self.k1 = k1 or (1 / k1i)
-        self.k2 = k2 or (1 / k2i)
+        self.k1 = k1 is not None or 1 / k1i
+        self.k2 = k2 is not None or 1 / k2i
 
         self.rt = rt
         self.nt = nt
-        self.sn = sn or 1 / sni
+        self.sn = sn is not None or 1 / sni
 
     @property
     def is_valid(self) -> bool:
@@ -97,7 +97,7 @@ class StratifiedFireballModel(BaseFireballModel):
         Parameters
         ----------
         t : np.ndarray
-            The observer times [days since trigger].
+            The observer times [days].
 
         Returns
         -------
@@ -139,7 +139,7 @@ class StratifiedFireballModel(BaseFireballModel):
         Parameters
         ----------
         t : float or np.ndarray
-            The observer times [days since trigger].
+            The observer times [days].
 
         Returns
         -------

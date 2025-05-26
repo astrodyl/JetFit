@@ -91,13 +91,7 @@ scale = "log"
 [[model]]
 name  = "sj"
 scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = 0.1
-    upper = 0.4
-    initial_guess = 0.2
-    initial_sigma = 0.02
+value = 3.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------

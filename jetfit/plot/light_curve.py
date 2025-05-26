@@ -78,11 +78,11 @@ def map_groups(observation, gen_times):
     """"""
     group_map = {
         g: np.full(len(gen_times), False, dtype=bool)
-        for g in observation.data_groups
+        for g in observation.groups
     }
 
     for group in group_map:
-        group_times = observation.as_arrays.times[observation.data_groups[group]]
+        group_times = observation.as_arrays.times[observation.groups[group]]
 
         for i, t in enumerate(gen_times):
             if (group_times.min() - 1e-6) <= t <= (group_times.max() + 1e-6):
@@ -439,7 +439,7 @@ class LightCurvePlot:
                     sflux *= ext_model.extinguish((1 + z) / wavelength, Ebv=ebv_sf)
 
             # Add host galaxy contribution before Milky Way dust correction
-            filter_host = sdata.filter + '_host'
+            filter_host = sdata.band + '_host'
             if host_corr is not None and filter_host in host_corr:
                 sflux += host_corr[filter_host]
 
@@ -454,7 +454,7 @@ class LightCurvePlot:
                     sflux *= model.extinguish(1 / wavelength, Ebv=ebv_mw)
 
             # Plot the modeled spectral flux
-            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.0, color=OPTION_MAP[sdata.filter]['color'])
+            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.0, color=OPTION_MAP[sdata.band]['color'])
 
         # Plot the integrated flux for each t in `time`
         for idata in integrated_data:
@@ -470,7 +470,7 @@ class LightCurvePlot:
             sflux = (iflux_quant / idata.int_range.width).to_value('mJy')
 
             # Plot the modeled integrated flux as a spectral flux
-            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.0, color=OPTION_MAP[idata.filter]['color'])
+            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.0, color=OPTION_MAP[idata.band]['color'])
 
         self.ax.set_xlim(days_to_sec(times[0]/3), days_to_sec(times[-1]*1.5))
 

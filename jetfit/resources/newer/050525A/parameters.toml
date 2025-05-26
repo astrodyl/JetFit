@@ -53,7 +53,7 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.0
-    upper = 3.5
+    upper = 3.0
     initial_guess = 2.25
     initial_sigma = 0.25
 
@@ -65,7 +65,7 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -5.0
+    lower = -1.0
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -90,15 +90,6 @@ scale = "linear"
 value = 1.135
 
 #----------- EXTINCTION ------------
-#---------- Rv Milky Way -----------
-[[extinction]]
-name  = "rv_milky_way"
-scale = "log"
-
-[extinction.prior]
-    type  = "milkywayrv"
-
-#----------- EXTINCTION ------------
 #---------- source_frame -----------
 [[extinction]]
 name  = "ebv_source_frame"
@@ -114,7 +105,7 @@ scale = "linear"
 [[extinction]]
 name  = "ebv_milky_way"
 scale = "linear"
-value = 0.815
+value = 0.0815
 
 #----------- CALIBRATION -----------
 #-------------- V-band -------------

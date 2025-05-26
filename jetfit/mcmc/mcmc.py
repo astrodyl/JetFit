@@ -1,5 +1,4 @@
 import copy
-import os
 
 import emcee
 import numpy as np
@@ -153,6 +152,33 @@ class MCMC:
             progress=True
         )
 
+    def log_posterior(self, theta: np.array) -> float:
+        """
+        Calculates the natural log of the posterior
+        probability.
+
+        The posterior probability is the probability
+        of the parameters, `theta`, given the evidence
+        X denoted by p(theta | X).
+
+        Parameters
+        ----------
+        theta : np.ndarray of float
+            The sampled MCMC parameter values.
+
+        Returns
+        -------
+        float
+            The natural log of the posterior.
+        """
+        if np.isfinite(log_prior := self.log_prior(theta)):
+            log_likelihood = self.log_likelihood(theta)
+
+            if np.isfinite(log_likelihood):
+                return log_prior + log_likelihood
+
+        return -np.inf
+
     def log_prior(self, theta: np.ndarray[float]) -> float:
         """
         Evaluates the natural log of the priors.
@@ -211,44 +237,17 @@ class MCMC:
         # return log likelihood
         return -0.5 * self.chi_squared(modeled, self.slop(params))  # type: ignore
 
-    def log_posterior(self, theta: np.array) -> float:
-        """
-        Calculates the natural log of the posterior
-        probability.
-
-        The posterior probability is the probability
-        of the parameters, `theta`, given the evidence
-        X denoted by p(theta | X).
-
-        Parameters
-        ----------
-        theta : np.ndarray of float
-            The sampled MCMC parameter values.
-
-        Returns
-        -------
-        float
-            The natural log of the posterior.
-        """
-        if np.isfinite(log_prior := self.log_prior(theta)):
-            log_likelihood = self.log_likelihood(theta)
-
-            if np.isfinite(log_likelihood):
-                return log_prior + log_likelihood
-
-        return -np.inf
-
     def calibration_offsets(self, modeled, offsets) -> np.ndarray:
         """
         Applies calibration offsets to the modeled values.
 
         Parameters
         ----------
-        modeled : np.ndarray
+        modeled : np.ndarray of float
             The modeled values.
 
         offsets : dict
-            Key value pairs of `CalGroup` and offset values.
+            Key value pairs of `CalGroup` and offset values [mag].
 
         Returns
         -------
@@ -256,7 +255,7 @@ class MCMC:
             The modeled values with applied offsets.
         """
         if offsets is not None:
-            cal_pos = self.observation.cal_groups
+            cal_pos = self.observation.offsets
 
             for name, offset in offsets.items():
                 modeled[cal_pos[name]] *= 10.0 ** -(0.4 * offset)
@@ -289,7 +288,7 @@ class MCMC:
         # Multiple slops
         s = np.empty(self.observation.length)
 
-        for group, pos in self.observation.data_groups.items():
+        for group, pos in self.observation.groups.items():
             s[pos] = params.get(group).get('slop').get('slop')
 
         return s

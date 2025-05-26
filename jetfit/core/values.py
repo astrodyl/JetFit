@@ -19,8 +19,8 @@ class Bound:
     _upper : astropy.units.Quantity
         The upper bound.
 
-    self.value : tuple
-        The tuple of (lower, upper).
+    value : tuple
+        The tuple of (`lower`, `upper`).
     """
     def __init__(self, lower, upper):
         self._lower = None
@@ -155,6 +155,9 @@ class FluxBase:
     uncertainty : tuple of astropy.units.Quantity, default=(None, None)
         The lower and upper bounds of the flux measurement.
 
+    band : str, optional, default=None
+        The name of the observed band. Useful for plotting.
+
     Parameters
     ----------
     lower : astropy.units.Quantity, optional
@@ -169,12 +172,12 @@ class FluxBase:
             lower: u.Quantity,
             upper: u.Quantity,
             time: u.Quantity,
-            dfilter: str,
+            band: str = None,
     ):
         self.value = value
         self.time = time
         self.uncertainty = Bound(lower, upper)
-        self.filter = dfilter
+        self.band = band
 
     def copy(self):
         """ Returns a deepcopy of the object. """
@@ -258,6 +261,12 @@ class SpectralFlux(FluxBase):
     value : astropy.units.Quantity
         The flux value.
 
+    lower : astropy.units.Quantity
+        The lower uncertainty.
+
+    upper : astropy.units.Quantity
+        The upper uncertainty.
+
     time : astropy.units.Quantity, optional
         The time of the flux measurement.
 
@@ -266,12 +275,6 @@ class SpectralFlux(FluxBase):
 
     wavelength : astropy.units.Quantity
         The average band wavelength with units of length.
-
-    lower : astropy.units.Quantity, optional
-        The lower bound of the flux measurement.
-
-    upper : astropy.units.Quantity, optional
-        The upper bound of the flux measurement.
 
     Attributes
     ----------
@@ -286,11 +289,11 @@ class SpectralFlux(FluxBase):
             lower: u.Quantity,
             upper: u.Quantity,
             time: u.Quantity,
-            dfilter: str,
             frequency: u.Quantity = None,
-            wavelength: u.Quantity = None
+            wavelength: u.Quantity = None,
+            band: str = None,
     ):
-        super().__init__(value, lower, upper, time, dfilter)
+        super().__init__(value, lower, upper, time, band)
         self._frequency = None
         self._wavelength = None
 
@@ -332,16 +335,16 @@ class SpectralFlux(FluxBase):
             `Wave`: The frequency or wavelength,
             `WaveUnits`: The units of `Wave`.
 
+        Returns
+        -------
+        SpectralFlux
+            Populated from the CSV row.
+
         Raises
         ------
         IOError
             Catches any error within the method and redirects
             into an IOError containing the row number.
-
-        Returns
-        -------
-        SpectralFlux
-            Populated from the CSV row.
         """
         try:
             params = {
@@ -349,7 +352,7 @@ class SpectralFlux(FluxBase):
                 'lower': u.Quantity(row.ValueLower, row.ValueUnits),
                 'upper': u.Quantity(row.ValueUpper, row.ValueUnits),
                 'time': u.Quantity(row.Time, row.TimeUnits).to('d'),
-                'dfilter': row.Filter.strip()
+                'band': row.Filter.strip()
             }
 
             wave = u.Quantity(row.Wave, row.WaveUnits)
@@ -547,11 +550,11 @@ class IntegratedFlux(FluxBase, Integrable):
             lower: u.Quantity,
             upper: u.Quantity,
             time: u.Quantity,
-            dfilter: str,
             int_lower: u.Quantity,
             int_upper: u.Quantity,
+            band: str = None,
     ):
-        FluxBase.__init__(self, value, lower, upper, time, dfilter)
+        FluxBase.__init__(self, value, lower, upper, time, band)
         Integrable.__init__(self, int_lower, int_upper)
 
     def __repr__(self) -> str:
@@ -594,9 +597,9 @@ class IntegratedFlux(FluxBase, Integrable):
                 'lower': u.Quantity(row.ValueLower, row.ValueUnits),
                 'upper': u.Quantity(row.ValueUpper, row.ValueUnits),
                 'time': u.Quantity(row.Time, row.TimeUnits).to('d'),
-                'dfilter': row.Filter.strip(),
                 'int_lower': u.Quantity(row.WaveLower, row.WaveUnits),
                 'int_upper': u.Quantity(row.WaveUpper, row.WaveUnits),
+                'band': row.Filter.strip(),
             }
             return cls(**params)
 
@@ -629,9 +632,13 @@ class IntegratedFlux(FluxBase, Integrable):
         self._value = value
 
     @property
-    def frequency(self):
-        """ Returns the log average of the integration frequency. """
-        return (10 ** (0.5 * (np.log10(self.int_range.lower.value) + np.log10(self.int_range.upper.value)))) * self.int_range.lower.unit
+    def frequency(self) -> u.Quantity:
+        """ Returns the log average of the integration limits. """
+        log_avg = 0.5 * (
+            np.log10(self.int_range.lower.value) +
+            np.log10(self.int_range.upper.value)
+        )
+        return (10 ** log_avg) * self.int_range.lower.unit
 
     def to_spectral(self, unit: str | u.Unit = u.mJy) -> SpectralFlux:
         """
@@ -646,14 +653,14 @@ class IntegratedFlux(FluxBase, Integrable):
         Returns
         -------
         SpectralFlux
-            Converted from the integrated flux values.
+            The spectral flux [`unit`] equivalent.
         """
         return SpectralFlux(
             value=(self.value / self.int_range.width).to(unit),
             lower=(self.uncertainty.lower / self.int_range.width).to(unit),
             upper=(self.uncertainty.upper / self.int_range.width).to(unit),
             frequency=self.frequency,
-            dfilter=self.filter,
+            band=self.band,
             time=self.time
         )
 
@@ -685,7 +692,7 @@ class SpectralIndex(Integrable):
         The lower and upper bounds of the integration range.
     """
     type = DataType.SPECTRAL_INDEX
-    _int_type = u.Hz.physical_type
+    _int_type = u.Hz.physical_type  # type: ignore
 
     def __init__(
             self,

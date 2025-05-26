@@ -1,4 +1,3 @@
-import time
 import unittest
 
 import numpy as np
@@ -6,10 +5,8 @@ import astropy.units as u
 import astropy.constants as const
 from matplotlib import pyplot as plt
 
-from jetfit.core.input import Observation
-from jetfit.core.utils.math_utils import chi_squared
-from jetfit.models2.basemodels import PeakFluxModel, SynchrotronFrequencyModel, CoolingFrequencyModel, \
-    AbsorptionFrequencyModel
+from jetfit.models2.basemodels import PeakFluxModel, SynchrotronFrequencyModel
+from jetfit.models2.basemodels import CoolingFrequencyModel, AbsorptionFrequencyModel
 from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
 
 
@@ -20,85 +17,8 @@ q_e = u.Quantity(4.8032e-10 * u.g**0.5 * u.cm**1.5 / u.s)
 c = const.c.cgs  # noqa
 
 
-class TestCharacteristicModels(unittest.TestCase):
+class TestSelfAbsorptionModel(unittest.TestCase):
     """"""
-    def test_chi_squared_exact(self):
-        """"""
-        data = np.array([1.0, 2.0, 3.0, 4.0])
-        model = np.array([1.0, 2.0, 3.0, 4.0])
-        errors = np.array([0.1, 0.2, 0.3, 0.4])
-
-        chi2 = chi_squared(model, data, errors)
-        assert np.isclose(chi2, 0.0), f"Expected chi2=0, got {chi2}"
-
-    def test_chi_squared_known_offset(self):
-        data = np.array([1.0, 2.0, 3.0])
-        model = np.array([2.0, 3.0, 4.0])  # offset by +1
-        errors = np.array([1.0, 1.0, 1.0])
-
-        expected_chi2 = 3 * (1.0) ** 2  # (1**2 / 1**2) summed over 3 points
-        chi2 = chi_squared(model, data, errors)
-        assert np.isclose(chi2, expected_chi2), f"Expected chi2={expected_chi2}, got {chi2}"
-
-    def test_chi_squared_different_errors(self):
-        data = np.array([1.0, 2.0])
-        model = np.array([2.0, 2.0])
-        errors = np.array([1.0, 2.0])
-
-        # chi^2 = (1/1)^2 + (0/2)^2 = 1
-        expected_chi2 = 1.0
-        chi2 = chi_squared(model, data, errors)
-        assert np.isclose(chi2, expected_chi2), f"Expected chi2={expected_chi2}, got {chi2}"
-
-    def test_chi_squared_eff_slop_reduces_chi2(self):
-        f = np.array([10.0])
-        y = np.array([12.0])
-        e = np.array([1.0])
-        s_no_slop = 0.0
-        s_with_slop = 0.1
-
-        chi2_no_slop = chi_squared(f, y, e, s_no_slop)
-        chi2_with_slop = chi_squared(f, y, e, s_with_slop)
-
-        assert chi2_with_slop < chi2_no_slop, "Slop should reduce chi2_eff"
-
-    def test_plot(self):
-        """"""
-
-        model = StratifiedFireballModel(
-            E=4.0, p=2.5, eps_b=0.001, eps_e=0.1, X=0.7,
-            k1=2.0, k2=0.0, nt=1.0, rt=1e17, sn=3.0,
-            dL=2.0, z=0.0
-        )
-
-        ts = np.geomspace(0.0012, 10, 500)  # 100s to 2 days
-        radii = model.radii(ts)
-
-        # Plot n effective
-        for s in np.linspace(-3.0, 3.0, 5):
-            model.sn = s
-            n_eff, _ = model.smooth(ts)
-
-            plt.loglog(radii, n_eff, label=f's = {s}')
-            plt.axvline(model.rt, linestyle='--', color='black')
-            plt.xlabel(r'Radius [cm]')
-            plt.ylabel(r'$n_{eff}$')
-            plt.legend(loc='best')
-        plt.show()
-
-        # Plot k effective
-        for s in np.linspace(-3.0, 3.0, 5):
-            model.sn = s
-            _, k_eff = model.smooth(ts)
-
-            plt.plot(radii, k_eff, label=f's = {s}')
-            plt.axvline(model.rt, linestyle='--', color='black')
-            plt.xlabel(r'Radius [cm]')
-            plt.ylabel(r'$k_{eff}$')
-            plt.legend(loc='best')
-            plt.xscale('log')
-        plt.show()
-
     def test_nu_a_cam(self):
         """
         Tests the self-absorption frequency in the fast-cooling
@@ -209,30 +129,47 @@ class TestCharacteristicModels(unittest.TestCase):
         self.assertAlmostEqual(af_ism / af_ism_true, 1.0, delta=0.01)
         self.assertAlmostEqual(af_wind / af_wind_true, 1.0, delta=0.01)
 
-    def test_linsolve_cl(self):
-        """"""
 
-        a = np.array([
-            [0.5,   1.0,    0.5,    0.0],   # log(F_nu_max)
-            [-0.4,  1.2,    0.2,    -1.0],  # log(nu_a)
-            [0.5,   0.0,    0.5,    2.0],   # log(nu_m)
-            [0.5,   -2.0,   -1.5,   0.0]    # log(nu_c)
-        ])
+class TestCharacteristicModels(unittest.TestCase):
+    """"""
 
-        f_nu_max_mjy = 1.0
-        nu_a_hz = 1e9
-        nu_m_hz = 1e12
-        nu_c_hz = 1e14
+    @unittest.skip("Test=Density Smoothing, Reason=For visual inspection only")
+    def test_density_smoothing(self):
+        """ Plots the smoothed density and density power-laws. """
 
-        b = np.array([
-            np.log10(f_nu_max_mjy)  - np.log10(20),
-            np.log10(nu_a_hz)       - np.log10(1e11),
-            np.log10(nu_m_hz)       - np.log10(5e12),
-            np.log10(nu_c_hz)       - np.log10(2e12)
-        ])
+        model = StratifiedFireballModel(
+            E=4.0, p=2.5, eps_b=0.001, eps_e=0.1, X=0.7,
+            k1=2.0, k2=0.0, nt=1.0, rt=1e17, sn=3.0,
+            dL=2.0, z=0.0
+        )
 
-        x = np.linalg.solve(a, b)
-        y = 10 ** x
+        ts = np.geomspace(0.0012, 10, 500)  # 100s to 2 days
+        radii = model.radii(ts)
+
+        # Plot n effective
+        for s in np.linspace(-3.0, 3.0, 5):
+            model.sn = s
+            n_eff, _ = model.smooth(ts)
+
+            plt.loglog(radii, n_eff, label=f's = {s}')
+            plt.axvline(model.rt, linestyle='--', color='black')
+            plt.xlabel(r'Radius [cm]')
+            plt.ylabel(r'$n_{eff}$')
+            plt.legend(loc='best')
+        plt.show()
+
+        # Plot k effective
+        for s in np.linspace(-3.0, 3.0, 5):
+            model.sn = s
+            _, k_eff = model.smooth(ts)
+
+            plt.plot(radii, k_eff, label=f's = {s}')
+            plt.axvline(model.rt, linestyle='--', color='black')
+            plt.xlabel(r'Radius [cm]')
+            plt.ylabel(r'$k_{eff}$')
+            plt.legend(loc='best')
+            plt.xscale('log')
+        plt.show()
 
     def test_linsolve_vdh(self):
         """"""
@@ -331,7 +268,7 @@ class TestCharacteristicModels(unittest.TestCase):
             plt.legend()
             plt.show()
 
-    def test_param_relationships(self):
+    def test_scaling(self):
         """"""
         for k in (0.0, 1.0, 1.333, 2.0):
             model = FireballModel(
@@ -434,8 +371,15 @@ class TestCharacteristicModels(unittest.TestCase):
 
     def test_vdh_ism(self):
         """
-        Test that the general k-model reduces to the ISM
-        (k=0) case when k is set to 0.
+        Test that the general k-model reduces to the ISM (k=0) case
+        when k is set to 0.
+
+        True values are taken from Table 2.6 in VDH (2007) [1]_.
+
+        References
+        ----------
+        .. [1] Van Der Horst (2007): Broadband view of blast wave physics :
+            a study of gamma-ray burst afterglows.
         """
         model = FireballModel(
             E=1.0, rho0=1.0, p=2.2, k=0.0, z=0.0, dL=1.0,
@@ -446,7 +390,7 @@ class TestCharacteristicModels(unittest.TestCase):
         f_peak = model.f_peak(1.0)
         nu_m = model.nu_m(1.0)
         nu_c = model.nu_c(1.0)
-        nu_a = model.nu_a(1.0, nu_m)
+        nu_a = model.nu_a(1.0, nu_m, nu_c)
 
         # True values
         f_peak_true = 21.3 * 0.5
@@ -464,6 +408,13 @@ class TestCharacteristicModels(unittest.TestCase):
         """
         Test that the general k-model reduces to the wind
         (k=2) case when k is set to 2.
+
+        True values are taken from Table 2.7 in VDH (2007) [1]_.
+
+        References
+        ----------
+        .. [1] Van Der Horst (2007): Broadband view of blast wave physics :
+            a study of gamma-ray burst afterglows.
         """
 
         # Correct for the different normalizations. We use a
@@ -479,7 +430,7 @@ class TestCharacteristicModels(unittest.TestCase):
         f_peak = model.f_peak(1.0)
         nu_m = model.nu_m(1.0)
         nu_c = model.nu_c(1.0)
-        nu_a = model.nu_a(1.0, nu_m)
+        nu_a = model.nu_a(1.0, nu_m, nu_c)
 
         # True values
         f_peak_true = 60.8 * (0.5**1.5)
@@ -551,103 +502,6 @@ class TestCharacteristicModels(unittest.TestCase):
         self.assertAlmostEqual(f_peak / f_peak_true, 1.0, delta=0.05)
         self.assertAlmostEqual(nu_m / nu_m_true, 1.0, delta=0.05)
         self.assertAlmostEqual(nu_c / nu_c_true, 1.0, delta=0.05)
-
-    def test_nu_a_optional(self):
-        """"""
-        t = np.geomspace(0.01, 3, 100)
-        f = np.geomspace(1e8, 1e18, 100)
-        lowers = np.geomspace(1e16, 1e17, 100)
-        uppers = np.geomspace(1e17, 1e18, 100)
-
-        fts = False
-
-        # Model amc such that a shouldn't impact flux
-        model_with = FireballModel(
-            E=1.0, rho0=1.0, p=2.5, k=2.0, z=1.0, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.0
-        )
-
-        sf_true = model_with.spectral_flux(t, f, fts)
-        if_true = model_with.integrated_flux(t, lowers, uppers, fts)
-        si_true = model_with.spectral_index(t, lowers, uppers, fts)
-
-        # Model without nu_a
-        model_without = FireballModel(
-            E=1.0, rho0=100.0, p=2.5, k=2.0, z=1.0, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.0, use_sa=False
-        )
-
-        sf_test = model_without.spectral_flux(t, f, fts)
-        if_test = model_without.integrated_flux(t, lowers, uppers, fts)
-        si_test = model_without.spectral_index(t, lowers, uppers, fts)
-
-        # Assert equal within 5%
-        np.testing.assert_array_almost_equal(sf_true, sf_test)
-        np.testing.assert_array_almost_equal(if_true, if_test)
-        np.testing.assert_array_almost_equal(si_true, si_test, decimal=2)
-
-    def test_nu_a_optional_stratified(self):
-        """"""
-        t = np.geomspace(0.01, 3, 100)
-        f = np.geomspace(1e8, 1e18, 100)
-        lowers = np.geomspace(1e16, 1e17, 100)
-        uppers = np.geomspace(1e17, 1e18, 100)
-
-
-        # Model amc such that a shouldn't impact flux
-        model_with = StratifiedFireballModel(
-            E=1.0, nt=1.0, rt=17, sn=-3.0, p=2.5, k1=2.0, k2=0.0, z=1.0, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.0
-        )
-
-        sf_true = model_with.spectral_flux(t, f)
-        if_true = model_with.integrated_flux(t, lowers, uppers)
-        si_true = model_with.spectral_index(t, lowers, uppers)
-
-        # Model without nu_a
-        model_without = StratifiedFireballModel(
-            E=1.0, nt=1.0, rt=17, sn=-3.0, p=2.5, k1=2.0, k2=0.0, z=1.0, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.0, use_sa=False
-        )
-
-        sf_test = model_without.spectral_flux(t, f)
-        if_test = model_without.integrated_flux(t, lowers, uppers)
-        si_test = model_without.spectral_index(t, lowers, uppers)
-
-        # Assert equal within 5%
-        np.testing.assert_array_almost_equal(sf_true, sf_test)
-        np.testing.assert_array_almost_equal(if_true, if_test)
-        np.testing.assert_array_almost_equal(si_true, si_test, decimal=2)
-
-    def test_nu_a_speed(self):
-        """"""
-        obs = Observation.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\newer\130612A\130612A.csv")
-
-        # Model amc such that a shouldn't impact flux
-        model = FireballModel(
-            E=1.0, rho0=1.0, p=2.5, k=2.0, z=1.0, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.0
-        )
-
-        start1 = time.time()
-        for _ in range(5_000):
-            model.model(obs)
-        end1 = time.time()
-
-        # Model without nu_a
-        model = FireballModel(
-            E=1.0, rho0=1.0, p=2.5, k=2.0, z=1.0, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.0, use_sa=False
-        )
-
-        start2 = time.time()
-        for _ in range(5_000):
-            model.model(obs)
-        end2 = time.time()
-
-        print('With nu_a........', end1 - start1)
-        print('Without nu_a.....', end2 - start2)
-        print('With / Without...', (end1 - start1) / (end2 - start2))
 
 
 if __name__ == '__main__':

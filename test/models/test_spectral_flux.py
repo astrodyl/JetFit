@@ -7,6 +7,9 @@ from jetfit.models2.basemodels import SpectralFluxModel
 
 
 class TestSpectralFlux(unittest.TestCase):
+    """"""
+
+    @unittest.skip("Test=CAM, Reason=For visual inspection only")
     def test_CAM(self):
         """"""
         # Define the frequencies
@@ -53,6 +56,7 @@ class TestSpectralFlux(unittest.TestCase):
         plt.legend()
         plt.show()
 
+    @unittest.skip("Test=MAC, Reason=For visual inspection only")
     def test_MAC(self):
         """"""
         # Define the frequencies
@@ -81,9 +85,9 @@ class TestSpectralFlux(unittest.TestCase):
 
         # Annotation for each break
         b1, b2, b3 = model.spectral_indices()
-        plt.annotate(r'$\nu_m$', xy=(1.2 * nu_m[0], 1e-9), xytext=(1.2 * nu_m[0], 1e-9), fontsize=12)
-        plt.annotate(r'$\nu_a$', xy=(1.2 * nu_a[0], 1e-9), xytext=(1.2 * nu_a[0], 1e-9), fontsize=12)
-        plt.annotate(r'$\nu_c$', xy=(1.2 * nu_c[0], 1e-9), xytext=(1.2 * nu_c[0], 1e-9), fontsize=12)
+        plt.annotate(r'$\nu_m$', xy=(1.2 * nu_m[0], 1e-9), xytext=(1.2 * nu_m[0], 1e-9), fontsize=12)  # noqa
+        plt.annotate(r'$\nu_a$', xy=(1.2 * nu_a[0], 1e-9), xytext=(1.2 * nu_a[0], 1e-9), fontsize=12)  # noqa
+        plt.annotate(r'$\nu_c$', xy=(1.2 * nu_c[0], 1e-9), xytext=(1.2 * nu_c[0], 1e-9), fontsize=12)  # noqa
 
         # Plot the two
         plt.vlines(nu_m, ymin=0.0, ymax=f_peak * (nu_m / nu_a) ** ((p + 4) / 2), color='black', linestyle='--', alpha=0.6)
@@ -98,6 +102,7 @@ class TestSpectralFlux(unittest.TestCase):
         plt.legend()
         plt.show()
 
+    @unittest.skip("Test=AMC, Reason=For visual inspection only")
     def test_AMC(self):
         """
         Visual inspection of slow-cooling smoothing approximation.
@@ -136,6 +141,7 @@ class TestSpectralFlux(unittest.TestCase):
         plt.legend()
         plt.show()
 
+    @unittest.skip("Test=FTS, Reason=For visual inspection only")
     def test_fts_smoothing(self):
         """"""
         # Define the frequencies

@@ -30,7 +30,7 @@ class ObsArray:
         The errors associated with the measurement values.
         Measured in same units as its value.
 
-    times : np.ndarray of float64
+    times : np.ndarray of float
         The times associated with the measurements. Measured
         in days since trigger.
 
@@ -104,7 +104,7 @@ class ObsArray:
 
         Parameters
         ----------
-        data :
+        data : np.ndarray
             DataTypes `{SpectralIndex, SpectralFlux, IntegratedFlux}`
 
         Returns
@@ -116,7 +116,7 @@ class ObsArray:
         # Initializes info for all data types
         values = np.full(len(data), np.nan, dtype=np.float64)
         errors = np.full(len(data), np.nan, dtype=np.float64)
-        times  = np.full(len(data), np.nan, dtype=np.float64)
+        times  = np.full(len(data), np.nan, dtype=float)
         types  = np.full(len(data), np.nan, dtype=DataType)
         extinguishable = np.full(len(data), False, dtype=bool)
 
@@ -140,7 +140,7 @@ class ObsArray:
             types[i] = f.type
 
             if f.type != DataType.SPECTRAL_INDEX:
-                filters[i] = f.filter
+                filters[i] = f.band
 
                 # TODO: Temp use CCM range
                 if 9e13 <= f.frequency.to_value('Hz') <= 2.99e15:
@@ -185,18 +185,28 @@ class Observation:
     """
     Time series of flux measurements.
 
-    Attributes
+    Parameters
     ----------
-    ??
+    data : np.ndarray of SpectralFlux, IntegratedFlux, SpectralIndex
+        The observational data.
+
+    offsets : dict, optional
+        <offset names> : <np.ndarray of where to apply offset>.
+
+    hosts : dict, optional
+        <host names> : <np.ndarray of where to apply host correction>.
+
+    groups : dict, optional
+        <group names> : <np.ndarray of where the group is defined>.
     """
-    def __init__(self, data, offsets=None, host=None, groups=None):
+    def __init__(self, data, offsets=None, hosts=None, groups=None):
         self._as_arrays = ObsArray.from_data(data)
         self._data = data
 
         # Groups
-        self.cal_groups = offsets
-        self.data_groups = groups
-        self.host_groups = host
+        self.offsets = offsets
+        self.groups = groups
+        self.hosts = hosts
 
         self.data_regimes = {}
 
