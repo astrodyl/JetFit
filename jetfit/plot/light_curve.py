@@ -115,9 +115,9 @@ class FrequencyPlot:
 
         self.ax = ax
 
-    def plot(self, model, obs, out_dir=None, show=False, **model_kw):
+    def plot(self, model, obs, out_dir=None, show=False, model_kw=None):
         """"""
-        self.plot_frequencies(model, obs, **model_kw)
+        self.plot_frequencies(model, obs, model_kw)
         self.plot_data(obs)
 
         if show:
@@ -126,8 +126,10 @@ class FrequencyPlot:
         if out_dir is not None:
             plt.savefig(out_dir / 'frequency_dist.png', dpi=600)
 
-    def plot_frequencies(self, model, obs, **model_kw):
+    def plot_frequencies(self, model, obs, model_kw):
         """"""
+        if model_kw is None:
+            model_kw = {}
 
         def model_frequencies(p: dict):
             """ Model the critical frequencies using data groups. """
@@ -186,7 +188,8 @@ class FrequencyPlot:
             # Finally plot them.
             self.ax.loglog(times, nu_ms, color='blue',   alpha=0.1)
             self.ax.loglog(times, nu_cs, color='orange', alpha=0.1)
-            self.ax.loglog(times, nu_as, color='green',  alpha=0.1)
+            if nu_as is not None:
+                self.ax.loglog(times, nu_as, color='green',  alpha=0.1)
 
         best_params = get_best_params(self.sampler, self.parameters, cat='model')
         best_nu_ms, best_nu_cs, best_nu_as = model_frequencies(best_params)
@@ -194,10 +197,15 @@ class FrequencyPlot:
         # Plot best frequencies
         self.ax.loglog(times, best_nu_ms, color='purple', linewidth=2)
         self.ax.loglog(times, best_nu_cs, color='red',    linewidth=2)
-        self.ax.loglog(times, best_nu_as, color='green',  linewidth=2)
 
-    def plot_best(self, obs, model, out_dir=None, **model_kw):
+        if best_nu_as is not None:
+            self.ax.loglog(times, best_nu_as, color='green',  linewidth=2)
+
+    def plot_best(self, obs, model, out_dir=None, model_kw=None):
         """"""
+        if model_kw is None:
+            model_kw = {}
+
         _, ax = plt.subplots()
 
         def model_frequencies(p: dict):
@@ -240,7 +248,8 @@ class FrequencyPlot:
         # Include indices in label
         ax.loglog(times, nu_ms, color='blue', label=r'$\nu_{m}$')
         ax.loglog(times, nu_cs, color='orange', label=r'$\nu_{c}$')
-        ax.loglog(times, nu_as, color='green', label=r'$\nu_{a}$')
+        if nu_as is not None:
+            ax.loglog(times, nu_as, color='green', label=r'$\nu_{a}$')
 
         # Plot horizontal lines roughly corresponding to optical/xray
         plt.axhline(y=5e14, color='green', linewidth=10, alpha=0.5)
@@ -281,10 +290,11 @@ class FrequencyPlot:
 
 class LightCurvePlot:
     """"""
-    def __init__(self, model, params, observation, title='Light Curve'):
+    def __init__(self, model, params, observation, meta=None, title='Light Curve'):
         self.model = model
         self.params = params
         self.observation = observation
+        self.meta = meta if meta is not None else {}
 
         self.ax = None
         self._set_axes(title)
@@ -362,7 +372,7 @@ class LightCurvePlot:
                     afterglow_model = self.model(**model_params)
                     modeled[pos] = afterglow_model.spectral_flux(times[pos], freq)
             else:
-                afterglow_model = self.model(**p.get('model'))
+                afterglow_model = self.model(**p.get('model'), **self.meta)
 
                 # fts check
                 fts = has_fts_transition(
@@ -382,10 +392,10 @@ class LightCurvePlot:
 
                 for group, pos in groups.items():
                     model_params = p.get(group).get('model')
-                    afterglow_model = self.model(**model_params)
+                    afterglow_model = self.model(**model_params, **self.meta)
                     modeled[pos] = afterglow_model.integrated_flux(times[pos], low, upp)
             else:
-                afterglow_model = self.model(**p.get('model'))
+                afterglow_model = self.model(**p.get('model'), **self.meta)
 
                 # fts check
                 fts = has_fts_transition(
@@ -508,7 +518,7 @@ class LightCurvePlot:
                 else:
                     # Assumes error is 3-sigma limit
                     flux.append(d.uncertainty.center.to_value('mJy') * 3)
-                    errors.append(d.uncertainty.center.to_value('mJy'))
+                    errors.append(0.0)
 
             # Handle options
             ms = 0.6 if OPTION_MAP[dfilter]['marker'] != '.' else 3.0

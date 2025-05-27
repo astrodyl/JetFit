@@ -365,8 +365,11 @@ class ObservedSpectrumModel:
 
     jet : JetBreakModel, optional
         The jet break spectrum and smoothing parameters.
+
+    sharp : bool, optional, default=True
+        Model the flux with a smoothly broken power law?
     """
-    def __init__(self, nu_m, nu_c, f_peak, p, k, arrays, nu_a=None, fts=None, jet=None):
+    def __init__(self, nu_m, nu_c, f_peak, p, k, arrays, nu_a=None, fts=None, jet=None, sharp=False):
         self.nu_a = nu_a
         self.nu_m = nu_m
         self.nu_c = nu_c
@@ -375,6 +378,7 @@ class ObservedSpectrumModel:
         self.k = k
 
         self.arrays = arrays
+        self.sharp = sharp
         self.has_fts = has_fts_transition(
             self.nu_m, self.nu_c) if fts is None else fts
         self.jet = jet
@@ -439,7 +443,7 @@ class ObservedSpectrumModel:
         jet = self.jet.subset(mask) if self.jet else None
 
         return SpectralFluxModel(**self.spectrum(mask))(
-            self.arrays.frequencies[mask], self.has_fts, jet
+            self.arrays.frequencies[mask], self.has_fts, jet, self.sharp
         )
 
     def integrated_flux(self, mask):
@@ -461,7 +465,7 @@ class ObservedSpectrumModel:
         return IntegratedFluxModel(**self.spectrum(mask))(
             self.arrays.if_lower_freqs[mask],
             self.arrays.if_upper_freqs[mask],
-            self.has_fts, jet
+            self.has_fts, jet, self.sharp
         )
 
     def spectral_index(self, mask):
@@ -483,7 +487,7 @@ class ObservedSpectrumModel:
         return SpectralIndexModel(**self.spectrum(mask))(
             self.arrays.si_lower_freqs[mask],
             self.arrays.si_upper_freqs[mask],
-            self.has_fts, jet
+            self.has_fts, jet, self.sharp
         )
 
     def spectrum(self, mask=None):
@@ -604,14 +608,14 @@ class BaseFireballModel:
     # noinspection PyPep8Naming
     @property
     def E(self) -> float:
-        """ Returns the explosion energy normalized to 10e52 ergs. """
+        """ Returns the explosion energy normalized to 1e52 ergs. """
         return self._E
 
     # noinspection PyPep8Naming
     @E.setter
     def E(self, e: float | u.Quantity) -> None:
         """
-        Sets the explosion energy normalized to 10e52 ergs.
+        Sets the explosion energy normalized to 1e52 ergs.
 
         Parameters
         ----------
@@ -651,7 +655,7 @@ class BaseFireballModel:
         # Smoothing parameters are unstable around 0
         if self.sj is not None and abs(self.sj) <= 0.1:
             return False
-        return (self.eps_b + self.eps_e) < 1.0 and self.p > 2
+        return (self.eps_b + self.eps_e) < 1.0
 
     def spectrum(self, *args, **kwargs):
         """ Placeholder. """
@@ -681,8 +685,8 @@ class BaseFireballModel:
 
         Parameters
         ----------
-        t : float or np.ndarray of float u.Quantity['time']
-            The observer times measured in days since trigger.
+        t : float or np.ndarray of float
+            The observer times [d].
 
         f : float or np.ndarray of float
             The average band frequencies.
@@ -1114,7 +1118,34 @@ class SpectralFluxModel(BaseFluxModel):
         """
         return self.evaluate(val.frequency.value)
 
-    def evaluate(self, nu, fts=False, jet=None):
+    def evaluate_sharp(self, nu, jet=None):
+        """ WIP. Ignores self-absorption. """
+        nu = np.atleast_1d(nu)
+        nu12, nu23 = self.spectral_breaks()
+        b1, b2, b3 = self.spectral_indices()
+
+        res = np.full(nu12.size, self.f_peak)
+
+        if nu.size == 1 and nu12.size != 1:
+            nu = np.full(nu12.size, nu[0])
+
+        # Segment boundaries
+        seg0 = nu <= nu12
+        seg1 = (nu > nu12) & (nu < nu23)
+        seg2 = nu >= nu23
+
+        # Power-law segments
+        res[seg0] *= (nu[seg0] / nu12[seg0]) ** b1[seg0]
+        res[seg1] *= (nu[seg1] / nu12[seg1]) ** b2[seg1]
+        res[seg2] *= (nu23[seg2] / nu12[seg2]) ** b2[seg2] * (nu[seg2] / nu23[seg2]) ** b3[seg2]
+
+        # Smooth across the jet break
+        if jet is not None:
+            res = jet.smooth(res, nu)  # type: ignore
+
+        return res[0] if res.size == 1 else res
+
+    def evaluate(self, nu, fts=False, jet=None, sharp=False):
         """
         Calculates the smoothed flux for frequency, `nu`.
 
@@ -1144,12 +1175,18 @@ class SpectralFluxModel(BaseFluxModel):
         jet : JetBreakModel, optional
             Smooths the flux across the jet break.
 
+        sharp : bool, optional, default=False
+            Model the spectrum using sharply broken power laws?
+
         Returns
         -------
         float or np.ndarray of float
             The modeled smoothed spectral flux [mJy].
         """
         nu = np.atleast_1d(nu)
+
+        if sharp:
+            return self.evaluate_sharp(nu, jet)
 
         # Get stuff done
         nu12, nu23 = self.spectral_breaks()
@@ -1175,7 +1212,7 @@ class SpectralFluxModel(BaseFluxModel):
             flux = self.correct_mac_flux(flux, b2a)
 
         if self.cam is not None and self.cam.any():
-            flux = self.correct_cam_flux(flux, nu)  # noqa
+            flux = self.correct_cam_flux(flux, nu)  # type: ignore
 
         # Smooth across the jet break
         if jet is not None:
@@ -1212,7 +1249,7 @@ class SpectralFluxModel(BaseFluxModel):
 
     def correct_cam_flux(self, flux, nu):
         """
-        Adjusts the flux at `nu` > `nu_a` that accounts
+        Adjusts the flux at ``nu`` > ``nu_a`` that accounts
         for the electron pile at low frequencies.
 
         Parameters
@@ -1272,7 +1309,7 @@ class IntegratedFluxModel(BaseFluxModel):
             upper=val.int_range.upper.value
         )
 
-    def evaluate(self, lower, upper, fts=False, jet=None):
+    def evaluate(self, lower, upper, fts=False, jet=None, sharp=False):
         """
         Evaluates the integrated flux model using the
         `lower` and `upper` integration limits.
@@ -1291,6 +1328,9 @@ class IntegratedFluxModel(BaseFluxModel):
         jet : JetBreakModel, optional, default=None
             Smooths the flux across the jet break.
 
+        sharp : bool, optional, default=False
+            Model the spectrum using sharply broken power laws?
+
         Returns
         -------
         float or np.ndarray of float
@@ -1298,11 +1338,11 @@ class IntegratedFluxModel(BaseFluxModel):
         """
         beta = SpectralIndexModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a
-        ).evaluate(lower, upper, fts, jet)
+        ).evaluate(lower, upper, fts, jet, sharp)
 
         flux = SpectralFluxModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a
-        ).evaluate(lower, fts, jet)
+        ).evaluate(lower, fts, jet, sharp)
 
         # return the smoothed integrated flux [erg cm-2 s-1]
         return 1e-26 * (
@@ -1342,7 +1382,7 @@ class SpectralIndexModel(BaseFluxModel):
             upper=val.int_range.upper.value,
         )
 
-    def evaluate(self, lower, upper, fts=False, jet=None):
+    def evaluate(self, lower, upper, fts=False, jet=None, sharp=False):
         """
         Approximates the spectral index using a two
         point approximation.
@@ -1361,6 +1401,9 @@ class SpectralIndexModel(BaseFluxModel):
         jet : JetBreakModel, optional, default=None
             Smooths the flux across the jet break.
 
+        sharp : bool, optional, default=False
+            Model the spectrum using sharply broken power laws?
+
         Returns
         -------
         float or np.ndarray of float
@@ -1371,7 +1414,10 @@ class SpectralIndexModel(BaseFluxModel):
 
         # return the spectral index [dimension less]
         return (
-            np.log10(model(upper, fts, jet) / model(lower, fts, jet)) /
+            np.log10(
+                model(upper, fts, jet, sharp) /
+                model(lower, fts, jet, sharp)
+            ) /
             np.log10(upper / lower)
         )
 

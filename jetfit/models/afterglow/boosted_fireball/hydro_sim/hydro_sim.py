@@ -14,8 +14,8 @@ class HydroSimTable:
     Attributes
     ----------
     path : str or Path
-        Path to the Boosted Fireball hydrodynamic simulation table that is
-        described in [1]_.
+        Path to the Boosted Fireball hydrodynamic simulation table
+        that is described in [1]_.
 
     peak_fluxes : `scipy.interpolate.RegularGridInterpolator`
         Rectangular grid of peak flux values.
@@ -30,10 +30,10 @@ class HydroSimTable:
 
     References
     ----------
-    .. [1] Y. Wu & A. MacFadyen, "Constraining the Outflow Structure of
-           the Binary Neutron Star Merger Event GW170817/GRB170817A with a
-           Markov Chain Monte Carlo Analysis," The Astrophysical Journal,
-           vol. 869, pp. 55-65, 2018.
+    .. [1] Y. Wu & A. MacFadyen, "Constraining the Outflow Structure
+        of the Binary Neutron Star Merger Event GW170817/GRB170817A
+        with a Markov Chain Monte Carlo Analysis," The Astrophysical
+        Journal, vol. 869, pp. 55-65, 2018.
     """
     spectral_scale = ScaleType.LN
     spectral_axes = ('f_peak', 'f_nu_c', 'f_nu_m')
@@ -47,8 +47,9 @@ class HydroSimTable:
         Parameters
         ----------
         load : bool, optional
-            If `True`, loads the table upon instantiation. If `False`, the
-            table can be loaded at a later time by calling the load() method.
+            If `True`, loads the table upon instantiation. If `False`,
+            the table can be loaded at a later time by calling the
+            load() method.
         """
         self.path = path
         self.peak_fluxes = None

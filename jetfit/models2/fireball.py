@@ -71,12 +71,12 @@ class StratifiedFireballModel(BaseFireballModel):
             raise ValueError("Must specify either sn or sni.")
 
         # Medium
-        self.k1 = k1 is not None or 1 / k1i
-        self.k2 = k2 is not None or 1 / k2i
+        self.k1 = k1 if k1 is not None else 1 / k1i
+        self.k2 = k2 if k2 is not None else 1 / k2i
 
         self.rt = rt
         self.nt = nt
-        self.sn = sn is not None or 1 / sni
+        self.sn = (sn or 1 / sni) if (sn or sni) else None
 
     @property
     def is_valid(self) -> bool:

@@ -67,6 +67,16 @@ def main(
         model = StratifiedFireballModel
     else:
         model = FireballModel
+        # model = BoostedFireballModel
+
+    if model.__name__ == 'BoostedFireballModel':
+        meta = {
+            'hydro_sim_table': HydroSimTable(
+                nav_utils.get_hydro_sim_table_path()
+            )
+        }
+    else:
+        meta = None
 
     # -----------------------------------------------------------------
     # ---------------------- Observed Flux Model ----------------------
@@ -107,7 +117,8 @@ def main(
         model=observed_flux_model,
         observation=observation,
         parameters=parameters,
-        backend=backend
+        backend=backend,
+        meta=meta
     )
     mcmc.run()
 
@@ -156,12 +167,14 @@ def main(
     fp.plot(
         model=observed_flux_model.afterglow_model,
         obs=observation,
-        out_dir=results_dir
+        out_dir=results_dir,
+        model_kw=meta,
     )
     fp.plot_best(
         model=observed_flux_model.afterglow_model,
         obs=observation,
-        out_dir=results_dir
+        out_dir=results_dir,
+        model_kw=meta,
     )
 
     # Plot light curve
@@ -170,6 +183,7 @@ def main(
         params=best_params,
         observation=observation,
         title=f'{event} Light Curve',
+        meta=meta
     )
     lc.plot(
         out_dir=results_dir,
@@ -248,7 +262,7 @@ if __name__ == "__main__":
             # '090424',
             # '090618',
             '111228A',
-            # '130612A',
+            '130612A',
             # '131030A',
             # '140506A',
             '160131A',
