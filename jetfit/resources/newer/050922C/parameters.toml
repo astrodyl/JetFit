@@ -49,6 +49,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
+    initial_guess = -1.0
+    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #---------------- p ----------------
@@ -107,6 +109,8 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.4
+    initial_guess = 0.15
+    initial_sigma = 0.03
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
