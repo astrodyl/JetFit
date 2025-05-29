@@ -655,7 +655,7 @@ class BaseFireballModel:
         # Smoothing parameters are unstable around 0
         if self.sj is not None and abs(self.sj) <= 0.1:
             return False
-        return (self.eps_b + self.eps_e) < 1.0
+        return ((self.eps_b + self.eps_e) < 1.0) and (self.p >= 2.0)
 
     def spectrum(self, *args, **kwargs):
         """ Placeholder. """

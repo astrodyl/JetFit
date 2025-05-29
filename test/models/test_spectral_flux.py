@@ -108,7 +108,9 @@ class TestSpectralFlux(unittest.TestCase):
         Visual inspection of slow-cooling smoothing approximation.
         """
         # Define the frequencies
-        nu_a, nu_m, nu_c = 6e9, 2e11, 5e12
+        nu_a = np.full(500, 6e9)
+        nu_m = np.full(500, 2e11)
+        nu_c = np.full(500, 5e12)
         nu = np.geomspace(1e8, 1e18, 500)
 
         # Define other
@@ -128,9 +130,9 @@ class TestSpectralFlux(unittest.TestCase):
 
         # Calculate the sharply-broken flux
         flux = np.empty(nu.size)
-        flux[seg_f] = f_peak * (nu[seg_f] / nu_m) ** b1
-        flux[seg_g] = f_peak * (nu[seg_g] / nu_m) ** b2
-        flux[seg_h] = f_peak * (nu_c / nu_m) ** b2 * (nu[seg_h] / nu_c) ** b3
+        flux[seg_f] = f_peak * (nu[seg_f] / nu_m[seg_f]) ** b1[seg_f]
+        flux[seg_g] = f_peak * (nu[seg_g] / nu_m[seg_g]) ** b2[seg_g]
+        flux[seg_h] = f_peak * (nu_c[seg_h] / nu_m[seg_h]) ** b2[seg_h] * (nu[seg_h] / nu_c[seg_h]) ** b3[seg_h]
 
         # Plot the two
         plt.vlines(nu_m, ymin=0.0, ymax=f_peak, color='black', linestyle='--', alpha=0.6)

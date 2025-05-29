@@ -8,52 +8,19 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -4.0
-    upper = 2.0
+    lower = 1.0
+    upper = 4.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
 [[model]]
-name  = "n0"
+name  = "rho0"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-
-#-------------- MODEL --------------
-#-------------- eta --------------
-[[model]]
-name  = "eta"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = 2.0
-    upper = 10.0
-
-#-------------- MODEL --------------
-#-------------- gamma_b --------------
-[[model]]
-name  = "gamma_b"
-scale = "linear"
-
-[model.prior]
-    type  = "uniform"
-    lower = 1.0
-    upper = 12.0
-
-#-------------- MODEL --------------
-#-------------- theta_obs --------------
-[[model]]
-name  = "theta_obs"
-scale = "linear"
-
-[model.prior]
-    type  = "sine"
-    lower = 0.0
-    upper = 1.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -63,7 +30,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -3.5
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -87,29 +54,42 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.25
-    initial_sigma = 0.25
+    initial_guess = 2.02
+    initial_sigma = 0.03
+
+#-------------- MODEL --------------
+#---------------- k ----------------
+[[model]]
+name  = "k"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = -4.0
+    upper = 0.8
+    initial_guess = 0.09
+    initial_sigma = 0.3
+
+#-------------- MODEL --------------
+#---------------- X ----------------
+[[model]]
+name  = "X"
+scale = "linear"
+value = 0.7
 
 #-------------- MODEL --------------
 #---------------- z ----------------
 [[model]]
 name  = "z"
 scale = "linear"
-value = 2.006
+value = 6.318
 
 #-------------- MODEL --------------
 #---------------- dL ---------------
 [[model]]
-name  = "dL28"
+name  = "dL"
 scale = "linear"
-value = 4.94
-
-#-------------- MODEL --------------
-#---------------- zeta ---------------
-[[model]]
-name  = "zeta"
-scale = "linear"
-value = 1.0
+value = 18.70
 
 #----------- EXTINCTION ------------
 #---------- source_frame -----------
@@ -120,47 +100,80 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.4
+    upper = 0.17
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
 [[extinction]]
 name  = "ebv_milky_way"
 scale = "linear"
-value = 0.0647
-
-#----------- CALIBRATION -----------
-#-------------- V-band -------------
-[[offsets]]
-name  = "V_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.3
-
-#----------- CALIBRATION -----------
-#-------------- R-band -------------
-[[offsets]]
-name  = "R_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.3
+value = 0.0298
 
 #----------- CALIBRATION -----------
 #-------------- I-band -------------
 [[offsets]]
-name  = "I_offset"
+name  = "Ic_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 2.4
+
+#----------- CALIBRATION -----------
+#-------------- J-band -------------
+[[offsets]]
+name  = "J_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
-    sigma = 0.3
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#-------------- H-band -------------
+[[offsets]]
+name  = "H_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.05
+
+#----------- CALIBRATION -----------
+#-------------- K-band -------------
+[[offsets]]
+name  = "K_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu = 0.0
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#-------------- i-band -------------
+[[offsets]]
+name  = "i_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "uniform"
+    lower = 1.0
+    upper = 4.5
+
+#----------- CALIBRATION -----------
+#-------------- z-band -------------
+[[offsets]]
+name  = "z_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "uniform"
+    lower = -0.5
+    upper = 1.6
 
 #--------------- SLOP --------------
 #--------------- slop --------------
@@ -171,4 +184,4 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.1
+    upper = 0.15

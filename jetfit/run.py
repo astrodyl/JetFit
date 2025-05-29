@@ -206,32 +206,32 @@ def main(
     # -----------------------------------------------------------------
     # -------------------------- DIAGNOSTICS --------------------------
     # -----------------------------------------------------------------
-    # import arviz as az
-    # az.style.use("arviz-darkgrid")
+    import arviz as az
+    az.style.use("arviz-darkgrid")
     # backend = emcee.backends.HDFBackend(r"C:\Projects\repos\JetFit\jetfit\results\080413B\080413B_chain.h5", read_only=True)
     # inf_data = az.from_emcee(backend, var_names=[p.name for p in mcmc.params.fitting])
     # az.plot_trace(inf_data)
     # plt.savefig(results_dir / "trace.png")
 
-    # inf_data = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.params.fitting])
-    # inf_data_burn = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.params.fitting])
+    inf_data = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.params.fitting])
+    inf_data_burn = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.params.fitting])
 
     # Save summary statistics to a csv
-    # az.summary(inf_data).to_csv(results_dir / "summary.csv")
+    az.summary(inf_data).to_csv(results_dir / "summary.csv")
 
     # Plot the trace plot
-    # az.plot_trace(inf_data)
-    # plt.savefig(results_dir / "trace.png")
+    az.plot_trace(inf_data)
+    plt.savefig(results_dir / "trace.png")
 
     # Plot the burn-in trace plot
-    # az.plot_trace(inf_data_burn)
-    # plt.savefig(results_dir / "trace_burn.png")
+    az.plot_trace(inf_data_burn)
+    plt.savefig(results_dir / "trace_burn.png")
 
-    try:  # Optional stats
-        print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
-        print(f"Autocorrelation........{mcmc.sampler.acor}\n")
-    except Exception as e:
-        pass
+    # try:  # Optional stats
+    #     print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
+    #     print(f"Autocorrelation........{mcmc.sampler.acor}\n")
+    # except Exception as e:
+    #     pass
 
     plt.close()
     print(f'AMPy completed modeling of {event} successfully.')
@@ -250,7 +250,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'final'
+    sub_dir = 'grbs'
 
     if args.event is None:
         # Specify the events to run
@@ -261,15 +261,15 @@ if __name__ == "__main__":
             # '080319B_nature_mix',
             # '090424',
             # '090618',
-            '111228A',
+            # '111228A',
             '130612A',
             # '131030A',
             # '140506A',
-            '160131A',
-            '171010A',
-            '210905A',
-            '220101A',
-            '221009A',
+            # '160131A',
+            # '171010A',
+            # '210905A',
+            # '220101A',
+            # '221009A',
         ]
     else:
         events = [args.event]

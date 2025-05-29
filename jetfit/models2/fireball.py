@@ -2,10 +2,9 @@ import numpy as np
 import astropy.units as u
 
 from jetfit.core.input import Observation
-from jetfit.models2.basemodels import IntegratedFluxModel, SpectralIndexModel, BlastWaveModel, \
-    ObservedSpectrumModel, JetBreakModel
+from jetfit.models2.basemodels import BlastWaveModel, ObservedSpectrumModel
 from jetfit.models2.basemodels import AbsorptionFrequencyModel, BaseFireballModel
-from jetfit.models2.basemodels import SynchrotronFrequencyModel, SpectralFluxModel
+from jetfit.models2.basemodels import SynchrotronFrequencyModel
 from jetfit.models2.basemodels import CoolingFrequencyModel, PeakFluxModel
 
 # ignore `dust_extinction` user warnings

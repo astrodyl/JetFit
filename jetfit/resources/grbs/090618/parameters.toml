@@ -57,9 +57,9 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.15
-    upper = 2.4
-    initial_guess = 2.27
-    initial_sigma = 0.2
+    upper = 3.0
+    initial_guess = 2.25
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -68,10 +68,8 @@ name  = "k"
 scale = "linear"
 [model.prior]
     type  = "uniform"
-    lower = -10.0
-    upper = 1.0
-    initial_guess = -6.17
-    initial_sigma = 3.5
+    lower = -1.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #------------ tj (days) ------------
@@ -185,4 +183,4 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.03
+    upper = 0.1

@@ -2,6 +2,7 @@ import time
 import unittest
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from jetfit.core.utils import nav_utils
 from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSimTable
@@ -40,26 +41,65 @@ class MyTestCase(unittest.TestCase):
             sfs, [0.0, 0.0, 0.0, 3.82635597e+14, 3.82635597e+14, 3.82635597e+14], strict=True
         )
 
-    @unittest.skip("Only for performance purposes")
+    # @unittest.skip("Only for performance purposes")
     def test_timing(self):
         """"""
-        start = time.time()
-        for _ in range(1000):
-            pfs, cfs, sfs = (self.hydro_sim_table.get_characteristics_at(self.position))
-        end = time.time()
+        times = np.geomspace(1e-2, 20, 500)
 
-        start2 = time.time()
-        for _ in range(1000):
-            chars = (self.hydro_sim_table.get_combined_characteristics(self.position))
-            pfs2, cfs2, sfs2 = chars[:, 0], chars[:, 1], chars[:, 2]
-        end2 = time.time()
+        pos = np.array([[np.log(t), 10.0, 20.0, 0.0] for t in (times * 86400)])
+        pfs, cfs, sfs = (self.hydro_sim_table.get_characteristics_at(pos))
 
-        np.testing.assert_allclose(pfs, pfs2)
-        np.testing.assert_allclose(cfs, cfs2)
-        np.testing.assert_allclose(sfs, sfs2)
+        pos2 = np.array([[np.log(t), 10.0, 10.0, 0.0] for t in (times * 86400)])
+        pfs2, cfs2, sfs2 = (self.hydro_sim_table.get_characteristics_at(pos2))
 
-        print(end - start)
-        print(end2 - start2)
+        pos3 = np.array([[np.log(t), 10.0, 20.0, 0.03] for t in (times * 86400)])
+        pfs3, cfs3, sfs3 = (self.hydro_sim_table.get_characteristics_at(pos3))
+
+        pos = np.array([[np.log(t), 10.0, 5.0, 0.0] for t in (times * 86400)])
+        pfs4, cfs4, sfs4 = (self.hydro_sim_table.get_characteristics_at(pos))
+
+        plt.loglog(times, sfs, label=r'$\theta_{0}$ ' + f'= 0.05, ' + r'$\theta_{obs} $' + f'= 0', color='red')
+        plt.loglog(times, sfs3, label=r'$\theta_{0}$ ' + f'= 0.05, ' + r'$\theta_{obs} $' + f'= 0.6' + r'$\theta_0$', color='red', linestyle='--')
+        plt.loglog(times, sfs2, label=r'$\theta_{0}$ ' + f'= 0.1, ' + r'$\theta_{obs} $' + f'= 0', color='blue')
+        plt.loglog(times, sfs4, label=r'$\theta_{0}$ ' + f'= 0.2, ' + r'$\theta_{obs} $' + f'= 0', color='green')
+        plt.title('RHD Unscaled Synchrotron Frequency')
+        plt.xlabel(r'$\tau$ (days)')
+        plt.ylabel(r'$f_m$ (Hz)')
+        plt.legend()
+        plt.show()
+
+        plt.loglog(times, cfs, label=r'$\theta_{0}$ ' + f'= 0.05, ' + r'$\theta_{obs} $' + f'= 0', color='red')
+        plt.loglog(times, cfs3, label=r'$\theta_{0}$ ' + f'= 0.05, ' + r'$\theta_{obs} $' + f'= 0.6' + r'$\theta_0$', color='red', linestyle='--')
+        plt.loglog(times, cfs2, label=r'$\theta_{0}$ ' + f'= 0.1, ' + r'$\theta_{obs} $' + f'= 0', color='blue')
+        plt.loglog(times, cfs4, label=r'$\theta_{0}$ ' + f'= 0.2, ' + r'$\theta_{obs} $' + f'= 0', color='green')
+        plt.title('RHD Unscaled Cooling Frequency')
+        plt.xlabel(r'$\tau$ (days)')
+        plt.ylabel(r'$f_c$ (Hz)')
+        plt.legend()
+        plt.show()
+
+        plt.loglog(times, pfs, label=r'$\theta_{0}$ ' + f'= 0.05, ' + r'$\theta_{obs} $' + f'= 0', color='red')
+        plt.loglog(times, pfs3, label=r'$\theta_{0}$ ' + f'= 0.05, ' + r'$\theta_{obs} $' + f'= 0.6' + r'$\theta_0$', color='red', linestyle='--')
+        plt.loglog(times, pfs2, label=r'$\theta_{0}$ ' + f'= 0.1, ' + r'$\theta_{obs} $' + f'= 0', color='blue')
+        plt.loglog(times, pfs4, label=r'$\theta_{0}$ ' + f'= 0.2, ' + r'$\theta_{obs} $' + f'= 0', color='green')
+        plt.title('RHD Unscaled Peak Flux')
+        plt.xlabel(r'$\tau$ (days)')
+        plt.ylabel(r'$f_{peak}$ (mJy)')
+        plt.legend()
+        plt.show()
+
+        # start2 = time.time()
+        # for _ in range(1000):
+        # chars = (self.hydro_sim_table.get_combined_characteristics(self.position))
+        # pfs2, cfs2, sfs2 = chars[:, 0], chars[:, 1], chars[:, 2]
+        # end2 = time.time()
+
+        # np.testing.assert_allclose(pfs, pfs2)
+        # np.testing.assert_allclose(cfs, cfs2)
+        # np.testing.assert_allclose(sfs, sfs2)
+
+        # print(end - start)
+        # print(end2 - start2)
 
 if __name__ == '__main__':
     unittest.main()

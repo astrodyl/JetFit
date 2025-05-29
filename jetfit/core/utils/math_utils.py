@@ -9,7 +9,7 @@ def chi_squared(
     f: np.ndarray[float],
     y: np.ndarray[float],
     e: np.ndarray[float],
-    s: float = None,
+    s = None,
 ) -> float:
     """
     Calculates the chi-squared value.
@@ -25,7 +25,7 @@ def chi_squared(
     e : np.ndarray of float
         The uncertainty in the observed values.
 
-    s : float, optional, default=None
+    s : float or np.ndarray of float, optional
         The slop parameter.
 
     Returns
@@ -43,7 +43,7 @@ def chi_squared_eff(
     f: np.ndarray[float],
     y: np.ndarray[float],
     e: np.ndarray[float],
-    s: float,
+    s,
 ) -> float:
     """
     When the slop parameter, `s`, is provided, the
@@ -64,7 +64,7 @@ def chi_squared_eff(
     e : np.ndarray of float
         The uncertainty in the observed values.
 
-    s : float
+    s : float or np.ndarray of float
         The log slop parameter.
 
     Returns

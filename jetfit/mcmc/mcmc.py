@@ -326,7 +326,6 @@ class MCMC:
                 self.observation.as_arrays.errors,
             )
 
-        # TODO: Just set slop[sindex_loc] = 0 then one call.
         # Chi-squared for flux (uses slop)
         flux_mask = self.observation.flux_loc
 
