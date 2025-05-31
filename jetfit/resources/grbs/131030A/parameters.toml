@@ -8,10 +8,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
-    upper = 4.0
-    initial_guess = 1.29
-    initial_sigma = 0.5
+    lower = 0.0
+    upper = 3.0
+    initial_guess = 1.43
+    initial_sigma = 0.50
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -21,10 +21,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -3.0
     upper = 5.0
-    initial_guess = 0.59443
-    initial_sigma = 0.5
+    initial_guess = 0.29
+    initial_sigma = 1.20
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -34,9 +34,9 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -3.0
     upper = 0.0
-    initial_guess = -0.64
+    initial_guess = -0.77
     initial_sigma = 0.5
 
 #-------------- MODEL --------------
@@ -49,6 +49,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
+    initial_guess = -1.31
+    initial_sigma = 1.0
 
 #-------------- MODEL --------------
 #---------------- p ----------------
@@ -59,9 +61,9 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.0
-    upper = 2.5
-    initial_guess = 2.05
-    initial_sigma = 0.05
+    upper = 2.2
+    initial_guess = 2.04
+    initial_sigma = 0.01
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -71,10 +73,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
-    upper = 3.0
+    lower = 0.8
+    upper = 2.4
     initial_guess = 1.8
-    initial_sigma = 0.4
+    initial_sigma = 0.1
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -106,7 +108,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.18
+    upper = 0.08
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -202,3 +204,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.08
+    initial_guess = 0.04
+    initial_sigma = 0.01

@@ -10,8 +10,8 @@ scale = "log"
     type  = "uniform"
     lower = 0.0
     upper = 1.5
-    initial_guess = 0.79
-    initial_sigma = 0.15
+    initial_guess = 0.3554
+    initial_sigma = 0.2
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -21,8 +21,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -4.0
     upper = 2.5
+    initial_guess = 0.493
+    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -34,6 +36,8 @@ scale = "log"
     type  = "uniform"
     lower = -1.5
     upper = 0.0
+    initial_guess = -0.193
+    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -45,8 +49,8 @@ scale = "log"
     type  = "uniform"
     lower = -5.0
     upper = -1.5
-    initial_guess = -3.89
-    initial_sigma = 0.3
+    initial_guess = -3.4089
+    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #---------------- p ----------------
@@ -57,7 +61,7 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.15
-    upper = 3.0
+    upper = 2.6
     initial_guess = 2.25
     initial_sigma = 0.25
 
@@ -68,7 +72,7 @@ name  = "k"
 scale = "linear"
 [model.prior]
     type  = "uniform"
-    lower = -1.0
+    lower = 0.0
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -90,6 +94,13 @@ scale = "log"
 name  = "sj"
 scale = "linear"
 value = 3.0
+
+[model.prior]
+    type  = "uniform"
+    lower = 0.1
+    upper = 3.5
+    initial_guess = 3.0
+    initial_sigma = 0.50
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -183,4 +194,6 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.1
+    upper = 0.08
+    initial_guess = 0.02
+    initial_sigma = 0.001

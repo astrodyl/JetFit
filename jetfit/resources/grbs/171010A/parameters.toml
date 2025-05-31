@@ -10,6 +10,8 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
+    initial_guess = 3.90
+    initial_sigma = 1.00
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -22,7 +24,7 @@ scale = "log"
     lower = -6.0
     upper = 5.0
     initial_guess = 0.29
-    initial_sigma = 1.80
+    initial_sigma = 1.00
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -34,6 +36,8 @@ scale = "log"
     type  = "uniform"
     lower = -3.5
     upper = 0.0
+    initial_guess = -3.074
+    initial_sigma = 0.8
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -56,8 +60,8 @@ scale = "linear"
     type  = "uniform"
     lower = 2.25
     upper = 3.00
-    initial_guess = 2.62
-    initial_sigma = 0.12
+    initial_guess = 2.474
+    initial_sigma = 0.2
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -69,7 +73,7 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 3.2
-    initial_guess = 1.8
+    initial_guess = 2.233
     initial_sigma = 0.4
 
 #-------------- MODEL --------------
@@ -177,7 +181,7 @@ scale = "log"
 [host.prior]
     type = "uniform"
     lower = -1.55
-    upper = -1.28
+    upper = 0.0
     initial_guess = -1.43
     initial_sigma = 0.02
 
@@ -216,6 +220,6 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.1
-    initial_guess = 0.01
+    upper = 0.06
+    initial_guess = 0.003
     initial_sigma = 0.01

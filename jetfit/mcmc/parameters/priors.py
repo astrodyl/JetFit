@@ -453,10 +453,10 @@ class UniformPrior(BoundedMixin):
 
     def draw(self, n: int, initial: bool = True) -> float | np.ndarray:
         """
-        Draws `n` samples from the uniform distribution.
+        Draws ``n`` samples from the uniform distribution.
 
         Draws from `initial_guess` +/- `initial_sigma` if they are both
-        defined. Else, draws between `lower` and `upper`.
+        defined. Else, draws between ``lower`` and ``upper``.
 
         Parameters
         ----------
@@ -464,8 +464,8 @@ class UniformPrior(BoundedMixin):
             The number of samples to draw.
 
         initial : bool
-            If `True` only samples from the initial region (if defined).
-            Else, draws from between `lower` and `upper`.
+            If ``True`` only samples from the initial region (if defined).
+            Else, draws from between ``lower`` and ``upper``.
 
         Returns
         -------
