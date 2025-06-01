@@ -72,7 +72,7 @@ name  = "k"
 scale = "linear"
 [model.prior]
     type  = "uniform"
-    lower = 0.0
+    lower = -3.0
     upper = 3.0
 
 #-------------- MODEL --------------

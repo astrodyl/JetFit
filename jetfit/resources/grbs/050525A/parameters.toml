@@ -8,10 +8,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
-    upper = 3.0
-    initial_guess = 0.1379
-    initial_sigma = 0.3
+    lower = -0.8
+    upper = 1.8
+    initial_guess = 0.12435
+    initial_sigma = 0.1
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -21,10 +21,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.5
-    upper = 2.5
-    initial_guess = -0.180699
-    initial_sigma = 0.25
+    lower = -1.0
+    upper = 1.0
+    initial_guess = -0.15058
+    initial_sigma = 0.1
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -34,10 +34,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
+    lower = -1.5
     upper = 0.0
-    initial_guess = -0.1771
-    initial_sigma = 0.25
+    initial_guess = -0.16249
+    initial_sigma = 0.1
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -47,9 +47,9 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -5.0
     upper = 0.0
-    initial_guess = -1.13608
+    initial_guess = -1.2229
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -61,8 +61,8 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.0
-    upper = 2.6
-    initial_guess = 2.21
+    upper = 2.5
+    initial_guess = 2.2015
     initial_sigma = 0.05
 
 #-------------- MODEL --------------
@@ -73,9 +73,9 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 1.0
+    lower = 2.0
     upper = 3.5
-    initial_guess = 2.95
+    initial_guess = 2.964414
     initial_sigma = 0.30
 
 #-------------- MODEL --------------
@@ -108,7 +108,9 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.2
+    upper = 0.12
+    initial_guess = 0.04079
+    initial_sigma = 0.01
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -247,4 +249,4 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.18
+    upper = 0.16

@@ -8,9 +8,9 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = 0.0
-    upper = 2.8
-    initial_guess = 1.62
+    lower = 0.6
+    upper = 2.4
+    initial_guess = 1.69
     initial_sigma = 0.10
 
 #-------------- MODEL --------------
@@ -21,10 +21,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.5
-    upper = 2.5
-    initial_guess = 0.08
-    initial_sigma = 0.25
+    lower = -1.0
+    upper = 2.0
+    initial_guess = 0.07
+    initial_sigma = 0.15
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -34,8 +34,8 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
-    upper = 0.0
+    lower = -2.4
+    upper = -0.7
     initial_guess = -1.74
     initial_sigma = 0.1
 
@@ -47,7 +47,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
+    lower = -2.4
     upper = 0.0
     initial_guess = -0.25
     initial_sigma = 0.25
@@ -60,8 +60,8 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.0
-    upper = 2.5
+    lower = 2.15
+    upper = 2.4
     initial_guess = 2.29
     initial_sigma = 0.02
 
@@ -73,9 +73,9 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 1.0
-    upper = 2.5
-    initial_guess = 1.76
+    lower = 1.2
+    upper = 2.2
+    initial_guess = 1.828
     initial_sigma = 0.08
 
 #-------------- MODEL --------------
@@ -108,7 +108,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.17
+    upper = 0.16
     initial_guess = 0.12
     initial_sigma = 0.01
 
@@ -162,3 +162,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.08
+    initial_guess = 0.037
+    initial_sigma = 0.01
