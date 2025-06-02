@@ -104,6 +104,12 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 32400,,,s,0.011133471,0.001922326,0.001922326,mJy,Spectral Flux,8.65E+14,,,Hz,uvot-u,uvot-u_offset
 49700,,,s,0.007208722,0.001802181,0.001802181,mJy,Spectral Flux,8.65E+14,,,Hz,uvot-u,uvot-u_offset
 95800,,,s,0.005086154,0.001682035,0.001682035,mJy,Spectral Flux,8.65E+14,,,Hz,uvot-u,uvot-u_offset
+5.634,,,d,4.95,0.62,0.62,mJy,Spectral Flux,2.29E+11,,,Hz,Ka,
+5.634,,,d,4.97,0.85,0.85,mJy,Spectral Flux,2.90E+11,,,Hz,Kc,
+6.654,,,d,4.19,0.89,0.89,mJy,Spectral Flux,2.29E+11,,,Hz,Ka,
+7.63,,,d,4.16,0.66,0.66,mJy,Spectral Flux,2.72E+11,,,Hz,Kb,
+7.63,,,d,2.96,1.33,1.33,mJy,Spectral Flux,3.41E+11,,,Hz,Kd,
+8.577,,,d,3.83,0.83,0.83,mJy,Spectral Flux,2.29E+11,,,Hz,Ka,
 3376.254,,,s,7.78E-08,3.17E-09,3.17E-09,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
 3381.482,,,s,9.22E-08,3.67E-09,3.67E-09,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
 3386.421,,,s,8.45E-08,3.38E-09,3.38E-09,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,

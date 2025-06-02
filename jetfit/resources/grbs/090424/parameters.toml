@@ -10,8 +10,8 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
-#    initial_guess = 2.13
-#    initial_sigma = 0.30
+    initial_guess = 2.01
+    initial_sigma = 0.06
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -23,8 +23,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-#    initial_guess = -2.64
-#    initial_sigma = 0.500
+    initial_guess = -2.532
+    initial_sigma = 0.12
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -36,8 +36,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-#    initial_guess = -0.28
-#    initial_sigma = 0.28
+    initial_guess = -0.08741
+    initial_sigma = 0.06
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -49,8 +49,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-#    initial_guess = -0.94
-#    initial_sigma = 0.700
+    initial_guess = -0.882
+    initial_sigma = 0.06
 
 #-------------- MODEL --------------
 #---------------- p ----------------
@@ -62,8 +62,8 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.5
-#    initial_guess = 2.01
-#    initial_sigma = 0.10
+    initial_guess = 2.00
+    initial_sigma = 0.02
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -75,8 +75,8 @@ scale = "linear"
     type  = "uniform"
     lower = -3.0
     upper = 3.0
-#    initial_guess = 1.65
-#    initial_sigma = 0.03
+    initial_guess = 1.674
+    initial_sigma = 0.12
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -109,8 +109,8 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.8
-#    initial_guess = 0.08
-#    initial_sigma = 0.01
+    initial_guess = 0.0838
+    initial_sigma = 0.01
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -215,8 +215,10 @@ scale = "log"
 
 [host.prior]
     type = "uniform"
-    lower = -3.0
-    upper = -1.0
+    lower = -2.8
+    upper = -1.2
+    initial_guess = -2.227
+    initial_sigma = 0.01
 
 #----------- HOST GALAXY -----------
 #-------------- i-band -------------
@@ -226,8 +228,10 @@ scale = "log"
 
 [host.prior]
     type = "uniform"
-    lower = -3.0
-    upper = -1.0
+    lower = -2.8
+    upper = -1.6
+    initial_guess = -2.17
+    initial_sigma = 0.01
 
 #--------------- SLOP --------------
 #--------------- slop --------------

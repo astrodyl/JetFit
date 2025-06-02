@@ -44,6 +44,10 @@ OPTION_MAP = {
     'C': {'color': 'royalblue', 'marker': '.'},
     'C2': {'color': 'purple', 'marker': '.'},
     'Ka': {'color': 'peachpuff', 'marker': '.'},
+    'Kb': {'color': 'peru', 'marker': '.'},
+    'Kc': {'color': 'palevioletred', 'marker': '.'},
+    'Kd': {'color': 'lightcoral', 'marker': '.'},
+    'W': {'color': 'teal', 'marker': '.'},
     'S': {'color': 'teal', 'marker': '.'},
 }
 
@@ -506,7 +510,7 @@ class LightCurvePlot:
 
             for d in data:
                 if d.type == DataType.INTEGRATED_FLUX:
-                     d = d.to_spectral('mJy')
+                    d = d.to_spectral('mJy')
 
                 times.append(d.time.to_value('s'))
 

@@ -80,14 +80,14 @@ value = 0.7
 [[model]]
 name  = "z"
 scale = "linear"
-value = 4.61
+value = 2.151
 
 #-------------- MODEL --------------
 #---------------- dL ---------------
 [[model]]
 name  = "dL"
 scale = "linear"
-value = 13.39
+value = 5.4
 
 #----------- EXTINCTION ------------
 #---------- source_frame -----------
@@ -106,7 +106,7 @@ scale = "linear"
 [[extinction]]
 name  = "ebv_milky_way"
 scale = "linear"
-value = 0.05
+value = 0.031
 
 #----------- CALIBRATION -----------
 #-------------- I-band -------------
@@ -232,14 +232,14 @@ scale = "linear"
 
 #----------- CALIBRATION -----------
 #-------------- z-band -------------
-[[offsets]]
-name  = "uvw1_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
+#[[offsets]]
+#name  = "uvw1_offset"
+#scale = "linear"
+#
+#[offsets.prior]
+#    type  = "gaussian"
+#    mu    = 0.0
+#    sigma = 0.04
 
 #--------------- SLOP --------------
 #--------------- slop --------------
