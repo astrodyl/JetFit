@@ -66,8 +66,8 @@ def main(
     if parameters.has('nt'):
         model = StratifiedFireballModel
     else:
-        model = FireballModel
-        # model = BoostedFireballModel
+        # model = FireballModel
+        model = BoostedFireballModel
 
     if model.__name__ == 'BoostedFireballModel':
         meta = {
@@ -112,15 +112,39 @@ def main(
         backend.reset(mcmc_params.num_walkers, len(parameters.fitting))
 
     # Create the MCMC object and run. See you in a few hours!
+    sampler_name = mcmc_params.data['sampler']['name']
+    run_kw = {}
+
+    sampler_args = {
+        'nwalkers': mcmc_params.num_walkers,
+        'ndim': len(parameters.fitting)
+    }
+
+    if sampler_name == 'ptemcee':
+        sampler_args['ntemps'] = 10
+
+    if sampler_name == 'emcee':
+        run_kw = {'progress': True}
+
     mcmc = MCMC(
-        **mcmc_params.data['sampler'],
+        sampler=sampler_name,
+        sampler_args=sampler_args,
         model=observed_flux_model,
         observation=observation,
         parameters=parameters,
-        backend=backend,
-        meta=meta
+        model_kw=meta,
     )
-    mcmc.run()
+    mcmc.run(iterations=mcmc_params.run_length, burn=mcmc_params.burn_length, **run_kw)
+
+    # mcmc = MCMC(
+    #     **mcmc_params.data['sampler'],
+    #     model=observed_flux_model,
+    #     observation=observation,
+    #     parameters=parameters,
+    #     backend=backend,
+    #     meta=meta
+    # )
+    # mcmc.run()
 
     # -----------------------------------------------------------------
     # ----------------------------- PLOT ------------------------------
@@ -128,39 +152,39 @@ def main(
     # Plot the light curves
     best_params = mcmc.get_best_params()
 
-    if model.__name__ == 'StratifiedFireballModel':
-        profiler = SFBMDensityProfiler(mcmc.sampler, parameters)
-
-        profiler.profile(
-            observation.as_arrays.times.min(),
-            observation.as_arrays.times.max(),
-        )
-        profiler.plot_profile(results_dir)
-
-    else:
-        # Plot the density profiles
-        density_plotter = DensityProfilePlot(
-            mcmc.sampler, parameters, observation.data_regimes)
-
-        density_plotter.plot(
-            observation.as_arrays.times.min(),
-            observation.as_arrays.times.max(),
-            out_dir=results_dir
-        )
-
-        # # Plot distributions
-        dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
-
-        # # Plot the opening angle and energy distribution
-        if parameters.has('tj'):
-            dist_plotter.beaming(out_dir=results_dir)
-
-        # Plot the spectral index distribution
-        spectral_index_plotter = SpectralIndexPlot(
-            mcmc.sampler, parameters, model, observation.data_regimes)
-
-        spectral_index_plotter.model(
-            observation.data[observation.sindex_loc], out_dir=results_dir)
+    # if model.__name__ == 'StratifiedFireballModel':
+    #     profiler = SFBMDensityProfiler(mcmc.sampler, parameters)
+    #
+    #     profiler.profile(
+    #         observation.as_arrays.times.min(),
+    #         observation.as_arrays.times.max(),
+    #     )
+    #     profiler.plot_profile(results_dir)
+    #
+    # else:
+    #     # Plot the density profiles
+    #     density_plotter = DensityProfilePlot(
+    #         mcmc.sampler, parameters, observation.data_regimes)
+    #
+    #     density_plotter.plot(
+    #         observation.as_arrays.times.min(),
+    #         observation.as_arrays.times.max(),
+    #         out_dir=results_dir
+    #     )
+    #
+    #     # # Plot distributions
+    #     dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
+    #
+    #     # # Plot the opening angle and energy distribution
+    #     if parameters.has('tj'):
+    #         dist_plotter.beaming(out_dir=results_dir)
+    #
+    #     # Plot the spectral index distribution
+    #     spectral_index_plotter = SpectralIndexPlot(
+    #         mcmc.sampler, parameters, model, observation.data_regimes)
+    #
+    #     spectral_index_plotter.model(
+    #         observation.data[observation.sindex_loc], out_dir=results_dir)
 
     # Plot frequencies
     fp = FrequencyPlot(mcmc.sampler, parameters)
@@ -227,11 +251,11 @@ def main(
     az.plot_trace(inf_data_burn)
     plt.savefig(results_dir / "trace_burn.png")
 
-    # try:  # Optional stats
-    #     print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
-    #     print(f"Autocorrelation........{mcmc.sampler.acor}\n")
-    # except Exception as e:
-    #     pass
+    try:  # Optional stats
+        print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
+        print(f"Autocorrelation........{mcmc.sampler.acor}\n")
+    except Exception as e:
+        pass
 
     plt.close()
     print(f'AMPy completed modeling of {event} successfully.')
@@ -250,7 +274,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'grbs'
+    sub_dir = 'boosted'
 
     if args.event is None:
         # Specify the events to run
@@ -262,14 +286,16 @@ if __name__ == "__main__":
             # '090424',
             # '090618',
             # '111228A',
-            '130612A',
+            # '130612A',
             # '131030A',
             # '140506A',
             # '160131A',
-            # '171010A',
-            # '210905A',
-            # '220101A',
-            # '221009A',
+            '171010A',
+            '210905A',
+            '220101A',
+            '221009A',
+            # '250129A',
+            # '170817'
         ]
     else:
         events = [args.event]
@@ -290,7 +316,7 @@ if __name__ == "__main__":
                 'model_path':
                     Path(args.model)
                     if args.model is not None
-                    else nav_utils.get_event_path(sub_dir, event) / 'parameters.toml',
+                    else nav_utils.get_event_path(sub_dir, event) / 'boosted.toml',
 
                 'data_path':
                     Path(args.data)

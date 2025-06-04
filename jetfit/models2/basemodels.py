@@ -689,7 +689,7 @@ class BaseFireballModel:
             The observer times [d].
 
         f : float or np.ndarray of float
-            The average band frequencies.
+            The average band frequencies [Hz].
 
         fts : bool, optional, default=False
             Is there a fast-to-slow cooling transition?
@@ -697,7 +697,7 @@ class BaseFireballModel:
         Returns
         -------
         float np.ndarray of float
-            The modeled spectral flux.
+            The modeled spectral flux [mJy].
 
         See Also
         --------
@@ -716,11 +716,11 @@ class BaseFireballModel:
 
         Parameters
         ----------
-        t : float or np.ndarray of float u.Quantity['time']
-            The observer times measured in days since trigger.
+        t : float or np.ndarray of float
+            The observer times [d].
 
         lower, upper : float or np.ndarray of float
-            The integration bounds measured in Hz.
+            The integration bounds [Hz].
 
         fts : bool, optional, default=False
             Is there a fast-to-slow cooling transition?
@@ -728,7 +728,7 @@ class BaseFireballModel:
         Returns
         -------
         float np.ndarray of float
-            The modeled spectral flux.
+            The modeled spectral flux [erg cm-2 s-1].
 
         See Also
         --------
@@ -742,16 +742,16 @@ class BaseFireballModel:
 
     def spectral_index(self, t, lower, upper, fts=False):
         """
-        Calculates the spectral index at times `t` for the
-        lower and upper integration bounds, `lower` and `upper`.
+        Calculates the spectral index at times ``t`` for the
+        lower and upper integration bounds, ``lower`` and ``upper``.
 
         Parameters
         ----------
-        t : float or np.ndarray of float u.Quantity['time']
-            The observer times measured in days since trigger.
+        t : float or np.ndarray of float
+            The observer times [d].
 
         lower, upper : float or np.ndarray of float
-            The integration bounds measured in Hz.
+            The integration bounds [Hz].
 
         fts : bool, optional, default=False
             Is there a fast-to-slow cooling transition?
@@ -759,7 +759,7 @@ class BaseFireballModel:
         Returns
         -------
         float np.ndarray of float
-            The modeled spectral flux.
+            The modeled spectral index.
 
         See Also
         --------
@@ -2257,7 +2257,7 @@ class ObservedFluxModel:
             microns.
 
         z : float, optional
-            The redshift. If provided, transforms `wn` to
+            The redshift. If provided, transforms ``wn`` to
             the source frame when extinguishing for source
             frame dust.
 

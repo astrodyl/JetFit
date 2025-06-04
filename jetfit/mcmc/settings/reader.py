@@ -31,6 +31,7 @@ class MCMCSettingsReader(TOMLReader):
             self.validate()
 
         sampler = self.data.get('sampler')
+        self.name = sampler.get('Name')
         self.num_walkers = sampler.get('num_walkers')
         self.burn_length = sampler.get('burn_length')
         self.run_length = sampler.get('run_length')

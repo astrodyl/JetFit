@@ -524,14 +524,13 @@ class FireballModel(BaseFireballModel):
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, must
-            be measured in days since trigger.
+        t : float or np.ndarray of float
+            The observer time(s) [d].
 
         Returns
         -------
-        float or np.ndarray of float or u.Quantity['time']
-            The peak flux in mJy at time `t`.
+        float or np.ndarray of float
+            The peak flux value(s) [mJy] at time(s) ``t``.
         """
         return PeakFluxModel(
             self.E, self.rho0, self.eps_b, self.dL, self.z, self.k, self.X)(t)
@@ -544,14 +543,13 @@ class FireballModel(BaseFireballModel):
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, assumed
-            to be measured in days since trigger.
+        t : float or np.ndarray of float
+            The observer time(s) [d].
 
         Returns
         -------
         float or np.ndarray of float
-            The cooling frequency in Hz at time `t`.
+            The cooling frequency value(s) [Hz] at time(s) ``t``.
         """
         return CoolingFrequencyModel(
             self.E, self.rho0, self.eps_b, self.k, self.z)(t)
@@ -564,14 +562,13 @@ class FireballModel(BaseFireballModel):
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, assumed
-            to be measured in days since trigger.
+        t : float or np.ndarray of float
+            The observer time(s) [d].
 
         Returns
         -------
         float or np.ndarray of float
-            The synchrotron frequency in Hz at time `t`.
+            The synchrotron frequency value(s) [Hz] at time(s) ``t``.
         """
         return SynchrotronFrequencyModel(
             self.E, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p)(t)
@@ -590,9 +587,8 @@ class FireballModel(BaseFireballModel):
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, assumed
-            to be measured in days since trigger.
+        t : float or np.ndarray of float
+            The observer time(s) [d].
 
         nu_m : float or np.ndarray of float, optional
             The synchrotron frequencies [Hz] at time `t`.
@@ -603,7 +599,7 @@ class FireballModel(BaseFireballModel):
         Returns
         -------
         float or np.ndarray of float
-            The self-absorption frequency in Hz at time `t`.
+            The self-absorption frequency value(s) [Hz] at time(s) ``t``.
         """
         model = AbsorptionFrequencyModel(
             self.E, self.rho0, self.eps_e, self.eps_b,

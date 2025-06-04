@@ -35,6 +35,18 @@ class Parameters:
     ----------
     params : array_like
         The fixed and fitting MCMC parameters.
+
+    Attributes
+    ----------
+    all
+
+    fixed
+
+    fitting
+
+    pos
+
+    data_groups
     """
 
     # Nyaa :3
@@ -134,7 +146,7 @@ class Parameters:
         """
         Maps MCMC samples to a dictionary.
 
-        If both `cat` and `group` are specified, then the
+        If both ``cat`` and ``group`` are specified, then the
         union of the two are returned.
 
         Parameters
@@ -143,10 +155,10 @@ class Parameters:
             The MCMC samples.
 
         cat : str, optional
-            Limit the dictionary to the `cat` categories.
+            Limit the dictionary to the ``cat`` categories.
 
         group : str, optional
-            Limit the dictionary to the `group` data groups.
+            Limit the dictionary to the ``group`` data groups.
 
         scale : str, optional, default='linear'
             The scale to return the parameters in.

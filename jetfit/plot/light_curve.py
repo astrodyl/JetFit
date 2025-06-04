@@ -373,7 +373,7 @@ class LightCurvePlot:
 
                 for group, pos in groups.items():
                     model_params = p.get(group).get('model')
-                    afterglow_model = self.model(**model_params)
+                    afterglow_model = self.model(**model_params, **self.meta)
                     modeled[pos] = afterglow_model.spectral_flux(times[pos], freq)
             else:
                 afterglow_model = self.model(**p.get('model'), **self.meta)
@@ -513,6 +513,10 @@ class LightCurvePlot:
                     d = d.to_spectral('mJy')
 
                 times.append(d.time.to_value('s'))
+
+                # offset = self.params.get('offsets').get(f'{dfilter}_offset')
+                # if offset is not None:
+                #     d.value *= 10.0 ** (0.4 * offset)
 
                 if d.value.to_value('mJy') != 0.0:
                     flux.append(d.value.to_value('mJy'))
