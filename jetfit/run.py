@@ -4,18 +4,21 @@ import os.path
 from pathlib import Path
 
 import emcee
+import numpy as np
 from dust_extinction.parameter_averages import CCM89
 from matplotlib import pyplot as plt
 
 from jetfit.core.input import Observation
 from jetfit.mcmc.mcmc import MCMC
+from jetfit.mcmc.mcmc2 import MCMC as MCMC2, MCMCModels
 from jetfit.core.utils import nav_utils
 from jetfit.mcmc.parameters.parameters import Parameters
 from jetfit.mcmc.settings.reader import MCMCSettingsReader
-from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSimTable
-from jetfit.models2.basemodels import ObservedFluxModel
-from jetfit.models2.boosted import BoostedFireballModel
-from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
+from jetfit.models.boosted import HydroSimTable as HydroSimTable
+from jetfit.models.basemodels import ObservedFluxModel
+from jetfit.models.boosted import BoostedFireballModel
+from jetfit.models.fireball import FireballModel, StratifiedFireballModel
+from jetfit.models.jetsim import JetSimpy
 from jetfit.plot.sfbm import SFBMDensityProfiler
 from jetfit.plot.dist import DistributionPlot
 from jetfit.plot.dist2 import SpectralIndexPlot, DensityProfilePlot
@@ -68,12 +71,13 @@ def main(
     else:
         # model = FireballModel
         model = BoostedFireballModel
+        # model = JetSimpy
 
     if model.__name__ == 'BoostedFireballModel':
         meta = {
             'hydro_sim_table': HydroSimTable(
                 nav_utils.get_hydro_sim_table_path()
-            )
+            ),
         }
     else:
         meta = None
@@ -94,10 +98,10 @@ def main(
         ebv['ebv_milky_way'] = None
 
     # Store pre-computed values in the extrinsic model
-    observed_flux_model = ObservedFluxModel(
-        model, extinction_model,
-        ext_mw=ebv['ebv_milky_way']
-    )
+    # observed_flux_model = ObservedFluxModel(
+    #     model, extinction_model,
+    #     ext_mw=ebv['ebv_milky_way']
+    # )
 
     # -----------------------------------------------------------------
     # ----------------------------- MCMC ------------------------------
@@ -115,36 +119,23 @@ def main(
     sampler_name = mcmc_params.data['sampler']['name']
     run_kw = {}
 
-    sampler_args = {
-        'nwalkers': mcmc_params.num_walkers,
-        'ndim': len(parameters.fitting)
-    }
-
-    if sampler_name == 'ptemcee':
-        sampler_args['ntemps'] = 10
-
     if sampler_name == 'emcee':
         run_kw = {'progress': True}
 
-    mcmc = MCMC(
-        sampler=sampler_name,
-        sampler_args=sampler_args,
-        model=observed_flux_model,
+    mcmc = MCMC2(
+        model=MCMCModels(observation, model, meta, CCM89, ext_mw_pc=ebv['ebv_milky_way']),
         observation=observation,
         parameters=parameters,
-        model_kw=meta,
     )
-    mcmc.run(iterations=mcmc_params.run_length, burn=mcmc_params.burn_length, **run_kw)
-
-    # mcmc = MCMC(
-    #     **mcmc_params.data['sampler'],
-    #     model=observed_flux_model,
-    #     observation=observation,
-    #     parameters=parameters,
-    #     backend=backend,
-    #     meta=meta
-    # )
-    # mcmc.run()
+    mcmc.run(
+        nwalkers=mcmc_params.num_walkers,
+        iterations=mcmc_params.run_length,
+        burn=mcmc_params.burn_length,
+        sampler=sampler_name,
+        workers=mcmc_params.workers,
+        ntemps=mcmc_params.ntemps,
+        run_kw=run_kw
+    )
 
     # -----------------------------------------------------------------
     # ----------------------------- PLOT ------------------------------
@@ -152,50 +143,50 @@ def main(
     # Plot the light curves
     best_params = mcmc.get_best_params()
 
-    # if model.__name__ == 'StratifiedFireballModel':
-    #     profiler = SFBMDensityProfiler(mcmc.sampler, parameters)
-    #
-    #     profiler.profile(
-    #         observation.as_arrays.times.min(),
-    #         observation.as_arrays.times.max(),
-    #     )
-    #     profiler.plot_profile(results_dir)
-    #
-    # else:
-    #     # Plot the density profiles
-    #     density_plotter = DensityProfilePlot(
-    #         mcmc.sampler, parameters, observation.data_regimes)
-    #
-    #     density_plotter.plot(
-    #         observation.as_arrays.times.min(),
-    #         observation.as_arrays.times.max(),
-    #         out_dir=results_dir
-    #     )
-    #
-    #     # # Plot distributions
-    #     dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
-    #
-    #     # # Plot the opening angle and energy distribution
-    #     if parameters.has('tj'):
-    #         dist_plotter.beaming(out_dir=results_dir)
-    #
-    #     # Plot the spectral index distribution
-    #     spectral_index_plotter = SpectralIndexPlot(
-    #         mcmc.sampler, parameters, model, observation.data_regimes)
-    #
-    #     spectral_index_plotter.model(
-    #         observation.data[observation.sindex_loc], out_dir=results_dir)
+    if model.__name__ == 'StratifiedFireballModel':
+        profiler = SFBMDensityProfiler(mcmc.sampler, parameters)
+
+        profiler.profile(
+            observation.as_arrays.times.min(),
+            observation.as_arrays.times.max(),
+        )
+        profiler.plot_profile(results_dir)
+
+    elif model.__name__ == 'FireballModel':
+        # Plot the density profiles
+        density_plotter = DensityProfilePlot(
+            mcmc.sampler, parameters, observation.data_regimes)
+
+        density_plotter.plot(
+            observation.as_arrays.times.min(),
+            observation.as_arrays.times.max(),
+            out_dir=results_dir
+        )
+
+        # # Plot distributions
+        dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
+
+        # # Plot the opening angle and energy distribution
+        if parameters.has('tj'):
+            dist_plotter.beaming(out_dir=results_dir)
+
+        # Plot the spectral index distribution
+        spectral_index_plotter = SpectralIndexPlot(
+            mcmc.sampler, parameters, model, observation.data_regimes)
+
+        spectral_index_plotter.model(
+            observation.data[observation.sindex_loc], out_dir=results_dir)
 
     # Plot frequencies
     fp = FrequencyPlot(mcmc.sampler, parameters)
     fp.plot(
-        model=observed_flux_model.afterglow_model,
+        model=model,
         obs=observation,
         out_dir=results_dir,
         model_kw=meta,
     )
     fp.plot_best(
-        model=observed_flux_model.afterglow_model,
+        model=model,
         obs=observation,
         out_dir=results_dir,
         model_kw=meta,
@@ -203,7 +194,7 @@ def main(
 
     # Plot light curve
     lc = LightCurvePlot(
-        model=observed_flux_model.afterglow_model,
+        model=model,
         params=best_params,
         observation=observation,
         title=f'{event} Light Curve',
@@ -211,7 +202,7 @@ def main(
     )
     lc.plot(
         out_dir=results_dir,
-        ext_model=observed_flux_model.extinction_model,
+        ext_model=extinction_model,
     )
 
     # Plot corner
@@ -238,7 +229,9 @@ def main(
     # plt.savefig(results_dir / "trace.png")
 
     inf_data = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.params.fitting])
-    inf_data_burn = az.from_emcee(mcmc.burn_sampler, var_names=[p.name for p in mcmc.params.fitting])
+    chain = np.transpose(mcmc.burn_chain, (1, 0, 2))
+    burn = {name: chain[..., i] for i, name in enumerate([p.name for p in mcmc.params.fitting])}
+    inf_data_burn = az.from_dict(posterior=burn)
 
     # Save summary statistics to a csv
     az.summary(inf_data).to_csv(results_dir / "summary.csv")
@@ -287,13 +280,14 @@ if __name__ == "__main__":
             # '090618',
             # '111228A',
             # '130612A',
+            # '130612A_1',
             # '131030A',
             # '140506A',
             # '160131A',
-            '171010A',
-            '210905A',
-            '220101A',
-            '221009A',
+            # '171010A',
+            # '210905A',
+            # '220101A',
+            # '221009A',
             # '250129A',
             # '170817'
         ]

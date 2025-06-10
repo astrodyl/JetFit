@@ -1,11 +1,14 @@
+import json
 import time
 import unittest
 
 import numpy as np
 from matplotlib import pyplot as plt
 
+from jetfit.core.input import Observation
 from jetfit.core.utils import nav_utils
-from jetfit.models.afterglow.boosted_fireball.hydro_sim.hydro_sim import HydroSimTable
+from jetfit.models.boosted import BoostedFireballModel, HydroSimTable
+from jetfit.plot.light_curve import LightCurvePlot
 
 
 class MyTestCase(unittest.TestCase):
@@ -55,8 +58,8 @@ class MyTestCase(unittest.TestCase):
         pos3 = np.array([[np.log(t), 10.0, 20.0, 0.03] for t in (times * 86400)])
         pfs3, cfs3, sfs3 = (self.hydro_sim_table.get_characteristics_at(pos3))
 
-        pos = np.array([[np.log(t), 10.0, 5.0, 0.0] for t in (times * 86400)])
-        pfs4, cfs4, sfs4 = (self.hydro_sim_table.get_characteristics_at(pos))
+        pos4 = np.array([[np.log(t), 10.0, 5.0, 0.0] for t in (times * 86400)])
+        pfs4, cfs4, sfs4 = (self.hydro_sim_table.get_characteristics_at(pos4))
 
         plt.loglog(times, sfs, label=r'$\theta_{0}$ ' + f'= 0.05, ' + r'$\theta_{obs} $' + f'= 0', color='red')
         plt.loglog(times, sfs3, label=r'$\theta_{0}$ ' + f'= 0.05, ' + r'$\theta_{obs} $' + f'= 0.6' + r'$\theta_0$', color='red', linestyle='--')
@@ -88,18 +91,47 @@ class MyTestCase(unittest.TestCase):
         plt.legend()
         plt.show()
 
-        # start2 = time.time()
-        # for _ in range(1000):
-        # chars = (self.hydro_sim_table.get_combined_characteristics(self.position))
-        # pfs2, cfs2, sfs2 = chars[:, 0], chars[:, 1], chars[:, 2]
-        # end2 = time.time()
+    def test_boosted(self):
+        """"""
+        times = np.geomspace(796436 /86400, 30885700.0 / 86400, 500)
 
-        # np.testing.assert_allclose(pfs, pfs2)
-        # np.testing.assert_allclose(cfs, cfs2)
-        # np.testing.assert_allclose(sfs, sfs2)
+        params = {
+            'E': 0.15869069395227384,
+            'eta': 7.973477192135503,
+            'gamma_b': 11.000923300022666,
+            'dL28': 0.012188,
+            'eps_b': 0.01332370657126752,
+            'eps_e': 0.04072783842837688,
+            'n0': 0.0009871221028954489,
+            'p': 2.1333493591554804,
+            'theta_obs': 0.4769798916899842,
+            'zeta': 1.0,
+            'z': 0.00973,
+            'hydro_sim_table': self.hydro_sim_table,
+        }
 
-        # print(end - start)
-        # print(end2 - start2)
+        model = BoostedFireballModel(
+            **params
+        )
+
+        nu_c = model.nu_c(times, False)
+
+        plt.loglog(model.scale_times(times) * 86400, model.nu_m(times, False), label=r'$f_m$', color='red')
+        plt.loglog(model.scale_times(times) * 86400, model.nu_c(times, False), label=r'$f_c$', color='blue')
+        plt.title('GW170817: Characteristic Spectral Functions')
+        plt.xlabel(r'$\tau$ (days)')
+        plt.ylabel(r'$f$ (Hz)')
+        plt.legend()
+        plt.show()
+
+        plt.loglog(model.scale_times(times) * 86400, model.nu_m(times, True), label=r'$\nu_m$', color='red')
+        plt.loglog(model.scale_times(times) * 86400, model.nu_c(times, True), label=r'$\nu_c$', color='blue')
+        plt.title('GW170817: Scaled Characteristic Frequencies')
+        plt.xlabel(r'$\tau$ (days)')
+        plt.ylabel(r'$f$ (Hz)')
+        plt.legend()
+        plt.show()
+
 
 if __name__ == '__main__':
     unittest.main()

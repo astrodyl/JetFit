@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from jetfit.core.core import save_plot_unique
-from jetfit.models2.basemodels import OpeningAngleModel
+from jetfit.models.basemodels import OpeningAngleModel
 
 
 class DistributionPlot:

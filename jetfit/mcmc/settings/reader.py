@@ -35,6 +35,8 @@ class MCMCSettingsReader(TOMLReader):
         self.num_walkers = sampler.get('num_walkers')
         self.burn_length = sampler.get('burn_length')
         self.run_length = sampler.get('run_length')
+        self.ntemps = sampler.get('ntemps')
+        self.workers = sampler.get('workers')
 
     def validate(self) -> None:
         """ Validates that the MCMC settings file is valid. """

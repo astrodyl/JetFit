@@ -2,6 +2,9 @@
 model = "boosted_fireball"
 
 [sampler]
+name = 'ptemcee'
 num_walkers = 100
-burn_length = 50_000
-run_length  = 50_000
+burn_length = 4_000
+run_length  = 4_000
+ntemps      = 10
+#workers = 8

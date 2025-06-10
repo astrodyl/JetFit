@@ -15,18 +15,6 @@ def get_project_root() -> Path:
     return Path(__file__).parent.parent.parent.parent
 
 
-def get_test_path() -> Path:
-    """
-    Returns the project test directory.
-
-    Returns
-    -------
-    Path
-        The project test directory.
-    """
-    return get_project_root() / 'test'
-
-
 def get_models_path() -> Path:
     """
     Returns the project models directory.
@@ -112,12 +100,7 @@ def get_mcmc_settings_path() -> Path:
 
 def get_boosted_fireball_path():
     """ Returns the path to the boosted fireball root directory. """
-    return get_project_root() / 'jetfit' / 'models' / 'afterglow' / 'boosted_fireball'
-
-
-def get_boosted_fireball_params_path() -> Path:
-    """ Returns the path to the boosted fireball params config. """
-    return get_boosted_fireball_path() / 'parameters' / 'defaults.toml'
+    return get_models_path() / 'boosted'
 
 
 def get_hydro_sim_table_path() -> Path:
@@ -129,21 +112,5 @@ def get_hydro_sim_table_path() -> Path:
     Path
         The input hydrodynamic simulation table.
     """
-    return get_boosted_fireball_path() / 'hydro_sim' / 'hydro_sim_new.h5'
-
-
-def get_valid_model_names() -> list[str]:
-    """
-    Returns a list of subdirectory names in ``get_models_path()``.
-
-    Returns
-    -------
-    list of str
-        The list of valid model names.
-    """
-    valid = []
-    for entry in os.scandir(get_models_path() / 'afterglow'):
-        if entry.is_dir():
-            valid.append(entry.name)
-    return valid
+    return get_models_path() / 'rsrcs' / 'hydro_sim_new.h5'
 #</editor-fold>

@@ -139,17 +139,14 @@ class BlastWaveModel(BaseBlastWaveModel):
         z : float
             The redshift.
 
-        t : float or u.Quantity['time'] or np.ndarray
-            The observer time in days.
+        t : float or np.ndarray
+            The observer time [d].
 
         Returns
         -------
-        float or u.Quantity['dimensionless'] or np.ndarray
+        float or np.ndarray
             The Lorentz factor of the shocked fluid.
         """
-        if isinstance(t, u.Quantity):
-            t = t.to_value('d')
-
         k = self.k
 
         # Convert to source frame time [s]
@@ -170,26 +167,18 @@ class BlastWaveModel(BaseBlastWaveModel):
         z : float
             The redshift.
 
-        t : float or u.Quantity['time'] or np.ndarray
-            The observer time [days since trigger].
+        t : float or np.ndarray
+            The observer time [d].
 
-        t_decel : float or u.Quantity['time'] or np.ndarray
+        t_decel : float or np.ndarray
             The burst frame (z=0) deceleration time
-            of the blast wave [days since trigger].
+            of the blast wave [d].
 
         Returns
         -------
-        float or u.Quantity['length'] or np.ndarray
+        float or np.ndarray
             The shock radius evaluated at `t` [cm].
         """
-        if isinstance(t, u.Quantity):
-            if t.unit.physical_type != 'time':
-                raise TypeError(
-                    f'Expected a time Quantity. Received '
-                    f'{t.unit.physical_type} instead.'
-                )
-            t = t.to_value('d')
-
         # Add the deceleration time [s]
         t = 86_400 * (t_decel + (t / (1 + z)))
 
@@ -235,7 +224,7 @@ class BlastWaveModel(BaseBlastWaveModel):
         Returns
         -------
         float or np.ndarray
-            The deceleration time [seconds since trigger].
+            The deceleration time [s].
         """
         return (1 + z) * (
             self.decel_radius(gamma) /
@@ -291,21 +280,18 @@ class OpeningAngleModel:
     def evaluate(self, t):
         """
         Evaluates the jet opening angle at the jet break
-        time `t`.
+        time ``t``.
 
         Parameters
         ----------
         t : float or np.ndarray of float
-            The jet break time in days since trigger.
+            The jet break time [d].
 
         Returns
         -------
         float or np.ndarray of float
-            The jet opening angle.
+            The jet opening angle [rad].
         """
-        if isinstance(t, u.Quantity):
-            t = t.to_value('d')
-
         rho_norm = 1.67e-24 * (1e17 ** self.k)
 
         # return the jet opening angle
@@ -701,7 +687,7 @@ class BaseFireballModel:
 
         See Also
         --------
-        `models2.basemodels.SpectralFluxModel.evaluate`
+        `models.basemodels.SpectralFluxModel.evaluate`
             See for information on how various shapes
             of t and f are handled.
         """
@@ -727,12 +713,12 @@ class BaseFireballModel:
 
         Returns
         -------
-        float np.ndarray of float
+        float or np.ndarray of float
             The modeled spectral flux [erg cm-2 s-1].
 
         See Also
         --------
-        `models2.basemodels.SpectralFluxModel.evaluate`
+        `models.basemodels.SpectralFluxModel.evaluate`
             See for information on how various shapes
             of t, lower, upper are handled.
         """
@@ -763,7 +749,7 @@ class BaseFireballModel:
 
         See Also
         --------
-        `models2.basemodels.SpectralFluxModel.evaluate`
+        `models.basemodels.SpectralFluxModel.evaluate`
             See for information on how various shapes
             of t, lower, upper are handled.
         """
@@ -1495,14 +1481,12 @@ class BaseSpectralModel:
 
     Parameters
     ----------
-    E : float or u.Quantity['energy']
-        The explosion energy. If a float is provided, assumes
-        that the value is already normalized to 1e52 erg. If
-        passing a `Quantity`, it will be normalized before
-        storing it as a float.
+    E : float
+        The explosion energy normalized to 1e52 erg.
 
     eps_b : float
         The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
 
     k : float or np.ndarray of float
         The density power-law index.
@@ -2115,14 +2099,6 @@ class ObservedFluxModel:
         self.extinction_model = extinction_model
         self.ext_sf = ext_sf
         self.ext_mw = ext_mw
-
-    def __repr__(self):
-        """ Human-readable representation. """
-        return (
-            f'ObservedFluxModel('
-            f'ag={self.afterglow_model}, '
-            f'ext={self.extinction_model})'
-        )
 
     def __call__(self, *args, **kwargs):
         """ Calls the `model` method. """

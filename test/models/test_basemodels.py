@@ -5,9 +5,9 @@ import astropy.units as u
 import astropy.constants as const
 from matplotlib import pyplot as plt
 
-from jetfit.models2.basemodels import PeakFluxModel, SynchrotronFrequencyModel
-from jetfit.models2.basemodels import CoolingFrequencyModel, AbsorptionFrequencyModel
-from jetfit.models2.fireball import FireballModel, StratifiedFireballModel
+from jetfit.models.basemodels import PeakFluxModel, SynchrotronFrequencyModel
+from jetfit.models.basemodels import CoolingFrequencyModel, AbsorptionFrequencyModel
+from jetfit.models.fireball import FireballModel, StratifiedFireballModel
 
 
 # Constants in cgs units

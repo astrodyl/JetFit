@@ -7,6 +7,9 @@ import numpy as np
 
 from jetfit.core.utils import math_utils
 
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+import threading
+
 
 class PTSampler:
     """
@@ -455,7 +458,7 @@ class MCMC:
         #         self.start_burn_pos[i][np.isinf(log_p[i])] = np.array(self.start_burn_pos[i][best], copy=True)
 
         if burn > 0:
-            print('starting burn-in')
+            print('starting single-threaded burn-in')
             start = time.time()
             # Run the burn in and save the last position as the
             # starting position for the actual run.
@@ -464,10 +467,10 @@ class MCMC:
             )
             end = time.time()
 
+            print('Burn-in time:', end - start)
             # Save the sampler if desired for diagnostics
             self.burn_sampler = copy.deepcopy(self.sampler)
             self.sampler.reset()
-            print('Burn-in time:', end - start)
 
         # Run the sampler
         start = time.time()
@@ -476,6 +479,35 @@ class MCMC:
         )
         end = time.time()
         print('Run time:', end - start)
+
+    def run_mt(self, iterations, burn=0, **kwargs):
+        """"""
+        with ProcessPoolExecutor(max_workers=10) as pool:
+            self.sampler = emcee.EnsembleSampler(
+                30, len(self.params.fitting), log_prob_fn=self.log_posterior, pool=pool)
+
+            if burn > 0:
+                print('starting multi-threaded burn-in')
+                start = time.time()
+                # Run the burn in and save the last position as the
+                # starting position for the actual run.
+                self.start_run_pos = (
+                    self.sampler.run_mcmc(self.start_burn_pos, burn, **kwargs)
+                )
+                end = time.time()
+
+                print('Burn-in time:', end - start)
+                # Save the sampler if desired for diagnostics
+                self.burn_sampler = copy.deepcopy(self.sampler)
+                self.sampler.reset()
+
+            # Run the sampler
+            start = time.time()
+            self.sampler.run_mcmc(
+                self.start_run_pos, iterations, **kwargs
+            )
+            end = time.time()
+            print('Run time:', end - start)
 
     def log_posterior(self, theta: np.array) -> float:
         """
@@ -496,6 +528,11 @@ class MCMC:
         float
             The natural log of the posterior.
         """
+        # t0 = time.time()
+        # while time.time() - t0 < 0.1:
+        #     np.linalg.svd(np.random.rand(100, 100))
+        # return -0.5 * np.sum(theta ** 2)
+
         if np.isfinite(log_prior := self.log_prior(theta)):
             log_likelihood = self.log_likelihood(theta)
 
@@ -547,12 +584,13 @@ class MCMC:
         params = self.params.samples_to_dict(theta)
 
         # Model the observed afterglow flux
+        print(f"[{threading.get_ident()}] Starting JetSimPy at {time.time()}")
         modeled = self.model(self.observation, params, **self.model_kw)
-
+        print(f"[{threading.get_ident()}] Done JetSimPy at {time.time()}")
         # A nan will always result in -inf likelihood, so do a quick
         # check here to avoid unnecessary calculations.
         if np.isnan(modeled.min()):
-            return -1e10
+            return -np.inf
 
         # Apply calibration offsets
         modeled = self.calibration_offsets(

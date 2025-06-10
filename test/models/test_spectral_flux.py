@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from matplotlib import pyplot as plt
 
-from jetfit.models2.basemodels import SpectralFluxModel
+from jetfit.models.basemodels import SpectralFluxModel
 
 
 class TestSpectralFlux(unittest.TestCase):

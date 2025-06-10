@@ -7,7 +7,7 @@ from jetfit.core.defns.evidence import Evidence
 from jetfit.core.input import Observation
 from jetfit.models.afterglow.boosted_fireball.boosted_fireball import BoostedFireball
 from jetfit.models.afterglow.boosted_fireball.parameters.parameters import BFModelParams
-from jetfit.models2.boosted import BoostedFireballModel
+from jetfit.models.boosted import BoostedFireballModel
 
 
 class MyTestCase(unittest.TestCase):

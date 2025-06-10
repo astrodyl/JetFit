@@ -5,7 +5,7 @@ import astropy.constants as const
 
 from jetfit.core.core import save_plot_unique
 from jetfit.core.values import SpectralIndex
-from jetfit.models2.basemodels import SpectralIndexModel, BlastWaveModel
+from jetfit.models.basemodels import SpectralIndexModel, BlastWaveModel
 
 # Constants in cgs units
 m_p = const.m_p.cgs  # noqa

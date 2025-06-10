@@ -5,8 +5,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from jetfit.core.defns.enums import DataType
-from jetfit.models2.basemodels import has_fts_transition
-from jetfit.models2.fireball import StratifiedFireballModel
+from jetfit.models.basemodels import has_fts_transition
+from jetfit.models.fireball import StratifiedFireballModel
 
 
 OPTION_MAP = {

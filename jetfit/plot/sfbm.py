@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from jetfit.core.core import save_plot_unique
-from jetfit.models2.fireball import StratifiedFireballModel
+from jetfit.models.fireball import StratifiedFireballModel
 from jetfit.plot.base import Profiler
 
 

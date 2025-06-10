@@ -10,7 +10,7 @@ from jetfit.mcmc.parameters import priors
 
 def factory(d: dict):
     """
-    Instantiates a MCMCParameter from the dict `d`.
+    Instantiates a MCMCParameter from the dict ``d``.
 
     Parameters
     ----------
@@ -20,7 +20,7 @@ def factory(d: dict):
     Returns
     -------
     MCMCFixedParameter or MCMCFittingParameter
-        Instantiated from the dict `d`.
+        Instantiated from the dict ``d``.
     """
     return MCMCFittingParameter.from_dict(d) if 'prior' in d \
         else MCMCFixedParameter.from_dict(d)
@@ -97,7 +97,7 @@ class Parameters:
     @classmethod
     def from_toml(cls, d):
         """
-        Instantiate `Parameters` from a dict.
+        Instantiate ``Parameters`` from a dict.
 
         Parameters
         ----------
@@ -108,7 +108,7 @@ class Parameters:
         Returns
         -------
         Parameters
-            Instantiated from `t`.
+            Instantiated from ``d``.
         """
         if isinstance(d, (str, Path)):
             d = TOMLReader(d).read()
@@ -124,7 +124,7 @@ class Parameters:
 
     def has(self, name):
         """
-        Determines if `name` is in the parameter list.
+        Determines if ``name`` is in the parameter list.
 
         Parameters
         ----------
@@ -133,7 +133,7 @@ class Parameters:
 
         Returns
         -------
-            True if `name` is in the parameter list.
+            True if ``name`` is in the parameter list.
         """
         return True if name in [p.name for p in self.all] else False
 
@@ -230,7 +230,7 @@ class Parameters:
             'z': params.get('model').get('z'),
             'wn': obs.as_arrays.wave_numbers[obs.extinguishable],
             'ebv_sf': params.get('extinction').get('ebv_source_frame'),
-            'rv_sf': params.get('extinction').get('sf_source_frame'),
+            'rv_sf': params.get('extinction').get('rv_source_frame'),
             'ebv_mw': params.get('extinction').get('ebv_milky_way'),
             'rv_mw': params.get('extinction').get('rv_milky_way'),
             'host_vals': params.get('host'),
@@ -321,7 +321,7 @@ class MCMCFixedParameter(MCMCParameter):
         Returns
         -------
         MCMCFixedParameter
-            Instantiated from `d`.
+            Instantiated from ``d``.
         """
         if not isinstance(d.get('value'), (int, float)):
             raise TypeError(

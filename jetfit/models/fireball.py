@@ -1,11 +1,10 @@
 import numpy as np
-import astropy.units as u
 
 from jetfit.core.input import Observation
-from jetfit.models2.basemodels import BlastWaveModel, ObservedSpectrumModel
-from jetfit.models2.basemodels import AbsorptionFrequencyModel, BaseFireballModel
-from jetfit.models2.basemodels import SynchrotronFrequencyModel
-from jetfit.models2.basemodels import CoolingFrequencyModel, PeakFluxModel
+from jetfit.models.basemodels import BlastWaveModel, ObservedSpectrumModel
+from jetfit.models.basemodels import AbsorptionFrequencyModel, BaseFireballModel
+from jetfit.models.basemodels import SynchrotronFrequencyModel
+from jetfit.models.basemodels import CoolingFrequencyModel, PeakFluxModel
 
 # ignore `dust_extinction` user warnings
 import warnings
@@ -63,7 +62,10 @@ class StratifiedFireballModel(BaseFireballModel):
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, nt, rt, X, k1=None, k2=None, tj=None, sj=None, sji=None, sn=None, sni=None, k1i=None, k2i=None, use_sa=True):
+    def __init__(
+            self, E, p, eps_b, eps_e, z, dL, nt, rt, X,
+            k1=None, k2=None, tj=None, sj=None, sji=None, sn=None, sni=None, k1i=None, k2i=None, use_sa=True
+    ):
         super().__init__(E, p, eps_b, eps_e, z, dL, X, tj, sj, sji, use_sa)
 
         if sn is None and sni is None:
@@ -91,7 +93,7 @@ class StratifiedFireballModel(BaseFireballModel):
     def smooth(self, t):
         """
         Empirically smooths the number density normalizations
-        and the power-law indices over the observer times `t`.
+        and the power-law indices over the observer times ``t``.
 
         Parameters
         ----------
@@ -219,9 +221,8 @@ class StratifiedFireballModel(BaseFireballModel):
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, must
-            be measured in days since trigger.
+        t : float or np.ndarray of float
+            The observer time(s) [d].
 
         n : float or np.ndarray of float, optional
             The smoothed density normalization [cm-3].
@@ -231,7 +232,7 @@ class StratifiedFireballModel(BaseFireballModel):
 
         Returns
         -------
-        float or np.ndarray of float or u.Quantity['time']
+        float or np.ndarray of float
             The peak flux [mJy] at time `t` [d].
         """
         if k is None or n is None:
@@ -248,9 +249,8 @@ class StratifiedFireballModel(BaseFireballModel):
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, assumed
-            to be measured in days since trigger.
+        t : float or np.ndarray of float
+            The observer time(s) [d].
 
         n : np.ndarray of float, optional
             The smoothed density normalization [cm-3].
@@ -280,9 +280,8 @@ class StratifiedFireballModel(BaseFireballModel):
         k : np.ndarray of float, optional
             The density power-law indices.
 
-        t : float or np.ndarray of float or u.Quantity['time']
-            The time to evaluate. If `t` is a float, assumed
-            to be measured in days since trigger.
+        t : float or np.ndarray of float
+            The observer time(s) [d].
 
         Returns
         -------
@@ -312,9 +311,8 @@ class StratifiedFireballModel(BaseFireballModel):
 
         Parameters
         ----------
-        t : float or np.ndarray of float or u.Quantity['time']
-            The time since trigger. If `t` is a float,
-            assumed to be measured in days.
+        t : float or np.ndarray of float
+            The observer time(s) [d].
 
         n : np.ndarray of float, optional
             The effective density normalization [cm-3].
@@ -425,50 +423,6 @@ class FireballModel(BaseFireballModel):
         self.rho0 = rho0
         self.k = k
 
-    @property
-    def rho0(self) -> float:
-        """ Returns the density normalization, normalized to the proton mass. """
-        return self._rho0
-
-    @rho0.setter
-    def rho0(self, rho0) -> None:
-        """
-        TODO: rho0 -> n0
-        Sets the density normalization as a simple float.
-
-        Define rho as:
-
-        rho = rho_x * R^-k = rho_0 * (R/R_0)^-k
-
-        such that:
-
-        rho_x = rho_0 * R_0^k = n0 * m_p * R_0^k
-
-        where R_0 is the characteristic radius which is
-        taken to be 1e17 cm. Then, `n17` is defined as
-        the number density with respect to 1e17 cm.
-
-        Parameters
-        ----------
-        rho0 : float or u.Quantity['number density', 'mass density']
-            The number density at 1e17 cm.
-
-        Raises
-        ------
-        astropy.units.UnitTypeError
-            If `rho0` is a `u.Quantity` but not a mass or number density.
-        """
-        if isinstance(rho0, u.Quantity):
-            if rho0.unit.physical_type == 'number density':
-                rho0 = rho0.cgs.value
-            elif rho0.unit.physical_type == 'mass density':
-                rho0 = rho0.cgs.value / self.m_p
-            else:
-                raise u.UnitTypeError(
-                    f'rho0 must be a number/mass density'
-                )
-        self._rho0 = rho0
-
     def model(self, obs: Observation, subset: np.ndarray = None):
         """
         Models an `observation` object.
@@ -496,7 +450,7 @@ class FireballModel(BaseFireballModel):
 
     def spectrum(self, t):
         """
-        Returns the characteristics that define a GRB spectrum.
+        Returns the characteristics that define the GRB spectrum.
 
         Parameters
         ----------
