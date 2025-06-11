@@ -382,7 +382,7 @@ class BoostedFireballModel:
         ])
 
         spectral_functions = (
-            self.hydro_sim_table.get_combined_characteristics(position)
+            self.hydro_sim_table.get_characteristics(position)
         )
 
         f_pk, nu_c, nu_m = (
@@ -394,18 +394,15 @@ class BoostedFireballModel:
         if np.isnan(f_pk.min()):
             return f_pk, nu_c, nu_m
 
+        if np.isclose(nu_m.min(), nu_m.max()):
+            if (nu_m > nu_c).any():
+                nu_m *= 1e-10
+                f_pk /= np.power(1e-10, (self.p - 1) / 2)
+
         if scale:
             f_pk = f_pk * self.peak_scale
             nu_c = nu_c * self.cooling_scale
             nu_m = nu_m * self.synchrotron_scale
-
-        # When nu_m is below some threshold for the numerical
-        # sims, it is stored as a single value floor (i.e.,
-        # no time-dependence). Since this is not physical, make
-        # it a low enough value that it doesn't approach the data.
-        if np.isclose(nu_m.min(), nu_m.max()):
-            if nu_m.max() > 1e5:
-                nu_m *= 1e-10
 
         return f_pk, nu_c, nu_m
 
@@ -484,7 +481,9 @@ class HydroSimTable:
                     self.char_spec_params[key] = table[key][...]
                     self.spectrum_scales[key] = ScaleType.LINEAR
 
-        char_spec_params_list = [self.char_spec_params[axis] for axis in self.spectrum_axes]
+        char_spec_params_list = [
+            self.char_spec_params[axis] for axis in self.spectrum_axes
+        ]
 
         combined = np.stack((
             char_spec_funcs['f_peak'],
@@ -497,74 +496,9 @@ class HydroSimTable:
         self.cooling_frequencies = RGInterpolator(char_spec_params_list, char_spec_funcs['f_nu_c'])
         self.synchrotron_frequencies = RGInterpolator(char_spec_params_list, char_spec_funcs['f_nu_m'])
 
-    def get_combined_characteristics(self, position) -> tuple:
+    def get_characteristics(self, position):
         """"""
         return self.get_characteristic_at(position, self.combined_functions)
-
-    def get_characteristics_at(self, position: np.ndarray) -> tuple:
-        """
-        Returns a tuple of the characteristic spectral functions at the
-        provided position.
-
-        Parameters
-        ----------
-        position : np.ndarray of float, with shapes (n, 4)
-
-        Returns
-        -------
-        tuple of np.ndarray of float with shapes (n, 4)
-            (peak fluxes, cooling frequencies, synchrotron frequencies)
-        """
-        return (
-            self.get_peak_fluxes_at(position),
-            self.get_cooling_frequencies_at(position),
-            self.get_synchrotron_frequencies_at(position)
-        )
-
-    def get_synchrotron_frequencies_at(self, position: np.ndarray) -> np.ndarray:
-        """ Returns the synchrotron frequencies from the characteristics
-        spectral functions table at the provided position.
-
-        Parameters
-        ----------
-        position : np.ndarray of float, with shapes ???
-
-        Returns
-        -------
-        np.ndarray
-            Synchrotron frequencies at the provided position.
-        """
-        return self.get_characteristic_at(position, self.synchrotron_frequencies)
-
-    def get_cooling_frequencies_at(self, position: np.ndarray) -> np.ndarray:
-        """ Returns the cooling frequencies from the characteristics
-        spectral functions table at the provided position.
-
-        Parameters
-        ----------
-        position : np.ndarray of float, with shapes ???
-
-        Returns
-        -------
-        np.ndarray
-            Cooling frequencies at the provided position.
-        """
-        return self.get_characteristic_at(position, self.cooling_frequencies)
-
-    def get_peak_fluxes_at(self, position: np.ndarray) -> np.ndarray:
-        """ Returns the peak fluxes from the characteristics spectral
-        functions table at the provided position.
-
-        Parameters
-        ----------
-        position : np.ndarray of float, with shapes ???
-
-        Returns
-        -------
-        np.ndarray
-            Peak fluxes at the provided position.
-        """
-        return self.get_characteristic_at(position, self.peak_fluxes)
 
     def get_characteristic_at(self, pos: np.ndarray, func, ex=True):
         """
@@ -583,7 +517,7 @@ class HydroSimTable:
 
         Returns
         -------
-        ??
+        np.ndarray
         """
         try:
             return np.exp(func(pos))

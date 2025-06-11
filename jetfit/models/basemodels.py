@@ -355,7 +355,10 @@ class ObservedSpectrumModel:
     sharp : bool, optional, default=True
         Model the flux with a smoothly broken power law?
     """
-    def __init__(self, nu_m, nu_c, f_peak, p, k, arrays, nu_a=None, fts=None, jet=None, sharp=False):
+    def __init__(
+            self, nu_m, nu_c, f_peak, p, k, arrays,
+            nu_a=None, fts=None, jet=None, sharp=False
+    ):
         self.nu_a = nu_a
         self.nu_m = nu_m
         self.nu_c = nu_c

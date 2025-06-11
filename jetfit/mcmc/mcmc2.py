@@ -545,7 +545,6 @@ class MCMC:
             self.set_start_positions(nwalkers, ntemps)
 
             if burn > 0:
-                print('start burn')
                 # Run the burn in and save the last position
                 self.start_run_pos = (
                     self.sampler.run_mcmc(self.start_burn_pos, burn, **(run_kw or {}))
@@ -558,7 +557,6 @@ class MCMC:
                 self.sampler.reset()
 
             # Run production
-            print('start production')
             self.sampler.run_mcmc(
                 self.start_run_pos, iterations, **(run_kw or {})
             )
@@ -802,7 +800,6 @@ def log_likelihood(theta, params, models) -> float:
         The log of the likelihood if the parameters were valid.
         Else, -np.inf.
     """
-    # theta = np.array([ 2.17867878, -4.32126667, 13.01085588, 14.47515064,  0.28359491, -1.65797784, -1.23271018,  2.29942632,  0.90332941, -0.06586974,  0.23642774, -0.10366224,  0.02491679])
     p = params.samples_to_dict(theta)
 
     # Model the observed afterglow flux
