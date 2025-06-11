@@ -9,21 +9,68 @@ from dust_extinction.parameter_averages import CCM89
 from matplotlib import pyplot as plt
 
 from jetfit.core.input import Observation
-from jetfit.mcmc.mcmc import MCMC
-from jetfit.mcmc.mcmc2 import MCMC as MCMC2, MCMCModels
+from jetfit.mcmc.mcmc import MCMC, MCMCModels
 from jetfit.core.utils import nav_utils
 from jetfit.mcmc.parameters.parameters import Parameters
 from jetfit.mcmc.settings.reader import MCMCSettingsReader
 from jetfit.models.boosted import HydroSimTable as HydroSimTable
-from jetfit.models.basemodels import ObservedFluxModel
 from jetfit.models.boosted import BoostedFireballModel
 from jetfit.models.fireball import FireballModel, StratifiedFireballModel
 from jetfit.models.jetsim import JetSimpy
+from jetfit.plot.freq import FrequencyPlotter
 from jetfit.plot.sfbm import SFBMDensityProfiler
 from jetfit.plot.dist import DistributionPlot
 from jetfit.plot.dist2 import SpectralIndexPlot, DensityProfilePlot
-from jetfit.plot.light_curve import LightCurvePlot, FrequencyPlot
+from jetfit.plot.light_curve import LightCurvePlot
 from jetfit.plot.posterior import PosteriorPlot
+
+
+def plot_mcmc_diagnostics(mcmc: MCMC, results_dir: Path | str):
+    """
+    Plot corners and trace plots.
+
+    Parameters
+    ----------
+    mcmc : MCMC
+        The finished MCMC object.
+
+    results_dir : Path or str
+        The directory to save the results.
+    """
+    import arviz as az
+
+    # Plot corner
+    corner = PosteriorPlot(mcmc.sampler, mcmc.params.fitting, mcmc.param_pos)
+    corner.plot(out_dir=results_dir)
+
+    # Use arviz style
+    az.style.use("arviz-darkgrid")
+
+    # Create the production inference data object
+    var_names = [p.name for p in mcmc.params.fitting]
+    inf_data = az.from_emcee(mcmc.sampler, var_names=var_names)
+
+    # Can't save the burn sampler due to multiprocessing issues.
+    chain = np.transpose(mcmc.burn_chain, (1, 0, 2))
+    burn = {name: chain[..., i] for i, name in enumerate(var_names)}
+    inf_data_burn = az.from_dict(posterior=burn)
+
+    # Save summary statistics to a csv
+    az.summary(inf_data).to_csv(results_dir / "summary.csv")
+
+    # Plot the trace plot
+    az.plot_trace(inf_data)
+    plt.savefig(results_dir / "trace.png")
+
+    # Plot the burn-in trace plot
+    az.plot_trace(inf_data_burn)
+    plt.savefig(results_dir / "trace_burn.png")
+
+    try:  # Optional stats
+        print(f"Acceptance Fraction..{mcmc.sampler.acceptance_fraction}\n")
+        print(f"Autocorrelation......{mcmc.sampler.acor}\n")
+    except Exception as e:
+        print(e)
 
 
 def main(
@@ -62,15 +109,15 @@ def main(
     # -----------------------------------------------------------------
     # ----------------------------- I/O -------------------------------
     # -----------------------------------------------------------------
-    parameters = Parameters.from_toml(model_path)
+    parameters  = Parameters.from_toml(model_path)
     observation = Observation.from_csv(data_path)
     mcmc_params = MCMCSettingsReader(mcmc_path)
 
     if parameters.has('nt'):
         model = StratifiedFireballModel
     else:
-        # model = FireballModel
-        model = BoostedFireballModel
+        model = FireballModel
+        # model = BoostedFireballModel
         # model = JetSimpy
 
     if model.__name__ == 'BoostedFireballModel':
@@ -108,12 +155,13 @@ def main(
     # -----------------------------------------------------------------
     # Define a filename to save the sampler to disk.
     # Warning: The sampler files are very large ~1 GB each.
-    backend = None
-    filename = None  # str(results_dir / f'{event}_chain.h5')
+    sampler_kw = {}
+    filename = str(results_dir / f'{event}_chain.h5')
 
     if filename is not None:
         backend = emcee.backends.HDFBackend(filename)
         backend.reset(mcmc_params.num_walkers, len(parameters.fitting))
+        sampler_kw['backend'] = backend
 
     # Create the MCMC object and run. See you in a few hours!
     sampler_name = mcmc_params.data['sampler']['name']
@@ -122,7 +170,7 @@ def main(
     if sampler_name == 'emcee':
         run_kw = {'progress': True}
 
-    mcmc = MCMC2(
+    mcmc = MCMC(
         model=MCMCModels(observation, model, meta, CCM89, ext_mw_pc=ebv['ebv_milky_way']),
         observation=observation,
         parameters=parameters,
@@ -134,7 +182,8 @@ def main(
         sampler=sampler_name,
         workers=mcmc_params.workers,
         ntemps=mcmc_params.ntemps,
-        run_kw=run_kw
+        run_kw=run_kw,
+        sampler_kw=sampler_kw,
     )
 
     # -----------------------------------------------------------------
@@ -177,20 +226,19 @@ def main(
         spectral_index_plotter.model(
             observation.data[observation.sindex_loc], out_dir=results_dir)
 
+    # -----------------------------------------------------------------
+    # ---------------------------- LOGGING ----------------------------
+    # -----------------------------------------------------------------
+    out_params = mcmc.get_best_params()
+    out_params['chi_squared'] = -2 * mcmc.sampler.get_log_prob(flat=True).max()
+
+    with open(results_dir / "best_fit.json", "w") as jf:
+        json.dump(out_params, jf, indent=4)
+
     # Plot frequencies
-    fp = FrequencyPlot(mcmc.sampler, parameters)
-    fp.plot(
-        model=model,
-        obs=observation,
-        out_dir=results_dir,
-        model_kw=meta,
-    )
-    fp.plot_best(
-        model=model,
-        obs=observation,
-        out_dir=results_dir,
-        model_kw=meta,
-    )
+    if model.__name__ != 'JetSimpy':
+        fp = FrequencyPlotter(mcmc.sampler, parameters, model, meta)
+        fp.plot_all(observation, out_dir=results_dir)
 
     # Plot light curve
     lc = LightCurvePlot(
@@ -205,50 +253,10 @@ def main(
         ext_model=extinction_model,
     )
 
-    # Plot corner
-    corner = PosteriorPlot(mcmc.sampler, mcmc.params.fitting, mcmc.param_pos)
-    corner.plot(out_dir=results_dir)
-
-    # -----------------------------------------------------------------
-    # ---------------------------- LOGGING ----------------------------
-    # -----------------------------------------------------------------
-    out_params = mcmc.get_best_params()
-    out_params['chi_squared'] = -2 * mcmc.sampler.get_log_prob(flat=True).max()
-
-    with open(results_dir / "best_fit.json", "w") as jf:
-        json.dump(out_params, jf, indent=4)
-
     # -----------------------------------------------------------------
     # -------------------------- DIAGNOSTICS --------------------------
     # -----------------------------------------------------------------
-    import arviz as az
-    az.style.use("arviz-darkgrid")
-    # backend = emcee.backends.HDFBackend(r"C:\Projects\repos\JetFit\jetfit\results\080413B\080413B_chain.h5", read_only=True)
-    # inf_data = az.from_emcee(backend, var_names=[p.name for p in mcmc.params.fitting])
-    # az.plot_trace(inf_data)
-    # plt.savefig(results_dir / "trace.png")
-
-    inf_data = az.from_emcee(mcmc.sampler, var_names=[p.name for p in mcmc.params.fitting])
-    chain = np.transpose(mcmc.burn_chain, (1, 0, 2))
-    burn = {name: chain[..., i] for i, name in enumerate([p.name for p in mcmc.params.fitting])}
-    inf_data_burn = az.from_dict(posterior=burn)
-
-    # Save summary statistics to a csv
-    az.summary(inf_data).to_csv(results_dir / "summary.csv")
-
-    # Plot the trace plot
-    az.plot_trace(inf_data)
-    plt.savefig(results_dir / "trace.png")
-
-    # Plot the burn-in trace plot
-    az.plot_trace(inf_data_burn)
-    plt.savefig(results_dir / "trace_burn.png")
-
-    try:  # Optional stats
-        print(f"Acceptance Fraction....{mcmc.sampler.acceptance_fraction}\n")
-        print(f"Autocorrelation........{mcmc.sampler.acor}\n")
-    except Exception as e:
-        pass
+    plot_mcmc_diagnostics(mcmc, results_dir)
 
     plt.close()
     print(f'AMPy completed modeling of {event} successfully.')
@@ -267,7 +275,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'boosted'
+    sub_dir = 'done'
 
     if args.event is None:
         # Specify the events to run
@@ -310,7 +318,7 @@ if __name__ == "__main__":
                 'model_path':
                     Path(args.model)
                     if args.model is not None
-                    else nav_utils.get_event_path(sub_dir, event) / 'boosted.toml',
+                    else nav_utils.get_event_path(sub_dir, event) / 'parameters.toml',
 
                 'data_path':
                     Path(args.data)

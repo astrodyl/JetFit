@@ -15,19 +15,19 @@ scale = "log"
 #---------------- n ----------------
 [[model]]
 name  = "n0"
+scale = "linear"
+value = 0.0
+
+#-------------- MODEL --------------
+#---------------- A ----------------
+[[model]]
+name  = "A"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-
-#-------------- MODEL --------------
-#---------------- A ----------------
-[[model]]
-name  = "A"
-scale = "linear"
-value = 0.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -50,6 +50,17 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
+
+#-------------- MODEL --------------
+#---------------- LF ---------------
+[[model]]
+name  = "lf"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 2
+    upper = 3
 
 #-------------- MODEL --------------
 #---------------- p ----------------

@@ -77,8 +77,6 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 1139.999962,,,s,0.446370882,0.035089711,0.035089711,mJy,Spectral Flux,1.55E+15,,,Hz,uvw2,uvw2_offset
 17972.99997,,,s,0.039677412,0.004674495,0.004674495,mJy,Spectral Flux,1.55E+15,,,Hz,uvw2,uvw2_offset
 34805.99998,,,s,0.014011086,0.002331048,0.002331048,mJy,Spectral Flux,1.55E+15,,,Hz,uvw2,uvw2_offset
-1.13135,,,d,0,1.02,1.02,mJy,Spectral Flux,9.27E+10,,,Hz,W,
-1.13135,,,d,0,3.66,3.66,mJy,Spectral Flux,2.15E+11,,,Hz,Ka,
 5915.461,,,s,9.46E-11,2.13E-11,2.13E-11,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
 6007.673,,,s,1.20E-10,2.69E-11,2.69E-11,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,
 6111.402,,,s,9.74E-11,2.20E-11,2.20E-11,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,

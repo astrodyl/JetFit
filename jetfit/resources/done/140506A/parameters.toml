@@ -32,7 +32,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -4.5
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -68,8 +68,8 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = -5.0
-    upper = 2.5
-    initial_guess = -2.36
+    upper = 0.0
+    initial_guess = -2.41
     initial_sigma = 0.05
 
 #-------------- MODEL --------------

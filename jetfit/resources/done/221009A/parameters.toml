@@ -59,8 +59,8 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.24
-    upper = 2.40
-    initial_guess = 2.31
+    upper = 2.5
+    initial_guess = 2.36
     initial_sigma = 0.01
 
 #-------------- MODEL --------------
@@ -72,8 +72,8 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.1
-    upper = 2.5
-    initial_guess = 2.30
+    upper = 2.4
+    initial_guess = 2.19
     initial_sigma = 0.02
 
 #-------------- MODEL --------------
@@ -115,8 +115,8 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.06
-    upper = 0.24
-    initial_guess = 0.15
+    upper = 0.30
+    initial_guess = 0.18
     initial_sigma = 0.02
 
 #----------- EXTINCTION ------------
@@ -245,4 +245,4 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.045
+    upper = 0.1

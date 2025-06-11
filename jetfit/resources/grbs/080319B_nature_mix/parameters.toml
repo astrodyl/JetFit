@@ -33,7 +33,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = 15.0
-    upper = 25.0
+    upper = 19.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -66,7 +66,7 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.0
-    upper = 3.5
+    upper = 3.0
     initial_guess = 2.25
     initial_sigma = 0.25
 
@@ -145,14 +145,14 @@ value = 0.0095
 
 #----------- CALIBRATION -----------
 #-------------- V-band -------------
-[[offsets]]
-name  = "V_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
+#[[offsets]]
+#name  = "V_offset"
+#scale = "linear"
+#
+#[offsets.prior]
+#    type  = "gaussian"
+#    mu    = 0.0
+#    sigma = 0.03
 
 #----------- CALIBRATION -----------
 #-------------- R-band -------------
@@ -200,14 +200,14 @@ scale = "linear"
 
 #----------- CALIBRATION -----------
 #-------------- J-band -------------
-[[offsets]]
-name  = "J_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
+#[[offsets]]
+#name  = "J_offset"
+#scale = "linear"
+#
+#[offsets.prior]
+#    type  = "gaussian"
+#    mu    = 0.0
+#    sigma = 0.04
 
 #----------- CALIBRATION -----------
 #--------------- H-band ------------
@@ -222,14 +222,14 @@ scale = "linear"
 
 #----------- CALIBRATION -----------
 #-------------- K-band -------------
-[[offsets]]
-name  = "K_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.06
+#[[offsets]]
+#name  = "K_offset"
+#scale = "linear"
+#
+#[offsets.prior]
+#    type  = "gaussian"
+#    mu    = 0.0
+#    sigma = 0.06
 
 #----------- CALIBRATION -----------
 #------------- uvm2-band -----------

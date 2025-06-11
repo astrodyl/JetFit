@@ -3,6 +3,5 @@
 **/__pycache__/
 jetfit/**/__pycache__/
 jetfit/results/
-jetfit/sandbox/
 
 jetfit/models/rsrcs/hydro_sim/*.h5
