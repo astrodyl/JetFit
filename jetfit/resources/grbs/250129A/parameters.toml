@@ -188,14 +188,14 @@ scale = "linear"
 
 #----------- CALIBRATION -----------
 #-------------- z-band -------------
-[[offsets]]
-name  = "z_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
+#[[offsets]]
+#name  = "z_offset"
+#scale = "linear"
+#
+#[offsets.prior]
+#    type  = "gaussian"
+#    mu    = 0.0
+#    sigma = 0.04
 
 #----------- CALIBRATION -----------
 #-------------- z-band -------------
