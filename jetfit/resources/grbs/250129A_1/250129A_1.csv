@@ -284,7 +284,6 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 355737.3553,,,s,0.014454398,0.000777109,0.000777109,mJy,Spectral Flux,3.93E+14,,,Hz,i,i_offset
 357636.0633,,,s,0.009549926,0.001606644,0.001606644,mJy,Spectral Flux,4.81E+14,,,Hz,r,r_offset
 371706.1822,,,s,0.008849279,0.0009589,0.0009589,mJy,Spectral Flux,4.81E+14,,,Hz,r,r_offset
-397033.8002,,,s,nan,nan,nan,mJy,Spectral Flux,3.43E+14,,,Hz,I,I_offset
 421942.1003,,,s,0.010471285,0.00092136,0.00092136,mJy,Spectral Flux,6.28E+14,,,Hz,g,g_offset
 422361.1763,,,s,0.010964782,0.000964782,0.000964782,mJy,Spectral Flux,3.93E+14,,,Hz,i,i_offset
 427772.7863,,,s,0.006546362,0.000408742,0.000408742,mJy,Spectral Flux,4.81E+14,,,Hz,r,r_offset
