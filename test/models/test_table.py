@@ -6,9 +6,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from jetfit.core.input import Observation
-from jetfit.core.utils import nav_utils
+from jetfit.core.utils import utils
 from jetfit.models.boosted import BoostedFireballModel, HydroSimTable
-from jetfit.plot.light_curve import LightCurvePlot
+from jetfit.scripts.plot.light_curve import LightCurvePlot
 
 
 class MyTestCase(unittest.TestCase):
@@ -17,7 +17,7 @@ class MyTestCase(unittest.TestCase):
         """
         """
         self.hydro_sim_table = HydroSimTable(
-            nav_utils.get_hydro_sim_table_path()
+            utils.get_hydro_sim_table_path()
         )
 
         # Create a position array using log(time), asymptotic lorentz factor,
@@ -27,10 +27,33 @@ class MyTestCase(unittest.TestCase):
             for t in [100.0, 1000.0, 1010.0, 2000.0, 5000.0, 10000.0]
         ])
 
+    def test_nonsense(self):
+        """"""
+        times = np.geomspace(1e2, 1e7, 100)
+
+        positions = []
+        labels = []
+        for i in np.linspace(0, 1, 10):
+            positions.append(np.array([[np.log(t), 11, 15, i] for t in times]))
+            labels.append(str(round(i, 3)))
+
+        nu_ms = []
+        for pos in positions:
+            csf = self.hydro_sim_table.get_characteristics(pos)
+            nu_ms.append(csf[:, 2])
+
+        for i, nu_m in enumerate(nu_ms):
+            plt.loglog(times, nu_m, label=labels[i])
+        plt.legend()
+        plt.show()
+
+
     def test_get_characteristics(self):
         """
         """
-        pfs, cfs, sfs = (self.hydro_sim_table.get_characteristics_at(self.position))
+        csf = self.hydro_sim_table.get_characteristics(self.position)
+
+        pfs, cfs, sfs = (csf[:, 0], csf[:, 1], csf[:, 2])
 
         np.testing.assert_allclose(  # Peak fluxes
             pfs, [0.0, 0.0, 0.0, 6.79732613e-06, 9.79182939e-04, 1.19235458e-02], strict=True

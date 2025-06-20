@@ -4,7 +4,7 @@ from collections import namedtuple
 import astropy.units as u
 from astropy.units import UnitTypeError
 
-from jetfit.core.values import Bound, FluxBase, SpectralFlux
+from jetfit.core.structs import Bound, FluxBase, SpectralFlux
 
 
 class TestBound(unittest.TestCase):

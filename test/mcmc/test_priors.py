@@ -4,9 +4,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy import stats
 
-from jetfit.core.defns.enums import Prior
+from jetfit.core.structs import Prior
 from jetfit.mcmc.parameters import priors
-from jetfit.mcmc.parameters.priors import GaussianPrior, UniformPrior, TruncatedGaussianPrior, MilkyWayRvPrior
+from jetfit.mcmc.priors import GaussianPrior, UniformPrior, TruncatedGaussianPrior, MilkyWayRvPrior
 
 
 class TestPriorFactory(unittest.TestCase):
@@ -47,7 +47,7 @@ class TestPriorFactory(unittest.TestCase):
 
 class TestUniformPrior(unittest.TestCase):
     """
-    Tests the `jetfit.mcmc.parameters.priors.priors.UniformPrior` class.
+    Tests the `jetfit.mcmc.priors.UniformPrior` class.
     """
     def test_instantiation(self):
         """"""
@@ -154,7 +154,7 @@ class TestUniformPrior(unittest.TestCase):
 
 class TestGaussianPrior(unittest.TestCase):
     """
-    Tests the `jetfit.mcmc.parameters.priors.priors.GaussianPrior` class.
+    Tests the `jetfit.mcmc.priors.GaussianPrior` class.
     """
     def test_instantiation(self):
         """
@@ -245,7 +245,7 @@ class TestGaussianPrior(unittest.TestCase):
 
 class TestTGaussianPrior(unittest.TestCase):
     """
-    Tests the `jetfit.mcmc.parameters.priors.priors.TruncatedGaussianPrior` class.
+    Tests the `jetfit.mcmc.priors.TruncatedGaussianPrior` class.
     """
     def test_instantiation(self):
         """"""

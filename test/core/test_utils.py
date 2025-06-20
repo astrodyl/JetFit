@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from jetfit.core.utils.math_utils import chi_squared
+from jetfit.core.utils import chi_squared
 
 
 class MyTestCase(unittest.TestCase):

@@ -1,3 +1,4 @@
+import time
 import unittest
 
 import numpy as np
@@ -8,6 +9,99 @@ from jetfit.models.basemodels import SpectralFluxModel
 
 class TestSpectralFlux(unittest.TestCase):
     """"""
+
+    def test_r(self):
+        """"""
+        from scipy.integrate import solve_ivp
+
+        # medium properties
+        k1 = 2.0
+        k2 = 0.0
+        nt = 0.01
+        rt = 1e18
+        sn = -3.0
+
+        # burst properties
+        E = 1e52
+
+        def alpha(k):
+            """"""
+            return 16 / (17 - 4 * k)
+
+        def beta(k):
+            """"""
+            return 4 - k
+
+        def rho0(r, k):
+            """"""
+            return 1.67e-24 * n_eff(r) * r ** k
+
+        def n_eff(r):
+            """ Effective number density."""
+            x = r / rt
+            return nt * (2 ** (1 / sn)) * (x ** (k1 * sn) + x ** (k2 * sn)) ** -(1 / sn)
+
+        def k_eff(r):
+            """ Effective density power-law index. """
+            x = r / rt
+            k_eff_num = k1 * x ** (k1 * sn) + k2 * x ** (k2 * sn)
+            k_eff_den = x ** (k1 * sn) + x ** (k2 * sn)
+            return k_eff_num / k_eff_den
+
+        def dr_dt(t, r):
+            """ ODE for blast-wave radius. """
+            return r / ((4 - k_eff(r)) * t)
+
+        # -----------
+        # root solver
+        # -----------
+        from scipy.optimize import root_scalar
+
+        def r_model(r, t):
+            """"""
+            return (beta(k_eff(r)) * E * t) ** (1 / (4 - k_eff(r))) * (alpha(k_eff(r)) * np.pi * rho0(r, k_eff(r)) * 2.99e10) ** (-1 / (4 - k_eff(r)))
+
+        def F(r, t):
+            return r_model(r, t) - r
+
+        r_of_t = []
+        num_iter = 1000
+        t0, t1 = 0.1 * 86_400, 10 * 86_400
+        t_array = np.geomspace(t0, t1, num_iter)
+
+        start = time.time()
+        for t in t_array:
+            sol = root_scalar(F, args=(t,), bracket=[1e16, 1e22], method='brentq')
+            r_of_t.append(sol.root)
+        r_of_t = np.array(r_of_t)
+        end = time.time()
+        print(f'Took {end - start}s for {num_iter} iterations.')
+
+        plt.loglog(t_array, r_of_t)
+        plt.show()
+        plt.loglog(r_of_t, n_eff(r_of_t))
+        plt.show()
+        plt.loglog(r_of_t, n_eff(r_of_t) * (r_of_t / rt) ** k_eff(r_of_t))
+        plt.show()
+        plt.plot(r_of_t, k_eff(r_of_t))
+        plt.xscale('log')
+        plt.show()
+        # -----------
+        # -----------
+        # -----------
+
+        # time span and initial condition r(t0)
+        r0 = (beta(k_eff(rt)) * E * t0) ** (1 / (4 - k_eff(rt))) * (alpha(k_eff(rt)) * np.pi * rho0(rt, k_eff(rt)) * 2.99e10) ** (-1 / (4 - k_eff(rt)))
+        print(r0)
+        start = time.time()
+        sol = solve_ivp(dr_dt, (t0, t1), [r0], dense_output=True)
+        end = time.time()
+
+        print(end - start)
+        # evaluate
+        t_vals = np.geomspace(t0, t1, 500)
+        r_vals = sol.sol(t_vals)[0]
+        print(r_vals)
 
     @unittest.skip("Test=CAM, Reason=For visual inspection only")
     def test_CAM(self):
