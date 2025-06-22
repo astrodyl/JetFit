@@ -39,7 +39,7 @@ def plot_mcmc_diagnostics(mcmc: MCMC, results_dir: Path | str):
     import arviz as az
 
     # Plot corner
-    corner = PosteriorPlot(mcmc.sampler, mcmc.params.fitting, mcmc.param_pos)
+    corner = PosteriorPlot(mcmc.sampler, mcmc.params.fitting)
     corner.plot(out_dir=results_dir)
 
     # Use arviz style
@@ -73,11 +73,11 @@ def plot_mcmc_diagnostics(mcmc: MCMC, results_dir: Path | str):
 
 
 def main(
-        event: str,
-        mcmc_path: Path,
-        model_path: Path,
-        data_path: Path,
-        results_dir: Path
+    event: str,
+    mcmc_path: Path,
+    model_path: Path,
+    data_path: Path,
+    results_dir: Path
 ) -> None:
     """
     Runs the MCMC sampling routine.
@@ -149,21 +149,21 @@ def main(
     # -----------------------------------------------------------------
     # Define a filename to save the sampler to disk.
     # Warning: The sampler files are very large ~1 GB each.
-    sampler_kw = {}
-    filename = str(results_dir / f'{event}_chain.h5')
-
-    if filename is not None:
-        backend = emcee.backends.HDFBackend(filename)
-        backend.reset(mcmc_params.num_walkers, len(parameters.fitting))
-        sampler_kw['backend'] = backend
-
-    # Create the MCMC object and run. See you in a few hours!
     sampler_name = mcmc_params.data['sampler']['name']
+
+    sampler_kw = {}
     run_kw = {}
 
     if sampler_name == 'ensemble':
         run_kw = {'progress': True}
 
+        filename = str(results_dir / f'{event}_chain.h5')
+        if filename is not None:
+            backend = emcee.backends.HDFBackend(filename)
+            backend.reset(mcmc_params.num_walkers, len(parameters.fitting))
+            sampler_kw['backend'] = backend
+
+    # Create the MCMC object and run. See you in a few hours!
     mcmc = MCMC(
         model=MCMCModels(observation, model, meta, CCM89, ext_mw_pc=ebv['ebv_milky_way']),
         observation=observation,
@@ -263,16 +263,14 @@ def main(
 
 
 if __name__ == "__main__":
-    """
-    """
-    parser = argparse.ArgumentParser(description="JetFit Parameters")
 
+    # Parse the arguments
+    parser = argparse.ArgumentParser(description="JetFit Parameters")
     parser.add_argument('--event', help='Event directory name.')
     parser.add_argument('--mcmc',  help='Path to the MCMC settings.toml file.')
     parser.add_argument('--model', help='Path to the model defaults.toml file.')
     parser.add_argument('--data',  help='Path to the input data file.')
     parser.add_argument('--results', help='Path the the results directory.')
-
     args = parser.parse_args()
 
     sub_dir = 'grbs'

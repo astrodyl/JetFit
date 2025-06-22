@@ -31,12 +31,11 @@ class BaseBlastWaveModel:
 
     Parameters
     ----------
-    E : float or u.Quantity['energy']
-        If a float is provided, assumes the energy is
-        normalized to 1e52 ergs.
+    E : float
+        The explosion energy normalized to 1e52 ergs.
 
     n17 : float or u.Quantity['number density']
-        The number density at `ref` cm.
+        The number density normalization at ``ref`` cm.
 
     k : float
         The density power-law index.
@@ -157,7 +156,7 @@ class BlastWaveModel(BaseBlastWaveModel):
         Returns
         -------
         float or np.ndarray
-            The shock radius evaluated at `t` [cm].
+            The shock radius evaluated at ``t`` [cm].
         """
         # Add the deceleration time [s]
         t = 86_400 * (t_decel + (t / (1 + z)))
@@ -279,10 +278,10 @@ class OpeningAngleModel:
             np.pi * self.alpha *
             (self.beta ** (3 - self.k)) *
             ((1 + self.z) ** -(3 - self.k)) *
-            (2.99e10 ** (5 - self.k)) *     # [cm s-1] ^ (5-k)
-            (rho_norm * self.rho0) *        # [g cm(k-3)]
-            ((1e52 * self.E) **-1) *        # [g cm2 s-2] ^ -1
-            ((86_400 * t) ** (3 - self.k))  # [s] ^ (3 - k)
+            (2.99e10 ** (5 - self.k)) *
+            (rho_norm * self.rho0) *
+            ((1e52 * self.E) **-1) *
+            ((86_400 * t) ** (3 - self.k))
         ) ** (0.5 / (4 - self.k))
 
 
@@ -312,7 +311,7 @@ class ObservedSpectrumModel:
         The characteristic frequencies [Hz].
 
     nu_a : np.ndarray of float, optional
-        The self-absorption frequency.
+        The self-absorption frequency [Hz].
 
     f_peak : np.ndarray of float
         The peak fluxes [mJy].
@@ -324,20 +323,17 @@ class ObservedSpectrumModel:
         The density power-law index.
 
     arrays : ObsArray
-        Array representation of the `Observation` object.
+        Array representation of the ``Observation`` object.
 
     fts : bool, optional, default=`has_fts_transition()`
         Model a fast-to-slow transition?
 
     jet : JetBreakModel, optional
         The jet break spectrum and smoothing parameters.
-
-    sharp : bool, optional, default=True
-        Model the flux with a smoothly broken power law?
     """
     def __init__(
             self, nu_m, nu_c, f_peak, p, k, arrays,
-            nu_a=None, fts=None, jet=None, sharp=False
+            nu_a=None, fts=None, jet=None
     ):
         self.nu_a = nu_a
         self.nu_m = nu_m
@@ -347,7 +343,6 @@ class ObservedSpectrumModel:
         self.k = k
 
         self.arrays = arrays
-        self.sharp = sharp
         self.has_fts = has_fts_transition(
             self.nu_m, self.nu_c) if fts is None else fts
         self.jet = jet
@@ -364,7 +359,7 @@ class ObservedSpectrumModel:
     def model(self, subset=None) -> np.ndarray:
         """
         Model the observed spectrum using the observational
-        properties in `arrays`.
+        properties in ``arrays``.
 
         Parameters
         ----------
@@ -374,7 +369,7 @@ class ObservedSpectrumModel:
         Returns
         -------
         np.ndarray of float
-            The unextinguished modeled GRB flux.
+            The modeled observational data.
         """
         if not self.is_valid:
             return np.array([np.nan])
@@ -397,7 +392,7 @@ class ObservedSpectrumModel:
 
     def spectral_flux(self, mask):
         """
-        Model the unextinguished spectral flux.
+        Models the unextinguished spectral flux.
 
         Parameters
         ----------
@@ -407,7 +402,7 @@ class ObservedSpectrumModel:
         Returns
         -------
         np.ndarray of float
-            The unextinguished spectral flux.
+            The unextinguished spectral flux [mJy].
         """
         return SpectralFluxModel(**self.spectrum(mask)).evaluate(
             self.arrays.frequencies[mask], self.has_fts,
@@ -416,7 +411,7 @@ class ObservedSpectrumModel:
 
     def integrated_flux(self, mask):
         """
-        Model the unextinguished spectral flux.
+        Models the unextinguished spectral flux.
 
         Parameters
         ----------
@@ -426,7 +421,7 @@ class ObservedSpectrumModel:
         Returns
         -------
         np.ndarray of float
-            The unextinguished integrated flux.
+            The unextinguished integrated flux [erg cm-2 s-1].
         """
         return IntegratedFluxModel(**self.spectrum(mask)).evaluate(
             self.arrays.int_lower[mask],
@@ -436,7 +431,7 @@ class ObservedSpectrumModel:
 
     def spectral_index(self, mask):
         """
-        Model the spectral indices.
+        Models the spectral indices.
 
         Parameters
         ----------
@@ -457,7 +452,7 @@ class ObservedSpectrumModel:
     def spectrum(self, mask=None):
         """
         Returns the spectrum properties as a dict and
-        filters based on `mask`.
+        filters based on ``mask``.
 
         Parameters
         ----------
@@ -503,13 +498,13 @@ class BaseFireballModel:
 
     Parameters
     ----------
-    E : float or astropy.units.Quantity['energy']
-        The explosion energy [1e52 ergs].
+    E : float
+        The explosion energy normalized to 1e52 ergs.
 
-    dL : float or astropy.units.Quantity['length']
-        The luminosity distance to the event [1e28 cm]. Requiring
-        the distance to be provided in addition to the redshift
-        prevents the need to assume a cosmology here.
+    dL : float
+        The luminosity distance to the event normalized to 1e28 cm.
+        Requiring the distance to be provided in addition to the
+        redshift prevents the need to assume a cosmology here.
 
     p : float
         The electron energy index. Must be > 2.
@@ -530,10 +525,10 @@ class BaseFireballModel:
         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
     tj : float, optional
-        The jet break time in days.
+        The jet break time [d].
 
     sj, sji : float, optional
-        The jet break smoothing factor. `sji` is the inverse
+        The jet break smoothing factor. ``sji`` is the inverse
         smoothing factor. Useful for changing MCMC basis.
 
     use_sa : bool, optional, default=True
@@ -569,50 +564,6 @@ class BaseFireballModel:
         """ Human-readable representation. """
         return f'{self.__class__.__name__}(E={self.E}, p={self.p}, .., z={self.z})'
 
-    # noinspection PyPep8Naming
-    @property
-    def E(self) -> float:
-        """ Returns the explosion energy normalized to 1e52 ergs. """
-        return self._E
-
-    # noinspection PyPep8Naming
-    @E.setter
-    def E(self, e: float | u.Quantity) -> None:
-        """
-        Sets the explosion energy normalized to 1e52 ergs.
-
-        Parameters
-        ----------
-        e : float or astropy.units.Quantity
-            The explosion energy. If a float is provided, assumes
-            that the value is already normalized to 1e52 ergs.
-        """
-        if isinstance(e, u.Quantity):
-            e = e.to_value('erg') / 1e52
-        self._E = e
-
-    # noinspection PyPep8Naming
-    @property
-    def dL(self) -> float:
-        """ Returns the luminosity distance normalized to 1e28 cm. """
-        return self._dL
-
-    # noinspection PyPep8Naming
-    @dL.setter
-    def dL(self, d: float | u.Quantity) -> None:
-        """
-        Sets the luminosity distance normalized to 1e28 cm.
-
-        Parameters
-        ----------
-        d : float or astropy.units.Quantity
-            The luminosity distance. If a float is provided,
-            assumes the value is normalized to 1e28 cm.
-        """
-        if isinstance(d, u.Quantity):
-            d = d.to_value('cm') / 1e28
-        self._dL = d
-
     @property
     def is_valid(self) -> bool:
         """ Whether the model is parameters are valid. """
@@ -642,17 +593,17 @@ class BaseFireballModel:
             return JetBreakModel(SpectralFluxModel(
                 **self.spectrum(self.tj)), self.tj, t, self.p, self.sj)
 
-    def spectral_flux(self, t, f, fts=False):
+    def spectral_flux(self, t, nu, fts=False):
         """
-        Calculates the spectral fluxes at times `t` for the
-        frequencies `f`.
+        Calculates the spectral fluxes at time(s) ``t`` for
+        the frequencies ``nu``.
 
         Parameters
         ----------
         t : float or np.ndarray of float
             The observer times [d].
 
-        f : float or np.ndarray of float
+        nu : float or np.ndarray of float
             The average band frequencies [Hz].
 
         fts : bool, optional, default=False
@@ -662,21 +613,15 @@ class BaseFireballModel:
         -------
         float np.ndarray of float
             The modeled spectral flux [mJy].
-
-        See Also
-        --------
-        `models.basemodels.SpectralFluxModel.evaluate`
-            See for information on how various shapes
-            of t and f are handled.
         """
         return SpectralFluxModel(**self.spectrum(t)).evaluate(
-            f, fts, self.jet_break(t)
+            nu, fts, self.jet_break(t)
         )
 
     def integrated_flux(self, t, lower, upper, fts=False):
         """
-        Calculates the integrated fluxes at times `t` for the
-        lower and upper integration bounds, `lower` and `upper`.
+        Calculates the integrated fluxes at time(s) ``t`` for
+        the integration bounds, ``lower`` and ``upper``.
 
         Parameters
         ----------
@@ -693,12 +638,6 @@ class BaseFireballModel:
         -------
         float or np.ndarray of float
             The modeled spectral flux [erg cm-2 s-1].
-
-        See Also
-        --------
-        `models.basemodels.SpectralFluxModel.evaluate`
-            See for information on how various shapes
-            of t, lower, upper are handled.
         """
         return IntegratedFluxModel(**self.spectrum(t)).evaluate(
             lower, upper, fts, self.jet_break(t)
@@ -706,8 +645,8 @@ class BaseFireballModel:
 
     def spectral_index(self, t, lower, upper, fts=False):
         """
-        Calculates the spectral index at times ``t`` for the
-        lower and upper integration bounds, ``lower`` and ``upper``.
+        Calculates the spectral indices at time(s) ``t`` for
+        the integration bounds, ``lower`` and ``upper``.
 
         Parameters
         ----------
@@ -724,12 +663,6 @@ class BaseFireballModel:
         -------
         float np.ndarray of float
             The modeled spectral index.
-
-        See Also
-        --------
-        `models.basemodels.SpectralFluxModel.evaluate`
-            See for information on how various shapes
-            of t, lower, upper are handled.
         """
         return SpectralIndexModel(**self.spectrum(t)).evaluate(
             lower, upper, fts, self.jet_break(t)
@@ -742,21 +675,17 @@ class BaseFluxModel:
 
     Parameters
     ----------
-    f_peak : float or np.ndarray or u.Quantity['spectral flux density']
-        The peak flux. If a simple float is provided,
-        assumes it is measured in mJy.
+    f_peak : float or np.ndarray
+        The peak flux [mJy].
 
-    nu_m : float or np.ndarray or u.Quantity['frequency']
-        The synchrotron frequency. If a simple float
-        is provided, assumes it is measured in Hz.
+    nu_m : float or np.ndarray
+        The synchrotron frequency [Hz].
 
-    nu_c : float or np.ndarray or u.Quantity['frequency']
-        The cooling frequency. If a simple float
-        is provided, assumes it is measured in Hz.
+    nu_c : float or np.ndarray
+        The cooling frequency [Hz].
 
-    nu_a : float or np.ndarray or u.Quantity['frequency']
-        The self-absorption frequency. If a simple float
-        is provided, assumes it is measured in Hz.
+    nu_a : float or np.ndarray
+        The self-absorption frequency [Hz].
 
     p : float
         The electron energy power-law index.
@@ -800,90 +729,11 @@ class BaseFluxModel:
         else:
             self.mac = self.cam = None
 
-    @property
-    def f_peak(self) -> float | np.ndarray:
-        """ Returns the peak flux [mJy]. """
-        return self._f_peak
-
-    @f_peak.setter
-    def f_peak(self, val):
-        """
-        Sets the peak flux in mJy.
-
-        Parameters
-        ----------
-        val : float or np.ndarray or u.Quantity['spectral flux density']
-            The peak flux. If a simple float is provided,
-            assumes it is measured in mJy.
-        """
-        if isinstance(val, u.Quantity):
-            val = val.to_value('mJy')
-        self._f_peak = val
-
-    @property
-    def nu_m(self) -> float | np.ndarray:
-        """ Returns the synchrotron frequency [Hz]. """
-        return self._nu_m
-
-    @nu_m.setter
-    def nu_m(self, val):
-        """
-        Sets synchrotron frequency in Hz.
-
-        Parameters
-        ----------
-        val : float or np.ndarray or u.Quantity['frequency']
-            The synchrotron frequency. If a simple float
-            is provided, assumes it is measured in Hz.
-        """
-        if isinstance(val, u.Quantity):
-            val = val.to_value('Hz')
-        self._nu_m = val
-
-    @property
-    def nu_c(self) -> float | np.ndarray:
-        """ Returns the synchrotron frequency [Hz]. """
-        return self._nu_c
-
-    @nu_c.setter
-    def nu_c(self, val):
-        """
-        Sets cooling frequency in Hz.
-
-        Parameters
-        ----------
-        val : float or np.ndarray or u.Quantity['frequency']
-            The cooling frequency. If a simple float is
-            provided, assumes it is measured in Hz.
-        """
-        if isinstance(val, u.Quantity):
-            val = val.to_value('Hz')
-        self._nu_c = val
-
-    @property
-    def nu_a(self) -> float | np.ndarray:
-        """ Returns the self-absorption frequency [Hz]. """
-        return self._nu_a
-
-    @nu_a.setter
-    def nu_a(self, val) :
-        """
-        Sets self-absorption frequency in Hz.
-
-        Parameters
-        ----------
-        val : float or np.ndarray or u.Quantity['frequency']
-            The self-absorption frequency. If a simple float is
-            provided, assumes it is measured in Hz.
-        """
-        if isinstance(val, u.Quantity):
-            val = val.to_value('Hz')
-        self._nu_a = val
-
     def spectral_breaks(self) -> tuple:
         """
         Creates arrays of critical frequencies that define
-        the GRB spectrum.
+        the GRB spectrum. See ``basemodels.SpectralFlux``
+        for a description of the 12, 23 notation.
 
         Returns
         -------
@@ -911,8 +761,12 @@ class BaseFluxModel:
 
     def spectral_indices(self, fts=False) -> tuple:
         """
-        Calculates the spectral indices using Sari, Piran,
-        & Narayan 1998 [1]_.
+        Calculates the spectral indices.
+
+        If ``fts==True``, smooths the middle spectral index,
+        since a fast-to-slow cooling transition flips has a
+        discontinuity. Smoothed spectral indices returns an
+        additional index for b2 (i.e., b2 -> b2a, b2b).
 
         fts : bool, optional, default=False
             Is there a fast-to-slow cooling transition?
@@ -921,13 +775,7 @@ class BaseFluxModel:
         -------
         tuple of np.ndarray of float
             The spectral indices for each segment.
-
-        References
-        ----------
-        .. [1] Sari, Piran, & Narayan (1998)
-            https://iopscience.iop.org/article/10.1086/311269/pdf
         """
-
         # Default: nu_a < nu_m < nu_c
         b1 = np.full(self.fast.size, 1 / 3)
         b2 = np.full(self.fast.size, (1 - self.p) / 2)
@@ -945,35 +793,19 @@ class BaseFluxModel:
                 # Overwrite: nu_c < nu_a < nu_m
                 b1[self.cam] = 2
 
-        # b2 smoothing
-        if fts:
-            s12, s23 = self.smoothing()
-            nu_ratio = self.nu_m / self.nu_c
-
-            # Transition smoother
-            q12 = -s12 * (b3 - b1)
-            q23 = -s23 * (b3 - b1)
-
-            b2a = -0.5 + ((1 - self.p) / 2 - -0.5) / (1 + nu_ratio ** q12)
-            b2b = -0.5 + ((1 - self.p) / 2 - -0.5) / (1 + nu_ratio ** q23)
-
-            return b1, b2a, b2b, b3
+        if fts:  # Fast-to-slow cooling smoothing
+            return self._fts_spectral_indices(b1, b2)
 
         return b1, b2, b3
 
     def smoothing(self, fts=False):
         """
-        Determines the smoothing factors between breaks.
-
-        Supports smoothing between three segments / two breaks:
-            - (nu_m, nu_c) for nu_a < nu_m < nu_c
-            - (nu_a, nu_c) for nu_m < nu_a < nu_c
-            - (nu_c, nu_m) for nu_a < nu_c < nu_m
+        Determines the smoothing factors for a doubly-broken spectrum.
 
         Smoothing factors are derived from Table 2, column s(p) in
         Granot & Sari 2002 [1]_. GS02 present smoothing factors
-        for `k=0` and `k=2`. The smoothing factors used here are
-        generalized for any value of `k`.
+        for ``k=0`` and ``k=2``. The smoothing factors used here
+        use a linear interpolation in ``k`` to be generic.
 
         Parameters
         ----------
@@ -1015,26 +847,73 @@ class BaseFluxModel:
                 # Overwrite: nu_c < nu_a < nu_m
                 s12[self.cam] = 0.9
 
-        # Fast-to-slow cooling smoothing
-        if fts:
-            b1, _, b3 = self.spectral_indices()
-            nu_ratio =  self.nu_m / self.nu_c
-
-            # Transition smoother
-            q12 = -s12 * (b3 - b1)
-            q23 = -s23 * (b3 - b1)
-
-            # S12 smoothing
-            s12_slow = 1.84 - (0.040 * k) - (0.40 - 0.010 * k) * p
-            s12_fast = 0.597
-            s12 = s12_fast + (s12_slow - s12_fast) / (1 + nu_ratio ** q12)
-
-            # s23 smoothing
-            s23_fast = 3.34 + 0.17 * k - (0.82 + 0.035 * k) * p
-            s23_slow = 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p
-            s23 = s23_fast + (s23_slow - s23_fast) / (1 + nu_ratio ** q23)
+        if fts:  # Fast-to-slow cooling smoothing
+            return self._fts_smoothing(s12, s23)
 
         return s12, s23
+
+    def _fts_smoothing(self, s12, s23):
+        """
+        Determines the smoothing factors for a doubly-broken
+        spectrum with a fast-to-slow cooling transition.
+
+        Parameters
+        ----------
+        s12, s23 : np.ndarray
+            The smoothing factors before considering a fts
+            transition.
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+            The smoothing factors.
+        """
+        k, p = self.k, self.p
+
+        b1, _, b3 = self.spectral_indices()
+        nu_ratio = self.nu_m / self.nu_c
+
+        # Transition smoother
+        q12 = -s12 * (b3 - b1)
+        q23 = -s23 * (b3 - b1)
+
+        # S12 smoothing
+        s12_slow = 1.84 - (0.040 * k) - (0.40 - 0.010 * k) * p
+        s12 = 0.597 + (s12_slow - 0.597) / (1 + nu_ratio ** q12)
+
+        # s23 smoothing
+        s23_fast = 3.34 + 0.17 * k - (0.82 + 0.035 * k) * p
+        s23_slow = 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p
+        s23 = s23_fast + (s23_slow - s23_fast) / (1 + nu_ratio ** q23)
+
+        return s12, s23
+
+    def _fts_spectral_indices(self, b1, b3) -> tuple:
+        """
+        Smooths the spectral indices for a doubly-broken
+        spectrum with a fast-to-slow cooling transition.
+
+        Parameters
+        ----------
+        b1, b3 : np.ndarray
+            The spectral indices for the first and third segment.
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+        """
+        s12, s23 = self.smoothing()
+        nu_ratio = self.nu_m / self.nu_c
+        pf = -0.5 + ((1 - self.p) / 2 - -0.5)
+
+        # Transition smoother
+        q12 = -s12 * (b3 - b1)
+        q23 = -s23 * (b3 - b1)
+
+        b2a = pf / (1 + nu_ratio ** q12)
+        b2b = pf / (1 + nu_ratio ** q23)
+
+        return b1, b2a, b2b, b3
 
 
 class SpectralFluxModel(BaseFluxModel):
@@ -1083,7 +962,22 @@ class SpectralFluxModel(BaseFluxModel):
         return self.evaluate(val.frequency.value)
 
     def evaluate_sharp(self, nu, jet=None):
-        """ WIP. Ignores self-absorption. """
+        """
+        Models the spectral flux usign a sharply-broken spectrum.
+
+        Parameters
+        ----------
+        nu : float or np.ndarray of float
+            The observed frequency [Hz].
+
+        jet : JetBreakModel, optional
+            Smooths the flux across the jet break.
+
+        Returns
+        -------
+        float or np.ndarray of float
+            The modeled spectral flux [mJy].
+        """
         nu = np.atleast_1d(nu)
         nu12, nu23 = self.spectral_breaks()
         b1, b2, b3 = self.spectral_indices()
@@ -1109,23 +1003,23 @@ class SpectralFluxModel(BaseFluxModel):
 
         return res[0] if res.size == 1 else res
 
-    def evaluate(self, nu, fts=False, jet=None, sharp=False):
+    def evaluate(self, nu, fts=False, jet=None):
         """
         Calculates the smoothed flux for frequency, `nu`.
 
         Supports four cases:
-            (1) One `nu` and many spectral functions:
+            (1) One ``nu`` and many spectral functions:
                 Returns an array of flux with length of the
                 spectral functions (i.e., nu_m.size).
 
-            (2) Many `nu` and one spectral function:
-                Returns an array of flux with length of `nu`.
+            (2) Many ``nu`` and one spectral function:
+                Returns an array of flux with length of ``nu``.
 
-            (3) Many `nu` and many spectral functions:
+            (3) Many ``nu`` and many spectral functions:
                 All arrays must be of the same size and the
                 returned array will have the same size.
 
-            (4) One `nu` and one spectral function:
+            (4) One ``nu`` and one spectral function:
                 Returns a single flux value.
 
         Parameters
@@ -1139,18 +1033,12 @@ class SpectralFluxModel(BaseFluxModel):
         jet : JetBreakModel, optional
             Smooths the flux across the jet break.
 
-        sharp : bool, optional, default=False
-            Model the spectrum using sharply broken power laws?
-
         Returns
         -------
         float or np.ndarray of float
             The modeled smoothed spectral flux [mJy].
         """
         nu = np.atleast_1d(nu)
-
-        if sharp:
-            return self.evaluate_sharp(nu, jet)
 
         # Get stuff done
         nu12, nu23 = self.spectral_breaks()
@@ -1242,20 +1130,17 @@ class SpectralFluxModel(BaseFluxModel):
 class IntegratedFluxModel(BaseFluxModel):
     """
     Integrated Fireball Flux Model
-
-    Provides methods for calculating integrated fluxes
-    using the spectrum for the GRB fireball model.
     """
     def __init__(self, nu_m, nu_c, f_peak, p, k, nu_a=None):
         super().__init__(nu_m, nu_c, f_peak, p, k, nu_a)
 
     def __call__(self, *args, **kwargs):
-        """ Calls the `evaluate` method. """
+        """ Calls the ``evaluate`` method. """
         return self.evaluate(*args, **kwargs)
 
     def model(self, val: IntegratedFlux):
         """
-        Models an `IntegratedFlux` value using its integration
+        Models an ``IntegratedFlux`` value using its integration
         range.
 
         Parameters
@@ -1276,7 +1161,7 @@ class IntegratedFluxModel(BaseFluxModel):
     def evaluate(self, lower, upper, fts=False, jet=None):
         """
         Evaluates the integrated flux model using the
-        `lower` and `upper` integration limits.
+        ``lower`` and ``upper`` integration limits.
 
         Parameters
         ----------
@@ -1295,7 +1180,7 @@ class IntegratedFluxModel(BaseFluxModel):
         Returns
         -------
         float or np.ndarray of float
-            The integrated flux with units of erg cm-2 s-1.
+            The integrated flux [erg cm-2 s-1].
         """
         beta = SpectralIndexModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a
@@ -1320,12 +1205,12 @@ class SpectralIndexModel(BaseFluxModel):
         super().__init__(nu_m, nu_c, f_peak, p, k, nu_a)
 
     def __call__(self, *args, **kwargs):
-        """ Calls the `evaluate` method. """
+        """ Calls the ``evaluate`` method. """
         return self.evaluate(*args, **kwargs)
 
     def model(self, val: SpectralIndex):
         """
-        Models a `SpectralIndex` value using its integration
+        Models a ``SpectralIndex`` value using its integration
         limits.
 
         Parameters
@@ -1343,7 +1228,7 @@ class SpectralIndexModel(BaseFluxModel):
             upper=val.int_range.upper.value,
         )
 
-    def evaluate(self, lower, upper, fts=False, jet=None, sharp=False):
+    def evaluate(self, lower, upper, fts=False, jet=None):
         """
         Approximates the spectral index using a two
         point approximation.
@@ -1351,19 +1236,16 @@ class SpectralIndexModel(BaseFluxModel):
         Parameters
         ----------
         lower : float or np.ndarray of float
-            The lower integration limit.
+            The lower integration limit [Hz].
 
         upper : float or np.ndarray of float
-            The upper integration limit.
+            The upper integration limit [Hz].
 
         fts : bool, optional, default=False
             Is there a fast-to-slow cooling transition?
 
         jet : JetBreakModel, optional, default=None
             Smooths the flux across the jet break.
-
-        sharp : bool, optional, default=False
-            Model the spectrum using sharply broken power laws?
 
         Returns
         -------
@@ -1376,8 +1258,8 @@ class SpectralIndexModel(BaseFluxModel):
         # return the spectral index [dimension less]
         return (
             np.log10(
-                model(upper, fts, jet, sharp) /
-                model(lower, fts, jet, sharp)
+                model(upper, fts, jet) /
+                model(lower, fts, jet)
             ) /
             np.log10(upper / lower)
         )
@@ -1417,14 +1299,14 @@ class JetBreakModel:
         return self.smooth(*args, **kwargs)
 
     def subset(self, mask):
-        """ Returns a `JetBreakModel` with a subset of times. """
+        """ Returns a ``JetBreakModel`` with a subset of times. """
         return self.__class__(
             self.f_jet, self.t_jet, self.t_obs[mask], self.p, self.s
         )
 
     def smooth(self, f_obs, nu, fts=False):
         """
-        Smooths the flux `f_obs` with the jet flux via
+        Smooths the flux ``f_obs`` with the jet flux via
         a smoothly broken power law.
 
         Parameters
@@ -1485,7 +1367,7 @@ class BaseSpectralModel:
     def __call__(self, *args, **kwargs):
         """
         Makes the class instance callable. This behaves like
-        self.evaluate(*args, **kwargs).
+        evaluate(*args, **kwargs).
         """
         return self.evaluate(*args, **kwargs)
 
@@ -1764,7 +1646,7 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
 
     def evaluate(self, t, order, ref=17):
         """
-        ??
+        Returns ``evaluate_order(t, ref)``.
 
         Parameters
         ----------
@@ -1780,7 +1662,7 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         Returns
         -------
         float or np.array of float
-            The self-absorption frequency [Hz] at time(s) `t`.
+            The self-absorption frequency [Hz] at time(s) ``t``.
         """
         return getattr(self, f'evaluate_{order}')(t, ref)
 
@@ -1800,7 +1682,7 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         Returns
         -------
         np.ndarray of float or float
-            The self-absorption frequencies [Hz] at time(s) t.
+            The self-absorption frequencies [Hz] at time(s) ``t``.
         """
         # convenience variables
         k, x = self.k, 4 - self.k
@@ -1859,7 +1741,7 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         Returns
         -------
         np.ndarray of float or float
-            The self-absorption frequencies [Hz] at time(s) t.
+            The self-absorption frequencies [Hz] at time(s) ``t``.
         """
         # Convenience variables
         p, k = self.p, self.k
@@ -1917,7 +1799,7 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         Returns
         -------
         np.ndarray of float or float
-            The self-absorption frequencies [Hz] at time(s) t.
+            The self-absorption frequencies [Hz] at time(s) ``t``.
         """
         # Convenience variables
         p, k = self.p, self.k

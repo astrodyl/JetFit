@@ -154,7 +154,7 @@ class JetSimpy:
                 ifm = np.logical_and(ifm, subset)
 
             res[ifm] = self.integrated_flux(
-                obs.times()[ifm], obs.int_lower()[ifm], obs.int_upper()[ifm]
+                obs.times()[ifm], obs.int_lowers()[ifm], obs.int_uppers()[ifm]
             )
 
         # Model the spectral indices
@@ -163,7 +163,7 @@ class JetSimpy:
                 sim = np.logical_and(sim, subset)
 
             res[sim] = self.spectral_index(
-                obs.times()[sim], obs.int_lower()[sim], obs.int_upper()[sim]
+                obs.times()[sim], obs.int_lowers()[sim], obs.int_uppers()[sim]
             )
 
         return res

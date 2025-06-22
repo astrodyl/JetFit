@@ -99,18 +99,27 @@ class PTSampler:
     log_l_kwargs, log_p_kwargs : array_like, optional
         The log likelihood and log prior kwargs.
 
+    pool : optional
+        An object with a ``map`` method that follows the
+        same calling sequence as emcee's built-in ``map``
+        function. This is generally used to compute the
+        log-probabilities in parallel.
+
     kwargs
         Any kwargs to be passed to the sampler.
     """
     def __init__(
         self, ntemps, nwalkers, ndim, log_like, log_prior,
-        log_l_args=(), log_p_args=(), log_l_kwargs=(), log_p_kwargs=(), **kwargs
+        log_l_args=(), log_p_args=(), log_l_kwargs=(), log_p_kwargs=(),
+        pool=None, **kwargs
     ):
+        mapper = pool.map if pool is not None else map
+
         # Initialize the sampler
         self._sampler = ptemcee.Sampler(
             nwalkers, ndim, log_like, log_prior,
             log_l_args, log_p_args, log_l_kwargs, log_p_kwargs,
-            ptemcee.make_ladder(ndim, ntemps), **kwargs
+            ptemcee.make_ladder(ndim, ntemps), mapper=mapper, **kwargs
         )
         self._chain = None
         self._iteration = 0
@@ -143,14 +152,6 @@ class PTSampler:
     def ndim(self):
         return self._ndim
 
-    def validate(self):
-        """ placeholder """
-        raise NotImplementedError
-
-    def set_start_pos(self):
-        """ placeholder """
-        raise NotImplementedError
-
     def run_mcmc(self, x0, iterations, **kwargs):
         """
         Perform MCMC sampling.
@@ -173,7 +174,7 @@ class PTSampler:
         np.ndarray with shape [ntemps, nwalkers, ndim]
             The last samples.
         """
-        self._chain = self.sampler.chain(x0)
+        self._chain = self.sampler.chain(x0, **kwargs)
         self._chain.run(iterations)
         self._iteration = self._chain.length
 
@@ -206,6 +207,48 @@ class PTSampler:
                 'called `run_mcmc` yet?'
             )
         return self.chain.x[-1]
+
+    def draw_positions(self, params, models) -> np.ndarray:
+        """
+        Draw the initial positions from the priors.
+
+        PTSampler requires that the start positions be
+        valid (i.e., log posterior is finite). To meet
+        this, any invalid position is overwritten with
+        the best position for that temperature.
+
+        Parameters
+        ----------
+        params : Parameters
+            The MCMC parameters.
+
+        models : MCMCModel
+            The MCMC models.
+
+        Returns
+        -------
+        np.ndarray of float with shape [ntemps, nwalkers, ndim]
+            The starting positions.
+        """
+        # Draw starting positions
+        pos = np.zeros((self.ntemps, self.nwalkers, self.ndim))
+
+        for i in range(self.ntemps):
+            for j, p in enumerate(params.fitting):
+                pos[i, :, j] = p.prior.draw(self.nwalkers)
+
+        # Overwrite with each temperature's best position
+        log_p = np.full((self.ntemps, self.nwalkers), -np.inf)
+
+        for i in range(self.ntemps):
+            for j in range(self.nwalkers):
+                log_p[i, j] = log_posterior_fn(pos[i, j], params, models)  # type: ignore
+
+            pos[i][np.isinf(log_p[i])] = np.array(
+                pos[i][np.nanargmax(log_p[i])], copy=True
+            )
+
+        return pos
 
     def get_value(self, name, flat=False, thin=1, discard=0, temp=0):
         """
@@ -326,6 +369,38 @@ class PTSampler:
         return self.get_value("logP", **kwargs)
 
 
+class EnsembleSampler(emcee.EnsembleSampler):
+    """
+    Adapter for ``emcee.EnsembleSampler``.
+    """
+    def __init__(self, nwalkers, ndim, log_prob_fn, args, **kw):
+        super().__init__(nwalkers, ndim, log_prob_fn, args=args, **kw)
+
+    def draw_positions(self, params, **kwargs) -> np.ndarray:
+        """
+        Draw the initial positions from the priors.
+
+        Parameters
+        ----------
+        params : Parameters
+            The MCMC parameters.
+
+        kwargs :
+            For compatability with ``PTSampler.draw_positions``.
+
+        Returns
+        -------
+        np.ndarray of float with shape [nwalkers, ndim]
+            The starting positions.
+        """
+        pos = np.zeros((self.nwalkers, self.ndim))
+
+        for i, p in enumerate(params.fitting):
+            pos[:, i] = p.prior.draw(self.nwalkers)
+
+        return pos
+
+
 class MCMC:
     """
     Performs MCMC sampling.
@@ -351,64 +426,13 @@ class MCMC:
         self.sampler = None
         self.burn_chain = None
 
-        self.param_pos = None
         self.start_burn_pos = None
         self.start_run_pos = None
 
-        # Setters
-        self.set_param_position()
-
-    # <editor-fold desc="Getters and Setters">
     @property
     def ndim(self):
         """ The number of fitting dimensions. """
         return len(self.params.fitting)
-
-    def set_param_position(self) -> None:
-        """ Sets the position of the parameters in the fitting list. """
-        self.param_pos = {p.name : i for i, p in enumerate(self.params.fitting)}
-
-    def set_start_positions(self, nwalkers, ntemps=None):
-        """
-        Sets the starting burn-in positions.
-
-        Parameters
-        ----------
-        nwalkers : int
-            The number of walkers.
-
-        ntemps : int, optional, default=None
-            The number of temperatures for ``ptemcee``.
-        """
-        # PTSampler shape == (ntemps, nwalkers, ndim)
-        if isinstance(self.sampler, PTSampler):
-            self.start_burn_pos = np.zeros((ntemps, nwalkers, self.ndim))
-
-            for i in range(ntemps):
-                for j, p in enumerate(self.params.fitting):
-                    self.start_burn_pos[i, :, j] = p.prior.draw(nwalkers)
-
-            # PTSampler requires that the initial posterior be valid.
-            # Check every position for non-validity and replace with
-            # the best position for each temp level.
-            log_p = np.full((ntemps, nwalkers), -np.inf)
-            for i in range(ntemps):
-                for j in range(nwalkers):
-                    log_p[i, j] = log_posterior(
-                        self.start_burn_pos[i, j], self.params, self.models  # type: ignore
-                    )
-
-                # Overwrite invalid posteriors
-                best = np.nanargmax(log_p[i])
-                self.start_burn_pos[i][np.isinf(log_p[i])] = np.array(
-                    self.start_burn_pos[i][best], copy=True
-                )
-
-        else:  # Ensemble shape == (ntemps, nwalkers, ndim)
-            self.start_burn_pos = np.zeros((nwalkers, self.ndim))
-
-            for i, p in enumerate(self.params.fitting):
-                self.start_burn_pos[:, i] = p.prior.draw(nwalkers)
 
     def get_best_params(self, as_dict=True, **kwargs):
         """
@@ -435,39 +459,8 @@ class MCMC:
         max_index = np.nanargmax(self.sampler.get_log_prob(flat=True))
         params = self.sampler.get_chain(flat=True)[max_index]
         return self.params.samples_to_dict(params, **kwargs) if as_dict else params
-    # </editor-fold>
 
     # <editor-fold desc="Sampling Routine">
-    @staticmethod
-    def _validate_ptemcee(ntemps, pool=None):
-        """"""
-        if ntemps is None:
-            raise ValueError(
-                "Sampler `parallel_tempered` requires arge `ntemps`."
-            )
-
-    @staticmethod
-    def _validate_emcee(ntemps=None):
-        """"""
-        if ntemps is not None:
-            raise ValueError(
-                "Sampler `ensemble` does not use `ntemps`."
-            )
-
-    def _validate_sampler(self, sampler, pool=None, ntemps=None):
-        """"""
-        if sampler not in ('ensemble', 'parallel_tempered'):
-            raise ValueError(
-                f'Unexpected sampler name: {sampler}. '
-                f'Must be either `ensemble` or `parallel_tempered`.'
-            )
-
-        if sampler == 'parallel_tempered':
-            self._validate_ptemcee(ntemps, pool)
-
-        if sampler == 'ensemble':
-            self._validate_emcee(ntemps)
-
     def set_sampler(self, sampler, nwalkers, pool, ntemps=None, **kwargs):
         """
         Sets the sampler. Duh.
@@ -475,7 +468,7 @@ class MCMC:
         Parameters
         ----------
         sampler : str
-            The sampler type. Must be ``emcee`` or ``ptemcee``.
+            The sampler type. Must be ``ensemble`` or ``parallel_tempered``.
 
         nwalkers : int
             The number of walkers.
@@ -485,32 +478,22 @@ class MCMC:
             See ``get_pool_context()`` for details.
 
         ntemps : int, optional
-            The number of temperatures for ``ptemcee``.
+            The number of temperatures for ``parallel_tempered``.
 
         kwargs
             Any kwargs to be passed to the sampler.
         """
-        self._validate_sampler(sampler, pool, ntemps)
-
         if sampler == 'ensemble':
-            if isinstance(pool, type(nullcontext())):
-                # Single threaded/processed
-                self.sampler = emcee.EnsembleSampler(
-                    nwalkers, self.ndim, log_posterior,
-                    args=(self.params, self.models), **kwargs  # type: ignore
-                )
-            else:
-                # Multithreaded/processed
-                self.sampler = emcee.EnsembleSampler(
-                    nwalkers, self.ndim, log_posterior,
-                    args=(self.params, self.models), pool=pool, **kwargs # type: ignore
-                )
+            self.sampler = EnsembleSampler(
+                nwalkers, self.ndim, log_posterior_fn,
+                args=(self.params, self.models), pool=pool, **kwargs # type: ignore
+            )
 
         elif sampler == 'parallel_tempered':
-            # PTSampler is single processed only
             self.sampler = PTSampler(
-                ntemps, nwalkers, self.ndim, log_likelihood, log_prior,
-                log_l_args=(self.params, self.models), log_p_args=(self.params,)
+                ntemps, nwalkers, self.ndim, log_likelihood_fn, log_prior_fn,
+                log_l_args=(self.params, self.models), log_p_args=(self.params,),
+                pool=pool, **kwargs
             )
 
     def run(
@@ -534,13 +517,13 @@ class MCMC:
             before resetting it for the main run.
 
         sampler : str, optional, default='ensemble'
-            Must be either `ensemble` or `parallel_tempered`.
+            Must be ``ensemble`` or ``parallel_tempered``.
 
         workers : int, optional, default=None
             The max number of workers to use.
 
         ntemps : int, optional, default=None
-            The number of temperatures to use for ``PTSampler``.
+            The number of temperatures for ``PTSampler``.
 
         sampler_kw : dict, optional
             Any kwargs to pass to the sampler.
@@ -549,11 +532,20 @@ class MCMC:
             Any kwargs to pass to the ``run_mcmc`` method.
         """
         with get_pool_context(workers) as pool:
-            self.set_sampler(sampler, nwalkers, pool, ntemps, **(sampler_kw or {}))
-            self.set_start_positions(nwalkers, ntemps)
+            self.set_sampler(
+                sampler, nwalkers, pool, ntemps, **(sampler_kw or {})
+            )
 
-            if burn > 0:
-                print('burning')
+            start_pos = self.sampler.draw_positions(
+                params=self.params, models=self.models
+            )
+
+            if burn < 1:
+                self.start_run_pos = start_pos
+
+            else:
+                self.start_burn_pos = start_pos
+
                 # Run burn in and save the last position
                 self.start_run_pos = (
                     self.sampler.run_mcmc(
@@ -568,7 +560,6 @@ class MCMC:
                 self.sampler.reset()
 
             # Run production
-            print('running')
             self.sampler.run_mcmc(
                 self.start_run_pos, iterations, **(run_kw or {})
             )
@@ -714,11 +705,13 @@ class MCMCModels:
             **p.get('init')).extinguish(wn, **p.get('eval'))
 
 
+# https://emcee.readthedocs.io/en/stable/tutorials/parallel/
 # For multiprocessing purposes, emcee requires that methods and
 # arguments be pickle-able. As such, the methods below are made
 # global to meet this requirement.
 
-def log_prior(theta, params) -> float:
+
+def log_prior_fn(theta, params) -> float:
     """
     Evaluates the natural log of the priors.
 
@@ -747,7 +740,7 @@ def log_prior(theta, params) -> float:
     return lp
 
 
-def log_likelihood(theta, params, models) -> float:
+def log_likelihood_fn(theta, params, models) -> float:
     """
     Calculates the natural log of the likelihood.
 
@@ -783,13 +776,13 @@ def log_likelihood(theta, params, models) -> float:
     )
 
     # Format the slop (if using)
-    s = slop(p.get('slop').get('slop'), models.obs)
+    s = slop(p.get('slop'), models.obs)
 
     # return log likelihood
     return -0.5 * chi_squared(modeled, models.obs, s)  # type: ignore
 
 
-def log_posterior(theta, params, models) -> float:
+def log_posterior_fn(theta, params, models) -> float:
     """
     Calculates the natural log of the posterior
     probability.
@@ -814,8 +807,8 @@ def log_posterior(theta, params, models) -> float:
     float
         The natural log of the posterior.
     """
-    if np.isfinite(lp := log_prior(theta, params)):
-        ll = log_likelihood(theta, params, models)
+    if np.isfinite(lp := log_prior_fn(theta, params)):
+        ll = log_likelihood_fn(theta, params, models)
 
         if np.isfinite(ll):
             return lp + ll
@@ -850,7 +843,22 @@ def calibration_offsets(modeled, offsets, pos) -> np.ndarray:
 
 
 def slop(s, obs) -> float | np.ndarray | None:
-    """"""
+    """
+    Formats for slop to the modeled data.
+
+    Parameters
+    ----------
+    s : float or dict
+        The slop value or grouped slop values.
+
+    obs : Observation
+        The observational data.
+
+    Returns
+    -------
+    float or np.ndarray or None
+        The slop value(s).
+    """
     if isinstance(s, (int, float)):
         return s
 

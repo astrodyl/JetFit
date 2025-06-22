@@ -396,6 +396,18 @@ def to_linear(value: float, scale: ScaleType) -> float:
 
 
 # <editor-fold desc="Project Navigation">
+def get_project_parent_path() -> Path:
+    """
+    Returns the project's parent directory.
+
+    Returns
+    -------
+    Path
+        The project's parent directory.
+    """
+    return get_project_root().parent
+
+
 def get_project_root() -> Path:
     """
     Returns the project root directory.

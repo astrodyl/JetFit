@@ -8,10 +8,9 @@ class PosteriorPlot:
     """
 
     """
-    def __init__(self, sampler, params: list, param_pos):
+    def __init__(self, sampler, params):
         self.sampler = sampler
         self.params = params
-        self.param_pos = param_pos
 
     def plot(self, show: bool = False, out_dir: str | Path = None):
         """

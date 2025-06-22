@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.optimize import root_scalar
 
 from jetfit.core.input import Observation
 from jetfit.models.basemodels import BlastWaveModel, ObservedSpectrumModel
@@ -7,19 +6,17 @@ from jetfit.models.basemodels import AbsorptionFrequencyModel, BaseFireballModel
 from jetfit.models.basemodels import SynchrotronFrequencyModel
 from jetfit.models.basemodels import CoolingFrequencyModel, PeakFluxModel
 
-# ignore `dust_extinction` user warnings
-import warnings
-warnings.filterwarnings('ignore', category=UserWarning)
-
 
 class StratifiedFireballModel(BaseFireballModel):
     """
-    Implements the ultra-relativistic shock moving into an
-    external medium with density rho = rho_0 * R^-k.
+    A fully analytic description of an ultra-relativistic
+    shock moving into an external stratified medium with
+    density rho = rho_0 * R^-k. Where k transitions from
+    one asymptotic value to another.
 
     Parameters
     ----------
-    E : float or astropy.units.Quantity
+    E : float
         The explosion energy normalized to 1e52 ergs.
 
     p : float
@@ -27,19 +24,22 @@ class StratifiedFireballModel(BaseFireballModel):
 
     eps_b : float
         The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
 
     eps_e : float
         The fraction of thermal energy carried by relativistic
-        electrons.
+        electrons. Must be in the range [0, 1].
 
     z : float
         The redshift to the event.
 
-    dL : float or astropy.units.Quantity
-        The luminosity distance to the event [1e28 cm].
+    dL : float
+        The luminosity distance to the event [1e28 cm]. Requiring
+        the distance to be provided in addition to the redshift
+        prevents the need to assume a cosmology here.
 
     sn, sni : float, optional
-        The density smoothing factor. `sni` is the inverse of the
+        The density smoothing factor. ``sni`` is the inverse of the
         smoothing factor. Useful for changing fitting basis in MCMC.
 
     k1 : float
@@ -51,17 +51,17 @@ class StratifiedFireballModel(BaseFireballModel):
     X : float
         The hydrogen mass fraction.
 
-    tj : float, optional
-        The jet break time in days.
+    tj : float, optional, default=None
+        The jet break observer-frame time [d].
 
-    sj, sji : float, optional
+    sj, sji : float, optional, default=None
         The jet break smoothing factor. `sji` is the inverse of the
         smoothing factor. Useful for changing fitting basis in MCMC.
+        Required if ``tj != None``.
 
     use_sa : bool, optional, default=True
         Should self-absorption be modeled?
     """
-
     # noinspection PyPep8Naming
     def __init__(
             self, E, p, eps_b, eps_e, z, dL, nt, rt, X,
@@ -90,96 +90,6 @@ class StratifiedFireballModel(BaseFireballModel):
             return False
 
         return super().is_valid and abs(self.sn) > 0.1
-
-    # def smooth2(self, times):
-    #     """"""
-    #     ts = np.atleast_1d(times)
-    #
-    #     def alpha(k):
-    #         """"""
-    #         return 16 / (17 - 4 * k)
-    #
-    #     def beta(k):
-    #         """"""
-    #         return 4 - k
-    #
-    #     def rho0(r, k):
-    #         """"""
-    #         return 1.67e-24 * n_eff(r) * r ** k
-    #
-    #     def k_eff(r):
-    #         """ Effective density power-law index. """
-    #         x = r / self.rt
-    #         k_eff_num = self.k1 * x ** (self.k1 * self.sn) + self.k2 * x ** (self.k2 * self.sn)
-    #         k_eff_den = x ** (self.k1 * self.sn) + x ** (self.k2 * self.sn)
-    #         return k_eff_num / k_eff_den
-    #
-    #     def n_eff(r):
-    #         """ Effective number density."""
-    #         x = r / self.rt
-    #         return self.nt * (2 ** (1 / self.sn)) * (x ** (self.k1 * self.sn) + x ** (self.k2 * self.sn)) ** -(1 / self.sn)
-    #
-    #     def r_model(r, t):
-    #         """"""
-    #         E = 1e52 * self.E
-    #         return (beta(k_eff(r)) * E * t) ** (1 / (4 - k_eff(r))) * (alpha(k_eff(r)) * np.pi * rho0(r, k_eff(r)) * 2.99e10) ** (-1 / (4 - k_eff(r)))
-    #
-    #     def F(r, t):
-    #         return r_model(r, t) - r
-    #
-    #     r_of_t = []
-    #
-    #     for time in (ts * 86_400):
-    #         sol = root_scalar(F, args=(time,), bracket=[1e16, 1e21], method='brentq')
-    #         r_of_t.append(sol.root)
-    #     r_of_t = np.array(r_of_t)
-    #
-    #     return n_eff(r_of_t) * ((r_of_t / self.rt)** k_eff(r_of_t)), k_eff(r_of_t)
-    #
-    # def radii2(self, times):
-    #     """
-    #     """
-    #     ts = np.atleast_1d(times)
-    #
-    #     def alpha(k):
-    #         """"""
-    #         return 16 / (17 - 4 * k)
-    #
-    #     def beta(k):
-    #         """"""
-    #         return 4 - k
-    #
-    #     def rho0(r, k):
-    #         """"""
-    #         return 1.67e-24 * n_eff(r) * r ** k
-    #
-    #     def k_eff(r):
-    #         """ Effective density power-law index. """
-    #         x = r / self.rt
-    #         k_eff_num = self.k1 * x ** (self.k1 * self.sn) + self.k2 * x ** (self.k2 * self.sn)
-    #         k_eff_den = x ** (self.k1 * self.sn) + x ** (self.k2 * self.sn)
-    #         return k_eff_num / k_eff_den
-    #
-    #     def n_eff(r):
-    #         """ Effective number density."""
-    #         x = r / self.rt
-    #         return self.nt * (2 ** (1 / self.sn)) * (x ** (self.k1 * self.sn) + x ** (self.k2 * self.sn)) ** -(
-    #                     1 / self.sn)
-    #
-    #     def r_model(r, t):
-    #         """"""
-    #         E = 1e52 * self.E
-    #         return (beta(k_eff(r)) * E * t) ** (1 / (4 - k_eff(r))) * (
-    #                     alpha(k_eff(r)) * np.pi * rho0(r, k_eff(r)) * 2.99e10) ** (-1 / (4 - k_eff(r)))
-    #
-    #     def F(r, t):
-    #         return r_model(r, t) - r
-    #
-    #     r_of_t = []
-    #     for time in (ts * 86_400):
-    #         sol = root_scalar(F, args=(time,), bracket=[1e16, 1e21], method='brentq')
-    #         r_of_t.append(sol.root)
-    #     return np.array(r_of_t)
 
     def smooth(self, t):
         """
@@ -221,9 +131,9 @@ class StratifiedFireballModel(BaseFireballModel):
     def radii(self, t):
         """
         Calculates the radius traversed by the blast wave
-        during time `t` in a stratified medium defined by
-        the power-law indices `k1` and `k2`, and the radius
-        and density at the transition, `nt` and `rt`.
+        during time ``t`` in a stratified medium defined by
+        the power-law indices ``k1`` and ``k2``, and the radius
+        and density at the transition, ``nt`` and ``rt``.
 
         Parameters
         ----------
@@ -250,17 +160,17 @@ class StratifiedFireballModel(BaseFireballModel):
 
     def model(self, obs: Observation):
         """
-        Models an `observation` object.
+        Models the observational data, ``obs``.
 
         Parameters
         ----------
         obs : Observation
-            The observation object to model.
+            The observational data.
 
         Returns
         -------
         np.ndarray of float
-            The unextinguished modeled flux.
+            The modeled observational data.
         """
         if not self.is_valid:
             return np.array([np.nan])
@@ -409,15 +319,15 @@ class StratifiedFireballModel(BaseFireballModel):
             The effective density power-law indices.
 
         nu_m : float or np.ndarray of float, optional
-            The synchrotron frequencies [Hz] at time `t`.
+            The synchrotron frequencies [Hz] at time ``t``.
 
         nu_c : float or np.ndarray of float, optional
-            The cooling frequencies [Hz] at time `t`.
+            The cooling frequencies [Hz] at time ``t``.
 
         Returns
         -------
         float or np.ndarray of float
-            The self-absorption frequency [Hz] at time `t`.
+            The self-absorption frequency [Hz] at time(s) ``t``.
         """
         if n is None or k is None:
             n, k = self.smooth(t)
@@ -448,39 +358,35 @@ class StratifiedFireballModel(BaseFireballModel):
 
 class FireballModel(BaseFireballModel):
     """
-    Implements the ultra-relativistic shock moving into an
-    external medium with density rho = rho_0 * R^-k.
-
-    Parameters can be passed either as an Astropy Quantity with
-    an associated unit, or as a simple float. However, they will
-    only be stored as floats. Quantities will be converted to the
-    appropriate units before storing the float value. This is done
-    because operating with Astropy Quantities is very slow and makes
-    MCMC fitting extremely difficult. If a float is passed, it is
-    assumed that the value is already in the expected units.
+    A fully analytic description of an ultra-relativistic
+    shock moving into an external medium with density
+    rho = rho_0 * R^-k.
 
     Parameters
     ----------
-    E : float or astropy.units.Quantity
+    E : float
         The explosion energy normalized to 1e52 ergs.
 
     p : float
-        The electron energy index (dimensionless).
+        The electron energy index.
 
     eps_b : float
         The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
 
     eps_e : float
         The fraction of thermal energy carried by relativistic
-        electrons.
+        electrons. Must be in the range [0, 1].
 
     z : float
-        The redshift to the event.
+        The redshift of the event.
 
-    dL : float or astropy.units.Quantity
-        The luminosity distance to the event.
+    dL : float
+        The luminosity distance to the event [1e28 cm]. Requiring
+        the distance to be provided in addition to the redshift
+        prevents the need to assume a cosmology here.
 
-    rho0 : float or astropy.units.Quantity
+    rho0 : float
         The density normalization.
 
     k : float
@@ -489,21 +395,15 @@ class FireballModel(BaseFireballModel):
     X : float
         The hydrogen mass fraction.
 
-    tj : float, optional
-        The jet break time in days.
+    tj : float, optional, default=None
+        The jet break observer-frame time [d].
 
-    sj : float, optional
-        The jet break smoothing factor.
+    sj : float, optional, default=None
+        The jet break smoothing factor. Required if ``tj != None``.
 
     use_sa : bool, optional, default=True
         Should self-absorption be modeled?
-
-    References
-    ----------
-    [1] Broadband view of blast wave physics: A study
-        of gamma-ray burst afterglows
     """
-
     # noinspection PyPep8Naming
     def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, tj=None, sj=None, sji=None, use_sa=True):
         super().__init__(E, p, eps_b, eps_e, z, dL, X, tj, sj, sji, use_sa)
@@ -513,25 +413,25 @@ class FireballModel(BaseFireballModel):
 
     def model(self, obs: Observation, subset: np.ndarray = None):
         """
-        Models an `observation` object.
+        Models the observational data, ``obs``.
 
         Parameters
         ----------
         obs : Observation
-            The observation object to model.
+            The observational data.
 
         subset : np.ndarray of bool, optional
-            The truth array of which values to model.
+            Models data where ``subset==True``.
 
         Returns
         -------
         np.ndarray of float
-            The unextinguished modeled flux.
+            The modeled observational data.
         """
         if not self.is_valid:
             return np.array([np.nan])
 
-        # Model the smoothed, unextinguished flux
+        # return the modeled observational data
         return ObservedSpectrumModel(**self.spectrum(obs.times()),
             jet=self.jet_break(obs.times()), arrays=obs.as_arrays
         ).model(subset)
@@ -619,13 +519,16 @@ class FireballModel(BaseFireballModel):
         """
         Calculates the self-absorption frequency.
 
-        Since the self-absorption frequency has different relations
-        depending on its relative position to the other critical
-        frequencies, I calculate the self-absorption frequency
-        for both slow-cooling cases (nu_m < nu_a and nu_a < nu_m).
+        The self-absorption frequency has a circular definition.
+        For example, to calculate nu_a, you must first know how
+        nu_a relates to the nu_m and nu_c, but nu_a isn't known
+        because it needs to be known before it can be known >:)
 
-        The result is a combined array where the self-absorption
-        is compared to the synchrotron frequency.
+        This solution is weak, but the self-absorption frequency
+        is calculated for every case (except nu_a > both nu_c and
+        nu_m, not supported). The result is a combined array where
+        the self-absorptions are compared to the synchrotron and
+        cooling frequencies.
 
         Parameters
         ----------
