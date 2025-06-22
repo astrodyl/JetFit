@@ -1,11 +1,10 @@
 from pathlib import Path
 
 import numpy as np
-import astropy.units as u
 
-from jetfit.core.defns.enums import DataType
-from jetfit.core.utils.csv_utils import CSVReader
-from jetfit.core.values import IntegratedFlux, SpectralFlux, SpectralIndex, Bound
+from jetfit.core.structs import DataType
+from jetfit.core.utils import CSVReader
+from jetfit.core.structs import IntegratedFlux, SpectralFlux, SpectralIndex
 
 
 class ObsArray:
@@ -30,29 +29,25 @@ class ObsArray:
         The errors associated with the measurement values.
         Measured in same units as its value.
 
-    times : np.ndarray of float
+    times : np.ndarray of float64
         The times associated with the measurements. Measured
         in days since trigger.
 
     types : np.ndarray
         The types associated with the measurements.
 
-    filters : np.ndarray of str
-        The filters associated with the measurements.
+    bands : np.ndarray of U10
+        The bands associated with the measurements.
 
-    frequencies : np.ndarray of float
+    frequencies : np.ndarray of float64
         The frequencies associated with the spectral flux
         values. Measured in Hz.
 
-    if_lower_freqs, if_upper_freqs : np.ndarray of float
+    int_lower, int_upper : np.ndarray of float64
         The lower and upper frequencies associated with the
-        integrated flux values. Measured in Hz.
+        integrated values. Measured in Hz.
 
-   si_lower_freqs, si_upper_freqs : np.ndarray of float
-        The lower and upper frequencies associated with the
-        spectral index values. Measured in Hz.
-
-    wave_numbers : np.ndarray of float
+    wave_numbers : np.ndarray of float64
         The wave numbers corresponding to the frequencies.
         Measured in micro-meters.
     """
@@ -64,32 +59,28 @@ class ObsArray:
     freq_units = 'Hz'
 
     def __init__(
-            self,
-            values,
-            errors,
-            times,
-            types,
-            filters,
-            frequencies,
-            if_lower_freqs,
-            if_upper_freqs,
-            si_lower_freqs,
-            si_upper_freqs,
-            wave_numbers,
-            extinguishable
+        self,
+        values,
+        errors,
+        times,
+        types,
+        bands,
+        frequencies,
+        int_lower,
+        int_upper,
+        wave_numbers,
+        extinguishable
     ):
         self.values = values
         self.errors = errors
         self.times = times
         self.types = types
-        self.filters = filters
+        self.bands = bands
         self.frequencies = frequencies
-        self.if_lower_freqs = if_lower_freqs
-        self.if_upper_freqs = if_upper_freqs
-        self.si_lower_freqs = si_lower_freqs
-        self.si_upper_freqs = si_upper_freqs
         self.wave_numbers = wave_numbers
         self.extinguishable = extinguishable
+        self.int_lower = int_lower
+        self.int_upper = int_upper
 
         # Static truth arrays of data
         self.flux_loc = self.types != DataType.SPECTRAL_INDEX
@@ -104,7 +95,7 @@ class ObsArray:
 
         Parameters
         ----------
-        data : np.ndarray
+        data : np.ndarray of
             DataTypes `{SpectralIndex, SpectralFlux, IntegratedFlux}`
 
         Returns
@@ -112,35 +103,30 @@ class ObsArray:
         ObsArray
             Instantiated from a data array.
         """
-
         # Initializes info for all data types
         values = np.full(len(data), np.nan, dtype=np.float64)
         errors = np.full(len(data), np.nan, dtype=np.float64)
-        times  = np.full(len(data), np.nan, dtype=float)
+        times  = np.full(len(data), np.nan, dtype=np.float64)
         types  = np.full(len(data), np.nan, dtype=DataType)
-        extinguishable = np.full(len(data), False, dtype=bool)
+        extinguishable = np.full(len(data), fill_value=False)
 
-        # Initializes info for flux data types
-        filters = np.full(len(data), np.nan, dtype='U10')
+        # Initializes info for flux data types [str]
+        bands = np.full(len(data), np.nan, dtype='U10')
 
-        # Initializes info for spectral flux data type
+        # Initializes info for spectral flux data type [Hz, um]
         frequencies = np.full(len(data), np.nan, dtype=np.float64)
         wave_numbers = np.empty(len(data), dtype=np.float64)
 
-        # Initializes info for integrated flux data type
-        if_lower_freqs = np.full(len(data), np.nan, dtype=np.float64)
-        if_upper_freqs = np.full(len(data), np.nan, dtype=np.float64)
-
-        # Initializes info for spectral index data type
-        si_lower_freqs = np.full(len(data), np.nan, dtype=np.float64)
-        si_upper_freqs = np.full(len(data), np.nan, dtype=np.float64)
+        # Initializes info for integrated data types [Hz]
+        int_lower = np.full(len(data), np.nan, dtype=np.float64)
+        int_upper = np.full(len(data), np.nan, dtype=np.float64)
 
         for i, f in enumerate(data):
             times[i] = f.time.to_value(cls.time_units)
             types[i] = f.type
 
             if f.type != DataType.SPECTRAL_INDEX:
-                filters[i] = f.band
+                bands[i] = f.band
 
                 # TODO: Temp use CCM range
                 if 9e13 <= f.frequency.to_value('Hz') <= 2.99e15:
@@ -155,29 +141,19 @@ class ObsArray:
             elif f.type == DataType.INTEGRATED_FLUX:
                 values[i] = f.value.to_value(cls.if_units)
                 errors[i] = f.avg_uncertainty.to_value(cls.if_units)
-                if_lower_freqs[i] = f.int_range.lower.to_value(cls.freq_units)
-                if_upper_freqs[i] = f.int_range.upper.to_value(cls.freq_units)
+                int_lower[i] = f.int_range.lower.to_value(cls.freq_units)
+                int_upper[i] = f.int_range.upper.to_value(cls.freq_units)
 
             elif f.type == DataType.SPECTRAL_INDEX:
                 values[i] = f.value.value
                 errors[i] = f.avg_uncertainty.value
-                si_lower_freqs[i] = f.int_range.lower.to_value(cls.freq_units)
-                si_upper_freqs[i] = f.int_range.upper.to_value(cls.freq_units)
+                int_lower[i] = f.int_range.lower.to_value(cls.freq_units)
+                int_upper[i] = f.int_range.upper.to_value(cls.freq_units)
 
         # return ObsArray
         return cls(
-            values=values,
-            errors=errors,
-            times=times,
-            types=types,
-            filters=filters,
-            frequencies=frequencies,
-            if_lower_freqs=if_lower_freqs,
-            if_upper_freqs=if_upper_freqs,
-            si_lower_freqs=si_lower_freqs,
-            si_upper_freqs=si_upper_freqs,
-            extinguishable=extinguishable,
-            wave_numbers=wave_numbers,
+            values, errors, times, types, bands, frequencies,
+            int_lower, int_upper, wave_numbers, extinguishable
         )
 
 
@@ -187,8 +163,8 @@ class Observation:
 
     Parameters
     ----------
-    data : np.ndarray of SpectralFlux, IntegratedFlux, SpectralIndex
-        The observational data.
+    data : np.ndarray
+        The  SpectralFlux, IntegratedFlux, SpectralIndex values.
 
     offsets : dict, optional
         <offset names> : <np.ndarray of where to apply offset>.
@@ -196,29 +172,17 @@ class Observation:
     hosts : dict, optional
         <host names> : <np.ndarray of where to apply host correction>.
 
-    groups : dict, optional
-        <group names> : <np.ndarray of where the group is defined>.
+    slops : dict, optional
+        <slop names> : <np.ndarray of where the slop is applies>.
     """
-    def __init__(self, data, offsets=None, hosts=None, groups=None):
+    def __init__(self, data, offsets=None, hosts=None, slops=None):
         self._as_arrays = ObsArray.from_data(data)
         self._data = data
 
         # Groups
         self.offsets = offsets
-        self.groups = groups
+        self.slops = slops
         self.hosts = hosts
-
-        self.data_regimes = {}
-
-        # Set the valid time bounds for each data group
-        if groups is not None:
-            for group, pos in groups.items():
-                times = self._as_arrays.times[pos]
-
-                self.data_regimes[group] = Bound(
-                    times.min() * u.d,  # type: ignore
-                    times.max() * u.d,  # type: ignore
-                )
 
         self.length = len(data)
 
@@ -237,7 +201,7 @@ class Observation:
         Observation
             Instantiated from a CSV file path.
         """
-        csv = CSVReader(path, live_dangerously=True)
+        csv = CSVReader(path)
 
         def init_dict(group: str) -> dict:
             """ Initialize group dictionary. """
@@ -247,19 +211,21 @@ class Observation:
             }
 
         # Handle optional columns
-        groups, offsets, hosts = None, None, None
+        slops, offsets, hosts = None, None, None
 
         if 'CalGroup' in csv.df.columns.values:
             offsets = init_dict('CalGroup')
 
-        if 'DataGroup' in csv.df.columns.values:
-            groups = init_dict('DataGroup')
+        if 'SlopGroup' in csv.df.columns.values:
+            slops = init_dict('SlopGroup')
 
         if 'HostGroup' in csv.df.columns.values:
             hosts = init_dict('HostGroup')
 
         data = []
         for row in csv.rows():
+
+            # Parse data
             data_type = row.ValueType.lower()
 
             if data_type == DataType.INTEGRATED_FLUX.value:
@@ -277,16 +243,17 @@ class Observation:
                     f'{row.ValueType}.'
                 )
 
+            # Parse groups
             if offsets and isinstance(row.CalGroup, str):
                 offsets[row.CalGroup][row.Index] = True
 
             if hosts and isinstance(row.HostGroup, str):
                 hosts[row.HostGroup][row.Index] = True
 
-            if groups and isinstance(row.DataGroup, str):
-                groups[row.DataGroup][row.Index] = True
+            if slops and isinstance(row.SlopGroup, str):
+                slops[row.SlopGroup][row.Index] = True
 
-        return cls(np.asarray(data, dtype=object), offsets, hosts, groups)
+        return cls(np.asarray(data, dtype=object), offsets, hosts, slops)
 
     @property
     def data(self) -> np.ndarray:
@@ -316,6 +283,74 @@ class Observation:
             The array representation of the observation.
         """
         return self._as_arrays
+
+    def times(self, quant: bool = False):
+        """
+        Returns the measurement times [d].
+
+        Parameters
+        ----------
+        quant : bool, optional, default=False
+            Should the values be astropy Quantities?
+
+        Returns
+        -------
+        np.ndarray of float
+        """
+        if quant:
+            return np.asarray([d.time for d in self.data])
+        return self.as_arrays.times
+
+    def freqs(self, quant: bool = False):
+        """
+        Returns the measurement frequencies [Hz].
+
+        Parameters
+        ----------
+        quant : bool, optional, default=False
+            Should the values be astropy Quantities?
+
+        Returns
+        -------
+        np.ndarray of float
+        """
+        if quant:
+            return np.asarray([d.frequency for d in self.data])
+        return self.as_arrays.frequencies
+
+    def int_lowers(self, quant: bool = False):
+        """
+        Returns the lower integration bounds [Hz].
+
+        Parameters
+        ----------
+        quant : bool, optional, default=False
+            Should the values be astropy Quantities?
+
+        Returns
+        -------
+        np.ndarray of float
+        """
+        if quant:
+            return np.asarray([d.int_range.lower for d in self.data])
+        return self.as_arrays.int_lower
+
+    def int_uppers(self, quant: bool = False):
+        """
+        Returns the upper integration bounds [Hz].
+
+        Parameters
+        ----------
+        quant : bool, optional, default=False
+            Should the values be astropy Quantities?
+
+        Returns
+        -------
+        np.ndarray of float
+        """
+        if quant:
+            return np.asarray([d.int_range.upper for d in self.data])
+        return self.as_arrays.int_upper
 
     @property
     def flux_loc(self) -> np.array:

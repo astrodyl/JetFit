@@ -2,11 +2,15 @@ import copy
 from contextlib import nullcontext
 
 import emcee
-import ptemcee
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
-from jetfit.core.utils import math_utils
+from jetfit.core import utils
+
+try:
+    import ptemcee
+except ImportError:
+    pass
 
 
 def get_pool_context(workers=None, executor='process'):
@@ -94,16 +98,19 @@ class PTSampler:
 
     log_l_kwargs, log_p_kwargs : array_like, optional
         The log likelihood and log prior kwargs.
+
+    kwargs
+        Any kwargs to be passed to the sampler.
     """
     def __init__(
         self, ntemps, nwalkers, ndim, log_like, log_prior,
-        log_l_args=(), log_p_args=(), log_l_kwargs=(), log_p_kwargs=()
+        log_l_args=(), log_p_args=(), log_l_kwargs=(), log_p_kwargs=(), **kwargs
     ):
         # Initialize the sampler
         self._sampler = ptemcee.Sampler(
             nwalkers, ndim, log_like, log_prior,
             log_l_args, log_p_args, log_l_kwargs, log_p_kwargs,
-            ptemcee.make_ladder(ndim, ntemps)
+            ptemcee.make_ladder(ndim, ntemps), **kwargs
         )
         self._chain = None
         self._iteration = 0
@@ -135,6 +142,14 @@ class PTSampler:
     @property
     def ndim(self):
         return self._ndim
+
+    def validate(self):
+        """ placeholder """
+        raise NotImplementedError
+
+    def set_start_pos(self):
+        """ placeholder """
+        raise NotImplementedError
 
     def run_mcmc(self, x0, iterations, **kwargs):
         """
@@ -373,21 +388,23 @@ class MCMC:
                 for j, p in enumerate(self.params.fitting):
                     self.start_burn_pos[i, :, j] = p.prior.draw(nwalkers)
 
-            # Overwrite invalid posteriors with best for each temp
+            # PTSampler requires that the initial posterior be valid.
+            # Check every position for non-validity and replace with
+            # the best position for each temp level.
             log_p = np.full((ntemps, nwalkers), -np.inf)
             for i in range(ntemps):
                 for j in range(nwalkers):
                     log_p[i, j] = log_posterior(
-                        self.start_burn_pos[i, j], self.params, self.models
+                        self.start_burn_pos[i, j], self.params, self.models  # type: ignore
                     )
 
+                # Overwrite invalid posteriors
                 best = np.nanargmax(log_p[i])
                 self.start_burn_pos[i][np.isinf(log_p[i])] = np.array(
                     self.start_burn_pos[i][best], copy=True
                 )
 
-        # Ensemble shape == (ntemps, nwalkers, ndim)
-        else:
+        else:  # Ensemble shape == (ntemps, nwalkers, ndim)
             self.start_burn_pos = np.zeros((nwalkers, self.ndim))
 
             for i, p in enumerate(self.params.fitting):
@@ -406,9 +423,6 @@ class MCMC:
         kwargs : dict
             cat : str, optional
                 Limit the params to the ``cat`` categories.
-
-            group : str, optional
-                Limit the params to the ``group`` data groups.
 
             scale : str, optional, default='linear'
                 The scale to return the parameters in.
@@ -429,13 +443,7 @@ class MCMC:
         """"""
         if ntemps is None:
             raise ValueError(
-                "Sampler `ptemcee` requires arge `ntemps`."
-            )
-
-        if pool is not None:
-            raise ValueError(
-                "Sampler `ptemcee` does not support"
-                "multi-processing/threading."
+                "Sampler `parallel_tempered` requires arge `ntemps`."
             )
 
     @staticmethod
@@ -443,21 +451,21 @@ class MCMC:
         """"""
         if ntemps is not None:
             raise ValueError(
-                "Sampler `emcee` does not use `ntemps`."
+                "Sampler `ensemble` does not use `ntemps`."
             )
 
     def _validate_sampler(self, sampler, pool=None, ntemps=None):
         """"""
-        if sampler not in ('emcee', 'ptemcee'):
+        if sampler not in ('ensemble', 'parallel_tempered'):
             raise ValueError(
                 f'Unexpected sampler name: {sampler}. '
-                f'Must be either `emcee` or `ptemcee`.'
+                f'Must be either `ensemble` or `parallel_tempered`.'
             )
 
-        if sampler == 'ptemcee':
+        if sampler == 'parallel_tempered':
             self._validate_ptemcee(ntemps, pool)
 
-        if sampler == 'emcee':
+        if sampler == 'ensemble':
             self._validate_emcee(ntemps)
 
     def set_sampler(self, sampler, nwalkers, pool, ntemps=None, **kwargs):
@@ -484,7 +492,7 @@ class MCMC:
         """
         self._validate_sampler(sampler, pool, ntemps)
 
-        if sampler == 'emcee':
+        if sampler == 'ensemble':
             if isinstance(pool, type(nullcontext())):
                 # Single threaded/processed
                 self.sampler = emcee.EnsembleSampler(
@@ -498,7 +506,7 @@ class MCMC:
                     args=(self.params, self.models), pool=pool, **kwargs # type: ignore
                 )
 
-        elif sampler == 'ptemcee':
+        elif sampler == 'parallel_tempered':
             # PTSampler is single processed only
             self.sampler = PTSampler(
                 ntemps, nwalkers, self.ndim, log_likelihood, log_prior,
@@ -506,7 +514,7 @@ class MCMC:
             )
 
     def run(
-        self, nwalkers, iterations, burn=0, sampler='emcee',
+        self, nwalkers, iterations, burn=0, sampler='ensemble',
         workers=None, ntemps=None, sampler_kw=None, run_kw=None
     ):
         """
@@ -525,14 +533,14 @@ class MCMC:
             stores the burn sampler to ``self.burn_sampler``
             before resetting it for the main run.
 
-        sampler : str, optional, default='emcee'
-            Must be either `emcee` or `ptemcee`.
+        sampler : str, optional, default='ensemble'
+            Must be either `ensemble` or `parallel_tempered`.
 
         workers : int, optional, default=None
             The max number of workers to use.
 
         ntemps : int, optional, default=None
-            The number of temperatures to use for ``ptemcee``.
+            The number of temperatures to use for ``PTSampler``.
 
         sampler_kw : dict, optional
             Any kwargs to pass to the sampler.
@@ -545,9 +553,12 @@ class MCMC:
             self.set_start_positions(nwalkers, ntemps)
 
             if burn > 0:
-                # Run the burn in and save the last position
+                print('burning')
+                # Run burn in and save the last position
                 self.start_run_pos = (
-                    self.sampler.run_mcmc(self.start_burn_pos, burn, **(run_kw or {}))
+                    self.sampler.run_mcmc(
+                        self.start_burn_pos, burn, **(run_kw or {})
+                    )
                 )
 
                 # Save the chain if desired for diagnostics. Cannot
@@ -557,6 +568,7 @@ class MCMC:
                 self.sampler.reset()
 
             # Run production
+            print('running')
             self.sampler.run_mcmc(
                 self.start_run_pos, iterations, **(run_kw or {})
             )
@@ -639,49 +651,8 @@ class MCMCModels:
         np.ndarray of float
             The modeled GRB afterglow flux.
         """
-        if params.get('shared') is not None:
-            # Model the data with sets of parameters
-            # applied to different subsets of the data.
-            modeled = self.model_grouped_afterglow(params)
-
-        else:
-            # Model the data all together. Nice and simple.
-            model = self.afg_model(**params.get('model'), **self.afg_kw)
-            modeled = model.model(self.obs)
-
-        return modeled
-
-    def model_grouped_afterglow(self, params):
-        """
-        Models the unextinguished GRB afterglow flux divided
-        into an arbitrarily defined number of subsets.
-
-        This method is useful for light curves that display
-        different behaviors in different temporal regimes.
-        Note that it is up to the user to determine whether
-        fitting multiple sets of parameters is physically
-        meaningful or not. This method simply provides the
-        ability to do so.
-
-        Parameters
-        ----------
-        params : dict
-            The dict returned from `Parameters.samples_to_dict`.
-
-        Returns
-        -------
-        np.ndarray of float
-            The modeled unextinguished GRB afterglow data.
-        """
-        modeled = np.full(self.obs.length, np.nan, dtype=float)
-
-        for group, mask in self.obs.groups.items():
-            model_params = params.get(group).get('model')
-
-            modeled[mask] = self.afg_model(
-                **model_params, **self.afg_kw).model(self.obs, mask)
-
-        return modeled
+        return self.afg_model(
+            **params.get('model'), **self.afg_kw).model(self.obs)
 
     def model_extinction(self, modeled, params):
         """
@@ -708,9 +679,6 @@ class MCMCModels:
         """
         pos = self.obs.extinguishable
         wn = self.obs.as_arrays.wave_numbers[pos]
-
-        if 'shared' in params:
-            params = params['shared']
 
         # Extinction params TEMP!
         z = params.get('model').get('z')
@@ -802,21 +770,23 @@ def log_likelihood(theta, params, models) -> float:
     """
     p = params.samples_to_dict(theta)
 
-    # Model the observed afterglow flux
+    # Model the observed afterglow
     modeled = models.model(p)
 
-    # A nan will always result in -inf likelihood, so do a quick
-    # check here to avoid unnecessary calculations.
+    # A nan always results in -inf likelihood.
     if np.isnan(modeled.min()):
         return -np.inf
 
     # Apply calibration offsets
     modeled = calibration_offsets(
-        modeled, params.get(p, 'offsets'), models.obs.offsets
+        modeled, p.get('offsets'), models.obs.offsets
     )
 
+    # Format the slop (if using)
+    s = slop(p.get('slop').get('slop'), models.obs)
+
     # return log likelihood
-    return -0.5 * chi_squared(modeled, models.obs, slop(p, models.obs))  # type: ignore
+    return -0.5 * chi_squared(modeled, models.obs, s)  # type: ignore
 
 
 def log_posterior(theta, params, models) -> float:
@@ -824,9 +794,9 @@ def log_posterior(theta, params, models) -> float:
     Calculates the natural log of the posterior
     probability.
 
-    The posterior probability is the probability
-    of the parameters, `theta`, given the evidence
-    X denoted by p(theta | X).
+    The posterior probability is the probability of
+    the parameters, ``theta``, given the evidence X
+    denoted by p(theta | X).
 
     Parameters
     ----------
@@ -863,7 +833,7 @@ def calibration_offsets(modeled, offsets, pos) -> np.ndarray:
         The modeled values.
 
     offsets : dict
-        Key value pairs of `CalGroup` and offset values [mag].
+        Key value pairs of ``CalGroup`` and offset values [mag].
 
     pos : dict
         The calibration positions.
@@ -876,46 +846,24 @@ def calibration_offsets(modeled, offsets, pos) -> np.ndarray:
     if offsets is not None:
         for name, offset in offsets.items():
             modeled[pos[name]] *= 10.0 ** -(0.4 * offset)
-
     return modeled
 
 
-def slop(params, obs) -> float | np.ndarray | None:
-    """
-    Formats the slop according to data groups.
+def slop(s, obs) -> float | np.ndarray | None:
+    """"""
+    if isinstance(s, (int, float)):
+        return s
 
-    Parameters
-    ----------
-    params : dict
-        The dict returned from `Parameters.samples_to_dict`.
+    elif isinstance(s, dict):
+        res = np.empty(obs.length)
 
-    obs : Observation
-        The observational data.
+        for name, val in s.items():
+            res[obs.slops[name]] = val
 
-    Returns
-    -------
-    float or np.ndarray of float or None
-        The slop value(s).
-    """
-
-    # No data groups
-    if params.get('shared') is None:
-        return params.get('slop').get('slop')
-
-    # Multiple data groups, but only one slop
-    if params.get('shared').get('slop'):
-        return params.get('shared').get('slop').get('slop')
-
-    # Multiple slops
-    s = np.empty(obs.length)
-
-    for group, pos in obs.groups.items():
-        s[pos] = params.get(group).get('slop').get('slop')
-
-    return s
+        return res
 
 
-def chi_squared(modeled, obs, slop=None) -> float:
+def chi_squared(modeled, obs, slops=None) -> float:
     """
     Calculates the combined chi-squared between
     the modeled and observational data for both
@@ -931,8 +879,11 @@ def chi_squared(modeled, obs, slop=None) -> float:
     modeled : np.ndarray of float
         The modeled or predicted values.
 
-    slop : float or np.ndarray of float, optional
-        The slop value.
+    obs : Observation
+        The observational data.
+
+    slops : float or np.ndarray of float, optional
+        The slop value(s).
 
     Returns
     -------
@@ -941,8 +892,8 @@ def chi_squared(modeled, obs, slop=None) -> float:
     """
 
     # Handle flux and indices the same
-    if slop is None:
-        return math_utils.chi_squared(
+    if slops is None:
+        return utils.chi_squared(
             modeled,
             obs.as_arrays.values,
             obs.as_arrays.errors,
@@ -951,11 +902,11 @@ def chi_squared(modeled, obs, slop=None) -> float:
     # Chi-squared for flux (uses slop)
     flux_mask = obs.flux_loc
 
-    cs_flux = math_utils.chi_squared(
+    cs_flux = utils.chi_squared(
         modeled[flux_mask],
         obs.as_arrays.values[flux_mask],
         obs.as_arrays.errors[flux_mask],
-        slop if isinstance(slop, float) else slop[flux_mask]
+        slops if isinstance(slops, float) else slops[flux_mask]
     )
 
     # Chi-squared for spectral indices (does not use slop)
@@ -964,7 +915,7 @@ def chi_squared(modeled, obs, slop=None) -> float:
     if not index_mask.any():
         return cs_flux
 
-    cs_indices = math_utils.chi_squared(
+    cs_indices = utils.chi_squared(
         modeled[index_mask],
         obs.as_arrays.values[index_mask],
         obs.as_arrays.errors[index_mask],

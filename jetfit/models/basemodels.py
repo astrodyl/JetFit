@@ -1,10 +1,10 @@
 import math
+
 import numpy as np
 import astropy.units as u
 import astropy.constants as const
 
-from jetfit.core.values import SpectralFlux, IntegratedFlux, SpectralIndex
-from jetfit.mcmc.parameters.parameters import Parameters
+from jetfit.core.structs import SpectralFlux, IntegratedFlux, SpectralIndex
 
 
 def has_fts_transition(nu_m, nu_c) -> bool:
@@ -41,34 +41,14 @@ class BaseBlastWaveModel:
     k : float
         The density power-law index.
     """
-    c = const.c.cgs.value  # type: ignore
+    c = const.c.cgs.value      # type: ignore
     m_p = const.m_p.cgs.value  # type: ignore
 
     def __init__(self, E, n17, k, ref):
-        self._E = E
+        self.E = E
         self._n17 = n17
         self.k = k
         self.r_ref = ref
-
-    @property
-    def E(self) -> float:
-        """ Returns the energy normalized to 1e52 ergs. """
-        return self._E
-
-    @E.setter
-    def E(self, e: float | u.Quantity):
-        """
-        Sets the energy normalized to 1e52 ergs.
-
-        Parameters
-        ----------
-        e : float or astropy.units.Quantity['energy']
-            The explosion energy. If a float is provided,
-            assumes the energy is normalized to 1e52 ergs.
-        """
-        if isinstance(e, u.Quantity):
-            e = e.to_value('erg') / 1e52
-        self._E = e
 
     @property
     def n17(self) -> float:
@@ -429,10 +409,9 @@ class ObservedSpectrumModel:
         np.ndarray of float
             The unextinguished spectral flux.
         """
-        jet = self.jet.subset(mask) if self.jet else None
-
-        return SpectralFluxModel(**self.spectrum(mask))(
-            self.arrays.frequencies[mask], self.has_fts, jet, self.sharp
+        return SpectralFluxModel(**self.spectrum(mask)).evaluate(
+            self.arrays.frequencies[mask], self.has_fts,
+            self.jet.subset(mask) if self.jet else None,
         )
 
     def integrated_flux(self, mask):
@@ -449,12 +428,10 @@ class ObservedSpectrumModel:
         np.ndarray of float
             The unextinguished integrated flux.
         """
-        jet = self.jet.subset(mask) if self.jet else None
-
-        return IntegratedFluxModel(**self.spectrum(mask))(
-            self.arrays.if_lower_freqs[mask],
-            self.arrays.if_upper_freqs[mask],
-            self.has_fts, jet, self.sharp
+        return IntegratedFluxModel(**self.spectrum(mask)).evaluate(
+            self.arrays.int_lower[mask],
+            self.arrays.int_upper[mask],
+            self.has_fts, self.jet.subset(mask) if self.jet else None
         )
 
     def spectral_index(self, mask):
@@ -471,12 +448,10 @@ class ObservedSpectrumModel:
         np.ndarray of float
             The spectral indices.
         """
-        jet = self.jet.subset(mask) if self.jet else None
-
-        return SpectralIndexModel(**self.spectrum(mask))(
-            self.arrays.si_lower_freqs[mask],
-            self.arrays.si_upper_freqs[mask],
-            self.has_fts, jet, self.sharp
+        return SpectralIndexModel(**self.spectrum(mask)).evaluate(
+            self.arrays.int_lower[mask],
+            self.arrays.int_upper[mask],
+            self.has_fts, self.jet.subset(mask) if self.jet else None
         )
 
     def spectrum(self, mask=None):
@@ -1298,7 +1273,7 @@ class IntegratedFluxModel(BaseFluxModel):
             upper=val.int_range.upper.value
         )
 
-    def evaluate(self, lower, upper, fts=False, jet=None, sharp=False):
+    def evaluate(self, lower, upper, fts=False, jet=None):
         """
         Evaluates the integrated flux model using the
         `lower` and `upper` integration limits.
@@ -1317,9 +1292,6 @@ class IntegratedFluxModel(BaseFluxModel):
         jet : JetBreakModel, optional, default=None
             Smooths the flux across the jet break.
 
-        sharp : bool, optional, default=False
-            Model the spectrum using sharply broken power laws?
-
         Returns
         -------
         float or np.ndarray of float
@@ -1327,11 +1299,11 @@ class IntegratedFluxModel(BaseFluxModel):
         """
         beta = SpectralIndexModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a
-        ).evaluate(lower, upper, fts, jet, sharp)
+        ).evaluate(lower, upper, fts, jet)
 
         flux = SpectralFluxModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a
-        ).evaluate(lower, fts, jet, sharp)
+        ).evaluate(lower, fts, jet)
 
         # return the smoothed integrated flux [erg cm-2 s-1]
         return 1e-26 * (
@@ -1517,28 +1489,6 @@ class BaseSpectralModel:
         """
         return self.evaluate(*args, **kwargs)
 
-    # noinspection PyPep8Naming
-    @property
-    def E(self) -> float:
-        """ Returns the explosion energy normalized to 10e52 erg. """
-        return self._E
-
-    # noinspection PyPep8Naming
-    @E.setter
-    def E(self, e: float | u.Quantity) -> None:
-        """
-        Sets the explosion energy normalized to 10e52 erg.
-
-        Parameters
-        ----------
-        e : float or astropy.units.Quantity
-            The explosion energy. If a float is provided, assumes
-            that the value is already normalized to 1e52 erg.
-        """
-        if isinstance(e, u.Quantity):
-            e = e.to_value('erg') / 1e52
-        self._E = e
-
     @property
     def alpha(self) -> float:
         """ Returns the hydrodynamic coefficient. """
@@ -1551,7 +1501,7 @@ class BaseSpectralModel:
 
     def evaluate(self, *args, **kwargs):
         """ Placeholder evaluate method. """
-        raise NotImplementedError(f'evaluate not implemented.')
+        raise NotImplementedError(f'`evaluate` not implemented.')
 
 
 class PeakFluxModel(BaseSpectralModel):
@@ -1561,7 +1511,7 @@ class PeakFluxModel(BaseSpectralModel):
 
     Parameters
     ----------
-    rho0 : float or u.Quantity
+    rho0 : float
         The number density normalization [cm-3].
     """
 
@@ -1579,7 +1529,7 @@ class PeakFluxModel(BaseSpectralModel):
 
     def evaluate(self, t, ref=17):
         """
-        Calculates the peak flux at time `t`.
+        Calculates the peak flux at time(s) ``t``.
 
         Parameters
         ----------
@@ -1592,7 +1542,7 @@ class PeakFluxModel(BaseSpectralModel):
         Returns
         -------
         float or np.array of float
-            The peak flux [mJy] at time `t`.
+            The peak flux [mJy].
         """
         # Convenience variables
         k, x = self.k, 4 - self.k
@@ -1646,8 +1596,7 @@ class PeakFluxModel(BaseSpectralModel):
 class CoolingFrequencyModel(BaseSpectralModel):
     """
     Cooling frequency model. Assumes an ultra-relativistic
-    shock moving through an external medium with rho = rho0
-    * R^-k density.
+    shock moving in an external density with rho = rho * R^-k.
     """
 
     # noinspection PyPep8Naming
@@ -1657,7 +1606,7 @@ class CoolingFrequencyModel(BaseSpectralModel):
 
     def evaluate(self, t, ref=17):
         """
-        Calculates the cooling frequencies at times `t`.
+        Calculates the cooling frequencies at times ``t``.
 
         Parameters
         ----------
@@ -1670,7 +1619,7 @@ class CoolingFrequencyModel(BaseSpectralModel):
         Returns
         -------
         float or np.array of float
-            The cooling frequency [Hz] at time(s) `t`.
+            The cooling frequencies [Hz].
         """
         # convenience variables
         k, x = self.k, 4 - self.k
@@ -1718,8 +1667,7 @@ class CoolingFrequencyModel(BaseSpectralModel):
 class SynchrotronFrequencyModel(BaseSpectralModel):
     """
     Synchrotron frequency model. Assumes an ultra-relativistic
-    shock moving through an external medium with rho = rho0
-    * R^-k density.
+    shock moving in an external density with rho = rho * R^-k.
 
     Attributes
     ----------
@@ -1734,7 +1682,6 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
     p : float
         The electron energy power-law index.
     """
-
     # noinspection PyPep8Naming
     def __init__(self, E, eps_e, eps_b, k, z, X, p):
         super().__init__(E, eps_b, k, z)
@@ -1749,16 +1696,8 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
 
     def evaluate(self, t):
         """
-        Calculates the synchrotron frequency at time `t`
-        for a shock's movement that is described by `evo`.
-
-        To prevent overflow exceptions and generally slow
-        calculations, I take the sum of the log of all powers
-        of ten rather than evaluating each separately. The
-        model parameters span many, many orders of magnitude.
-
-        To improve efficiency, constant factors are evaluated
-        and combined beforehand and the result is used.
+        Calculates the synchrotron frequency at time(s) ``t``
+        for an adiabatic evolution.
 
         Parameters
         ----------
@@ -1767,12 +1706,12 @@ class SynchrotronFrequencyModel(BaseSpectralModel):
 
         Returns
         -------
-        float or np.array of float
-            The cooling frequency at time `t` measured in Hz.
+        float or np.ndarray of float
+            The synchrotron frequencies [Hz].
         """
         # return synchrotron frequency [Hz]
         return (
-            # all constants evaluated
+            # all constants (including normalizations)
             4.049782158231e+16 *
 
             # k-dependent factors
@@ -1980,9 +1919,6 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         np.ndarray of float or float
             The self-absorption frequencies [Hz] at time(s) t.
         """
-        if isinstance(t, u.Quantity):
-            t = t.to_value('d')
-
         # Convenience variables
         p, k = self.p, self.k
         x = 3 * (4 - k)
@@ -2029,9 +1965,6 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
         np.ndarray of float or float
             The self-absorption frequency [Hz]
         """
-        if isinstance(t, u.Quantity):
-            t = t.to_value('d')
-
         # Convenience variables
         p, k = self.p, self.k
         x = 5 * (4 - k)
@@ -2067,232 +2000,3 @@ class AbsorptionFrequencyModel(BaseSpectralModel):
             np.log10(E) * exp_ae +
             np.log10(t) * -(10 + 3 * k) / x
         )
-
-
-class ObservedFluxModel:
-    """
-    Container for computing the observed afterglow flux.
-
-    Parameters
-    ----------
-    afterglow_model :
-        The afterglow flux model to use. Can be any custom
-        defined model as long as it has a `model` method
-        that takes an `Observation` and returns an array.
-
-    extinction_model :
-        The dust extinction model to use. Models from
-        `dust_extinction` package or any custom object
-        that has an `extinguish` method.
-
-    ext_sf : np.array, optional
-        The pre-computed source frame extinction values.
-
-    ext_mw : np.array, optional
-        The pre-computed milky way extinction values.
-    """
-    def __init__(
-            self,
-            afterglow_model,
-            extinction_model,
-            ext_sf=None,
-            ext_mw=None,
-    ):
-        self.afterglow_model = afterglow_model
-        self.extinction_model = extinction_model
-        self.ext_sf = ext_sf
-        self.ext_mw = ext_mw
-
-    def __call__(self, *args, **kwargs):
-        """ Calls the `model` method. """
-        return self.model(*args, **kwargs)
-
-    def model(self, obs, params, **kwargs):
-        """
-        Models the observed GRB afterglow flux.
-
-        Parameters
-        ----------
-        obs : Observation
-            The `Observation` object to model.
-
-        params : dict
-            The dict returned from `Parameters.samples_to_dict`.
-
-        kwargs : dict, optional
-            Any additional arguments needed to instantiate the
-            flux model.
-
-        Returns
-        -------
-        np.ndarray of float
-            The modeled observed GRB afterglow flux.
-        """
-
-        # Model the GRB afterglow flux
-        modeled = self.model_afterglow(obs, params, **kwargs)
-
-        if np.isnan(modeled.min()):
-            return np.array([np.nan])
-
-        # Apply dust extinction and host galaxy corrections
-        modeled = self.model_extinction(
-            modeled, **Parameters.extinction(obs, params)
-        )
-
-        return modeled
-
-    def model_afterglow(self, obs, params, **kwargs):
-        """
-        Models the unextinguished GRB afterglow flux.
-
-        Parameters
-        ----------
-        obs : Observation
-            The `Observation` object to model.
-
-        params : dict
-            The dict returned from `Parameters.samples_to_dict`.
-
-        kwargs : optional
-            Any additional arguments needed to instantiate the
-            flux model.
-
-        Returns
-        -------
-        np.ndarray of float
-            The modeled GRB afterglow flux.
-        """
-        if params.get('shared') is not None:
-            # Model the afterglow flux with sets of parameters
-            # applied to different subsets of the data.
-            modeled = self.model_grouped_afterglow(
-                obs, params, **kwargs
-            )
-
-        else:
-            # Model the afterglow flux all together. Nice and simple.
-            model = self.afterglow_model(**params.get('model'), **kwargs)
-            modeled = model.model(obs)
-
-        # return the unextinguished GRB afterglow flux
-        return modeled
-
-    def model_grouped_afterglow(self, obs, params, **kwargs):
-        """
-        Models the unextinguished GRB afterglow flux divided
-        into an arbitrarily defined number of subsets.
-
-        This method is useful for light curves that display
-        different behaviors in different temporal regimes.
-        Note that it is up to the user to determine whether
-        fitting multiple sets of parameters is physically
-        meaningful or not. This method simply provides the
-        ability to do so.
-
-        Parameters
-        ----------
-        obs : Observation
-            The `Observation` object to model.
-
-        params : dict
-            The dict returned from `Parameters.samples_to_dict`.
-
-        kwargs : optional
-            Any additional arguments needed to instantiate
-            the flux model.
-
-        Returns
-        -------
-        np.ndarray of float
-            The modeled unextinguished GRB afterglow flux.
-        """
-        modeled = np.full(obs.length, np.nan, dtype=float)
-
-        for group, mask in obs.groups.items():
-            model_params = params.get(group).get('model')
-
-            modeled[mask] = self.afterglow_model(
-                **model_params, **kwargs).model(obs, mask)
-
-        return modeled
-
-    def model_extinction(
-        self, modeled, wn, z=None, ebv_sf=None,
-        ebv_mw=None, host_pos=None, host_vals=None,
-        rv_sf=None, rv_mw=None, ext_pos=None
-    ):
-        """
-        Corrects the afterglow flux, `modeled`, for
-        dust extinction and host galaxy contributions.
-
-        Parameters
-        ----------
-        modeled : np.array
-            The modeled flux.
-
-        wn : np.array
-            The observed wave numbers measured in inverse
-            microns.
-
-        z : float, optional
-            The redshift. If provided, transforms ``wn`` to
-            the source frame when extinguishing for source
-            frame dust.
-
-        ebv_sf : float, optional
-            The E(B - V) value for the source frame. The
-            precomputed source frame extinction values are
-            given priority over `ebv_sf` (if defined).
-
-        ebv_mw : float, optional
-            The E(B - V) value for the Milky Way. The
-            precomputed source frame extinction values are
-            given priority over `ebv_mw` (if defined).
-
-        rv_sf, rv_mw : float, optional
-            R(V) = A(V)/E(B-V) = total-to-selective extinction
-            for source frame/Milky Way.
-
-        host_pos, host_vals : dict, optional
-            The positions and values of the host galaxy corrections.
-            Both must be provided to apply host galaxy corrections.
-            Assumes that the values are measured in the same space
-            as the intrinsic flux.
-
-        ext_pos : np.ndarray of bool, optional
-            The positions to apply the extinction correction.
-
-        Returns
-        -------
-        np.ndarray of float
-            The extinguished and host galaxy corrected flux.
-        """
-
-        # Apply source frame extinction
-        if self.ext_sf is not None:
-            modeled[ext_pos] *= self.ext_sf  # pre-computed
-
-        elif ebv_sf is not None:
-            # Reuse model object if not fitting for Rv
-            model = self.extinction_model if rv_sf is None \
-                else self.extinction_model.__class__(Rv=rv_sf)
-            modeled[ext_pos] *= model.extinguish((1 + z) * wn, Ebv=ebv_sf)
-
-        # Apply host galaxy correction
-        if host_vals is not None and host_pos is not None:
-            for name, corr in host_vals.items():
-                modeled[host_pos[name]] += corr
-
-        # Apply Milky Way extinction
-        if self.ext_mw is not None:
-            modeled[ext_pos] *= self.ext_mw  # pre-computed
-
-        elif ebv_mw is not None:
-            # Reuse model object if not fitting for Rv
-            model = self.extinction_model if rv_mw is None \
-                else self.extinction_model.__class__(Rv=rv_mw)
-            modeled[ext_pos] *= model.extinguish(wn, Ebv=ebv_mw)
-
-        # return (afterglow_flux * ext_sf + host_correction) * ext_mw
-        return modeled

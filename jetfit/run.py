@@ -10,19 +10,18 @@ from matplotlib import pyplot as plt
 
 from jetfit.core.input import Observation
 from jetfit.mcmc.mcmc import MCMC, MCMCModels
-from jetfit.core.utils import nav_utils
-from jetfit.mcmc.parameters.parameters import Parameters
-from jetfit.mcmc.settings.reader import MCMCSettingsReader
+from jetfit.core import utils
+from jetfit.mcmc.parameters import Parameters
 from jetfit.models.boosted import HydroSimTable as HydroSimTable
 from jetfit.models.boosted import BoostedFireballModel
 from jetfit.models.fireball import FireballModel, StratifiedFireballModel
 from jetfit.models.jetsim import JetSimpy
-from jetfit.plot.freq import FrequencyPlotter
-from jetfit.plot.sfbm import SFBMDensityProfiler
-from jetfit.plot.dist import DistributionPlot
-from jetfit.plot.dist2 import SpectralIndexPlot, DensityProfilePlot
-from jetfit.plot.light_curve import LightCurvePlot
-from jetfit.plot.posterior import PosteriorPlot
+from jetfit.scripts.plot.freq import FrequencyPlotter
+from jetfit.scripts.plot.sfbm import SFBMDensityProfiler
+from jetfit.scripts.plot.dist import DistributionPlot
+from jetfit.scripts.plot.dist2 import SpectralIndexPlot, DensityProfilePlot
+from jetfit.scripts.plot.light_curve import LightCurvePlot
+from jetfit.scripts.plot.posterior import PosteriorPlot
 
 
 def plot_mcmc_diagnostics(mcmc: MCMC, results_dir: Path | str):
@@ -100,6 +99,7 @@ def main(
     results_dir : Path
         The directory where the results will be saved.
     """
+
     # -----------------------------------------------------------------
     # -------------------------- Directories --------------------------
     # -----------------------------------------------------------------
@@ -111,19 +111,19 @@ def main(
     # -----------------------------------------------------------------
     parameters  = Parameters.from_toml(model_path)
     observation = Observation.from_csv(data_path)
-    mcmc_params = MCMCSettingsReader(mcmc_path)
+    mcmc_params = utils.MCMCSettingsReader(mcmc_path)
 
     if parameters.has('nt'):
         model = StratifiedFireballModel
+    elif parameters.has('A'):
+        model = JetSimpy
     else:
         model = FireballModel
-        # model = BoostedFireballModel
-        # model = JetSimpy
 
     if model.__name__ == 'BoostedFireballModel':
         meta = {
             'hydro_sim_table': HydroSimTable(
-                nav_utils.get_hydro_sim_table_path()
+                utils.get_hydro_sim_table_path()
             ),
         }
     else:
@@ -144,12 +144,6 @@ def main(
     if parameters.has('rv_milky_way'):
         ebv['ebv_milky_way'] = None
 
-    # Store pre-computed values in the extrinsic model
-    # observed_flux_model = ObservedFluxModel(
-    #     model, extinction_model,
-    #     ext_mw=ebv['ebv_milky_way']
-    # )
-
     # -----------------------------------------------------------------
     # ----------------------------- MCMC ------------------------------
     # -----------------------------------------------------------------
@@ -167,7 +161,7 @@ def main(
     sampler_name = mcmc_params.data['sampler']['name']
     run_kw = {}
 
-    if sampler_name == 'emcee':
+    if sampler_name == 'ensemble':
         run_kw = {'progress': True}
 
     mcmc = MCMC(
@@ -196,19 +190,19 @@ def main(
         profiler = SFBMDensityProfiler(mcmc.sampler, parameters)
 
         profiler.profile(
-            observation.as_arrays.times.min(),
-            observation.as_arrays.times.max(),
+            observation.times().min(),
+            observation.times().max(),
         )
         profiler.plot_profile(results_dir)
 
     elif model.__name__ == 'FireballModel':
         # Plot the density profiles
         density_plotter = DensityProfilePlot(
-            mcmc.sampler, parameters, observation.data_regimes)
+            mcmc.sampler, parameters)
 
         density_plotter.plot(
-            observation.as_arrays.times.min(),
-            observation.as_arrays.times.max(),
+            observation.times().min(),
+            observation.times().max(),
             out_dir=results_dir
         )
 
@@ -221,7 +215,7 @@ def main(
 
         # Plot the spectral index distribution
         spectral_index_plotter = SpectralIndexPlot(
-            mcmc.sampler, parameters, model, observation.data_regimes)
+            mcmc.sampler, parameters, model)
 
         spectral_index_plotter.model(
             observation.data[observation.sindex_loc], out_dir=results_dir)
@@ -231,14 +225,20 @@ def main(
     # -----------------------------------------------------------------
     out_params = mcmc.get_best_params()
     out_params['chi_squared'] = -2 * mcmc.sampler.get_log_prob(flat=True).max()
+    out_params['mcmc'] = {
+        'sampler': sampler_name,
+        'prod_len': mcmc_params.run_length,
+        'burn_len': mcmc_params.burn_length,
+        'nwalkers': mcmc_params.num_walkers,
+        'model': model.__name__,
+    }
 
     with open(results_dir / "best_fit.json", "w") as jf:
         json.dump(out_params, jf, indent=4)
 
     # Plot frequencies
-    if model.__name__ != 'JetSimpy':
-        fp = FrequencyPlotter(mcmc.sampler, parameters, model, meta)
-        fp.plot_all(observation, out_dir=results_dir)
+    fp = FrequencyPlotter(mcmc.sampler, parameters, model, meta)
+    fp.plot_all(observation, out_dir=results_dir)
 
     # Plot light curve
     lc = LightCurvePlot(
@@ -275,15 +275,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sub_dir = 'done'
+    sub_dir = 'grbs'
 
     if args.event is None:
         # Specify the events to run
         events = [
             # '050525A',
             # '050922C',
-            # '080413B',
-            # '080319B_nature_mix',
+            '080413B',
+            # '080319B_nature_mix_1',
             # '090424',
             # '090618',
             # '111228A',
@@ -313,21 +313,21 @@ if __name__ == "__main__":
                 'mcmc_path':
                     Path(args.mcmc)
                     if args.mcmc is not None
-                    else nav_utils.get_mcmc_settings_path(),
+                    else utils.get_mcmc_settings_path(),
 
                 'model_path':
                     Path(args.model)
                     if args.model is not None
-                    else nav_utils.get_event_path(sub_dir, event) / 'parameters.toml',
+                    else utils.get_event_path(sub_dir, event) / 'parameters.toml',
 
                 'data_path':
                     Path(args.data)
                     if args.data is not None
-                    else nav_utils.get_input_csv_path(sub_dir, event),
+                    else utils.get_input_csv_path(sub_dir, event),
 
                 'results_dir':
                     Path(args.results)
                     if args.results is not None
-                    else nav_utils.get_results_path() / event,
+                    else utils.get_results_path() / event,
             }
         )

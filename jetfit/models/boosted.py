@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 from scipy.interpolate import RegularGridInterpolator as RGInterpolator
 
-from jetfit.core.defns.enums import ScaleType
+from jetfit.core.structs import ScaleType
 from jetfit.core.input import Observation
 from jetfit.models.basemodels import ObservedSpectrumModel, SpectralFluxModel
 from jetfit.models.basemodels import IntegratedFluxModel, SpectralIndexModel
@@ -168,7 +168,7 @@ class BoostedFireballModel:
         if not self.is_valid:
             return np.array([np.nan])
 
-        spectrum = self.spectrum(obs.as_arrays.times)
+        spectrum = self.spectrum(obs.times())
 
         if np.isnan(spectrum.get('f_peak').min()):
             return np.array([np.nan])
@@ -393,11 +393,6 @@ class BoostedFireballModel:
 
         if np.isnan(f_pk.min()):
             return f_pk, nu_c, nu_m
-
-        if np.isclose(nu_m.min(), nu_m.max()):
-            if (nu_m > nu_c).any():
-                nu_m *= 1e-10
-                f_pk /= np.power(1e-10, (self.p - 1) / 2)
 
         if scale:
             f_pk = f_pk * self.peak_scale

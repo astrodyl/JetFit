@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import root_scalar
 
 from jetfit.core.input import Observation
 from jetfit.models.basemodels import BlastWaveModel, ObservedSpectrumModel
@@ -90,6 +91,96 @@ class StratifiedFireballModel(BaseFireballModel):
 
         return super().is_valid and abs(self.sn) > 0.1
 
+    # def smooth2(self, times):
+    #     """"""
+    #     ts = np.atleast_1d(times)
+    #
+    #     def alpha(k):
+    #         """"""
+    #         return 16 / (17 - 4 * k)
+    #
+    #     def beta(k):
+    #         """"""
+    #         return 4 - k
+    #
+    #     def rho0(r, k):
+    #         """"""
+    #         return 1.67e-24 * n_eff(r) * r ** k
+    #
+    #     def k_eff(r):
+    #         """ Effective density power-law index. """
+    #         x = r / self.rt
+    #         k_eff_num = self.k1 * x ** (self.k1 * self.sn) + self.k2 * x ** (self.k2 * self.sn)
+    #         k_eff_den = x ** (self.k1 * self.sn) + x ** (self.k2 * self.sn)
+    #         return k_eff_num / k_eff_den
+    #
+    #     def n_eff(r):
+    #         """ Effective number density."""
+    #         x = r / self.rt
+    #         return self.nt * (2 ** (1 / self.sn)) * (x ** (self.k1 * self.sn) + x ** (self.k2 * self.sn)) ** -(1 / self.sn)
+    #
+    #     def r_model(r, t):
+    #         """"""
+    #         E = 1e52 * self.E
+    #         return (beta(k_eff(r)) * E * t) ** (1 / (4 - k_eff(r))) * (alpha(k_eff(r)) * np.pi * rho0(r, k_eff(r)) * 2.99e10) ** (-1 / (4 - k_eff(r)))
+    #
+    #     def F(r, t):
+    #         return r_model(r, t) - r
+    #
+    #     r_of_t = []
+    #
+    #     for time in (ts * 86_400):
+    #         sol = root_scalar(F, args=(time,), bracket=[1e16, 1e21], method='brentq')
+    #         r_of_t.append(sol.root)
+    #     r_of_t = np.array(r_of_t)
+    #
+    #     return n_eff(r_of_t) * ((r_of_t / self.rt)** k_eff(r_of_t)), k_eff(r_of_t)
+    #
+    # def radii2(self, times):
+    #     """
+    #     """
+    #     ts = np.atleast_1d(times)
+    #
+    #     def alpha(k):
+    #         """"""
+    #         return 16 / (17 - 4 * k)
+    #
+    #     def beta(k):
+    #         """"""
+    #         return 4 - k
+    #
+    #     def rho0(r, k):
+    #         """"""
+    #         return 1.67e-24 * n_eff(r) * r ** k
+    #
+    #     def k_eff(r):
+    #         """ Effective density power-law index. """
+    #         x = r / self.rt
+    #         k_eff_num = self.k1 * x ** (self.k1 * self.sn) + self.k2 * x ** (self.k2 * self.sn)
+    #         k_eff_den = x ** (self.k1 * self.sn) + x ** (self.k2 * self.sn)
+    #         return k_eff_num / k_eff_den
+    #
+    #     def n_eff(r):
+    #         """ Effective number density."""
+    #         x = r / self.rt
+    #         return self.nt * (2 ** (1 / self.sn)) * (x ** (self.k1 * self.sn) + x ** (self.k2 * self.sn)) ** -(
+    #                     1 / self.sn)
+    #
+    #     def r_model(r, t):
+    #         """"""
+    #         E = 1e52 * self.E
+    #         return (beta(k_eff(r)) * E * t) ** (1 / (4 - k_eff(r))) * (
+    #                     alpha(k_eff(r)) * np.pi * rho0(r, k_eff(r)) * 2.99e10) ** (-1 / (4 - k_eff(r)))
+    #
+    #     def F(r, t):
+    #         return r_model(r, t) - r
+    #
+    #     r_of_t = []
+    #     for time in (ts * 86_400):
+    #         sol = root_scalar(F, args=(time,), bracket=[1e16, 1e21], method='brentq')
+    #         r_of_t.append(sol.root)
+    #     return np.array(r_of_t)
+
     def smooth(self, t):
         """
         Empirically smooths the number density normalizations
@@ -98,7 +189,7 @@ class StratifiedFireballModel(BaseFireballModel):
         Parameters
         ----------
         t : np.ndarray
-            The observer times [days].
+            The observer times [d].
 
         Returns
         -------
@@ -106,29 +197,26 @@ class StratifiedFireballModel(BaseFireballModel):
             The smoothed number density normalizations [cm-3] and
             the smoothed density power-law indices.
         """
-        k1, k2 = self.k1, self.k2
-
-        bwm1 = BlastWaveModel(self.E, self.nt, k1, ref=self.rt)
-        bwm2 = BlastWaveModel(self.E, self.nt, k2, ref=self.rt)
-        t_decel = bwm1.decel_time() / 86_400
-
-        r1 = bwm1.shock_radius(self.z, t, t_decel)
-        r2 = bwm2.shock_radius(self.z, t, t_decel)
-
         # Rename for convenience
-        sn = self.sn
-        x1, x2 = r1 / self.rt, r2 / self.rt
+        s, k1, k2 = self.sn, self.k1, self.k2
+
+        r = self.radii(t)
+        x = r / self.rt
 
         # Calculate the effective number densities
-        n_eff = self.nt * (2 ** (1 / sn)) * (
-            x1 ** (k1 * sn) + x2 ** (k2 * sn)
-        ) ** -(1 / sn)
+        n = self.nt * (2 ** (1 / s)) * (
+            x ** (k1 * s) + x ** (k2 * s)
+        ) ** -(1 / s)
 
         # Calculate the effective density power-law indices
-        k_eff_num = k1 * x1 ** (k1 * sn) + k2 * x2 ** (k2 * sn)
-        k_eff_den = x1 ** (k1 * sn) + x2 ** (k2 * sn)
+        k_eff_num = k1 * x ** (k1 * s) + k2 * x ** (k2 * s)
+        k_eff_den = x ** (k1 * s) + x ** (k2 * s)
+        k_eff = k_eff_num / k_eff_den
 
-        return n_eff, k_eff_num / k_eff_den
+        # Number density normalized to `rt`
+        n0 = n * (r / self.rt) ** k_eff
+
+        return n0, k_eff
 
     def radii(self, t):
         """
@@ -155,10 +243,10 @@ class StratifiedFireballModel(BaseFireballModel):
         r2 = bwm2.shock_radius(self.z, t, t_decel)
 
         # Rename for convenience
-        s = self.sn
+        s, k1, k2 = self.sn, self.k1, self.k2
         x1, x2 = r1 / self.rt, r2 / self.rt
 
-        return self.rt * (2 ** (1 / s)) * (x1 ** -s + x2 ** -s) ** -(1 / s)
+        return (2 ** (1 / s)) * self.rt * (x1 ** -s + x2 ** -s) ** -(1 / s)
 
     def model(self, obs: Observation):
         """
@@ -178,8 +266,8 @@ class StratifiedFireballModel(BaseFireballModel):
             return np.array([np.nan])
 
         # return the modeled smoothed, unextinguished flux
-        return ObservedSpectrumModel(**self.spectrum(obs.as_arrays.times),
-            arrays=obs.as_arrays, jet=self.jet_break(obs.as_arrays.times),
+        return ObservedSpectrumModel(**self.spectrum(obs.times()),
+            arrays=obs.as_arrays, jet=self.jet_break(obs.times()),
         ).model()
 
     def spectrum(self, t, n=None, k=None):
@@ -444,8 +532,8 @@ class FireballModel(BaseFireballModel):
             return np.array([np.nan])
 
         # Model the smoothed, unextinguished flux
-        return ObservedSpectrumModel(**self.spectrum(obs.as_arrays.times),
-            jet=self.jet_break(obs.as_arrays.times), arrays=obs.as_arrays
+        return ObservedSpectrumModel(**self.spectrum(obs.times()),
+            jet=self.jet_break(obs.times()), arrays=obs.as_arrays
         ).model(subset)
 
     def spectrum(self, t):

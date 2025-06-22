@@ -1,5 +1,9 @@
-import jetsimpy
 import numpy as np
+
+try:
+    from jetsimpy import Jet, Gaussian
+except ImportError:
+    pass
 
 
 """
@@ -91,6 +95,8 @@ class JetSimpy:
         self.d = d
         self.lf = lf
 
+        self.jet = Jet(Gaussian(theta_c, Eiso, lf), A, n0, tmax=1e12)
+
     @property
     def is_valid(self) -> bool:
         """ Is the model physically valid? """
@@ -139,8 +145,7 @@ class JetSimpy:
                 sfm = np.logical_and(sfm, subset)
 
             res[sfm] = self.spectral_flux(
-                obs.as_arrays.times[sfm],
-                obs.as_arrays.frequencies[sfm]
+                obs.times()[sfm], obs.freqs()[sfm]
             )
 
         # Model the integrated flux
@@ -149,9 +154,7 @@ class JetSimpy:
                 ifm = np.logical_and(ifm, subset)
 
             res[ifm] = self.integrated_flux(
-                obs.as_arrays.times[ifm],
-                obs.as_arrays.if_lower_freqs[ifm],
-                obs.as_arrays.if_upper_freqs[ifm],
+                obs.times()[ifm], obs.int_lower()[ifm], obs.int_upper()[ifm]
             )
 
         # Model the spectral indices
@@ -160,14 +163,12 @@ class JetSimpy:
                 sim = np.logical_and(sim, subset)
 
             res[sim] = self.spectral_index(
-                obs.as_arrays.times[sim],
-                obs.as_arrays.si_lower_freqs[sim],
-                obs.as_arrays.si_upper_freqs[sim],
+                obs.times()[sim], obs.int_lower()[sim], obs.int_upper()[sim]
             )
 
         return res
 
-    def spectral_flux(self, t, nu):
+    def spectral_flux(self, t, nu, model="sync", **kwargs):
         """
         Calculates the spectral flux at times ``t`` for the
         frequencies ``nu``.
@@ -180,22 +181,86 @@ class JetSimpy:
         nu : float or np.ndarray of float
             The average band frequencies [Hz].
 
+        model : str, optional, default="sync"
+            The radiation model.
+
         Returns
         -------
         np.ndarray of float
             The modeled spectral flux [mJy].
         """
-        return jetsimpy.FluxDensity_gaussian(
-            to_secs(t), nu, self.to_dict(), tmax=1e12
-        )
+        return self.jet.FluxDensity(to_secs(t), nu, self.to_dict(('jet',)), model=model)
 
-    def integrated_flux(self, t, lower, upper):
+    def spectral_flux2(self, nu, t, fts=False):
+        """
+        """
+        return self.jet.FluxDensity(to_secs(t), nu, self.to_dict(('jet',)))
+
+    def integrate_flux(self, t, nu_lower, nu_upper):
+        # Wrap the spectral_flux2 method into something quad can use
+        def f_nu(nu):
+            return 1e-26 * self.spectral_flux2(nu, t)  # Convert mJy → erg/s/cm²/Hz
+
+        # Integrate over frequency range
+        from scipy.integrate import quad
+        result, err = quad(f_nu, nu_lower, nu_upper)
+
+        return result  # [erg/s/cm²]
+
+    def integrated_flux(self, t, lower, upper, model="sync", **kwargs):
         """
         Calculates the integrated flux at times ``t`` for
         the integration bounds, ``lower`` and ``upper``.
 
-        ``jetsimpy`` has its own integrated flux implementation,
-        but it takes far too long to be compatible with MCMC.
+        Parameters
+        ----------
+        t : np.ndarray of float
+            The observer times [d].
+
+        lower, upper : float or np.ndarray of float
+            The integration bounds [Hz].
+
+        model : str, optional, default="sync"
+            The radiation model.
+
+        Returns
+        -------
+        np.ndarray of float
+            The modeled integrated flux [erg cm-2 s-1].
+        """
+        sflux = self.spectral_flux(t, lower, model)
+        b = self.spectral_index(t, lower, upper, model)
+
+        x = 1e-26 * (
+            (sflux * lower / (b + 1)) *
+            (((upper / lower) ** (b + 1)) - 1)
+        )
+        y = self.integrated_flux2(t, lower, upper)
+
+        z = []
+        for i in range(len(t)):
+            z.append(self.integrate_flux(t[i], lower[i], upper[i]))
+
+        from matplotlib import pyplot as plt
+        plt.loglog(t, self.nu_c(t), label='nu_c')
+        plt.loglog(t, self.nu_m(t), label='nu_m')
+        plt.legend()
+        plt.show()
+
+        plt.loglog(t, x, label='mine')
+        plt.loglog(t, y, label='jetsimpy')
+        plt.loglog(t, z, label='scipy', linestyle='--')
+        plt.legend()
+        plt.show()
+        return x
+
+    def integrated_flux2(self, t, lower, upper, fts=False):
+        """
+        Calculates the integrated flux at times ``t`` for
+        the integration bounds, ``lower`` and ``upper``
+        using the ``jetsimpy`` implementation.
+
+        Warning: Super slow. Not viable for MCMC.
 
         Parameters
         ----------
@@ -210,15 +275,9 @@ class JetSimpy:
         np.ndarray of float
             The modeled integrated flux [erg cm-2 s-1].
         """
-        sflux = self.spectral_flux(t, lower)
-        b = self.spectral_index(t, lower, upper)
+        return self.jet.Flux(t, lower, upper, self.to_dict(('jet',)))
 
-        return 1e-26 * (
-            (sflux * lower / (b + 1)) *
-            (((upper / lower) ** (b + 1)) - 1)
-        )
-
-    def spectral_index(self, t, lower, upper):
+    def spectral_index(self, t, lower, upper, model='sync', **kwargs):
         """
         Calculates the spectral index at times ``t`` for
         the integration bounds, ``lower`` and ``upper``.
@@ -231,6 +290,9 @@ class JetSimpy:
         lower, upper : float or np.ndarray of float
             The integration bounds [Hz].
 
+        model : str, optional, default="sync"
+            The radiation model.
+
         Returns
         -------
         np.ndarray of float
@@ -238,8 +300,99 @@ class JetSimpy:
         """
         return (
             np.log10(
-                self.spectral_flux(t, upper) /
-                self.spectral_flux(t, lower)
+                self.spectral_flux(t, upper, model) /
+                self.spectral_flux(t, lower, model)
             ) /
             np.log10(upper / lower)
+        )
+
+    def f_peak(self, t):
+        """
+        Calculates the peak flux at times ``t``
+        as a weighted average.
+
+        Parameters
+        ----------
+        t : np.ndarray of float
+            The observer times [d].
+
+        Returns
+        -------
+        np.ndarray of float
+            The peak flux [mJy].
+        """
+        t, p, nu = to_secs(t), self.to_dict(('jet',)), 1
+
+        return self.jet.FluxDensity(t, nu, p, model='intensity')
+
+    def nu_m(self, t, model='sync'):
+        """
+        Calculates the synchrotron frequency at times ``t``
+        as a weighted average.
+
+        Parameters
+        ----------
+        t : np.ndarray of float
+            The observer times [d].
+
+        model : str, optional, default="sync"
+            The radiation model.
+
+        Returns
+        -------
+        np.ndarray of float
+            The source-frame synchrotron frequencies [Hz].
+        """
+        t, p, nu = to_secs(t), self.to_dict(('jet',)), 1e10
+
+        return self.jet.WeightedAverage(
+            t, nu, p, model, average_model='nu_m'
+        )
+
+    def nu_c(self, t, model='sync'):
+        """
+        Calculates the synchrotron frequency at times ``t``
+        as a weighted average.
+
+        Parameters
+        ----------
+        t : np.ndarray of float
+            The observer times [d].
+
+        model : str, optional, default="sync"
+            The radiation model.
+
+        Returns
+        -------
+        np.ndarray of float
+            The source-frame synchrotron frequencies [Hz].
+        """
+        t, p, nu = to_secs(t), self.to_dict(('jet',)), 1e10
+
+        return self.jet.WeightedAverage(
+            t, nu, p, model, average_model='nu_c'
+        )
+
+    def nu_a(self, t, model='sync'):
+        """
+        Calculates the sel-absorption frequency at times ``t``
+        as a weighted average.
+
+        Parameters
+        ----------
+        t : np.ndarray of float
+            The observer times [d].
+
+        model : str, optional, default="sync"
+            The radiation model.
+
+        Returns
+        -------
+        np.ndarray of float
+            The source-frame self-absorption frequencies [Hz].
+        """
+        t, p, nu = to_secs(t), self.to_dict(('jet',)), 1e10
+
+        return self.jet.WeightedAverage(
+            t, nu, p, model, average_model='nu_a'
         )
