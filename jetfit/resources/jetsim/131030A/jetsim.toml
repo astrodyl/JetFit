@@ -1,0 +1,219 @@
+# MCMC Parameter Configuriation File
+
+#-------------- MODEL --------------
+#---------------- E ----------------
+[[model]]
+name  = "Eiso"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 50.0
+    upper = 56.0
+
+#-------------- MODEL --------------
+#---------------- n ----------------
+[[model]]
+name  = "n0"
+scale = "linear"
+value = 0.0
+
+#-------------- MODEL --------------
+#---------------- A ----------------
+[[model]]
+name  = "A"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -6.0
+    upper = 6.0
+
+#-------------- MODEL --------------
+#-------------- eps_e --------------
+[[model]]
+name  = "eps_e"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -6.0
+    upper = 0.0
+
+#-------------- MODEL --------------
+#-------------- eps_b --------------
+[[model]]
+name  = "eps_b"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -6.0
+    upper = 0.0
+
+#-------------- MODEL --------------
+#---------------- LF ---------------
+[[model]]
+name  = "lf"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 2
+    upper = 3
+
+#-------------- MODEL --------------
+#---------------- p ----------------
+[[model]]
+name  = "p"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = 2.0
+    upper = 3.5
+    initial_guess = 2.25
+    initial_sigma = 0.25
+
+#-------------- MODEL --------------
+#------------- theta_c -------------
+[[model]]
+name  = "theta_c"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 1.0
+
+#-------------- MODEL --------------
+#------------- theta_v -------------
+[[model]]
+name  = "theta_v"
+scale = "linear"
+value = 0.0
+
+[model.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 1.0
+
+#-------------- MODEL --------------
+#---------------- z ----------------
+[[model]]
+name  = "z"
+scale = "linear"
+value = 1.293
+
+#-------------- MODEL --------------
+#---------------- d ----------------
+[[model]]
+name  = "d"
+scale = "linear"
+value = 9333.444
+
+#----------- EXTINCTION ------------
+#---------- source_frame -----------
+[[extinction]]
+name  = "ebv_source_frame"
+scale = "linear"
+
+[extinction.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 1.0
+
+#----------- EXTINCTION ------------
+#------------ milky_way ------------
+[[extinction]]
+name  = "ebv_milky_way"
+scale = "linear"
+value = 0.0493
+
+#----------- CALIBRATION -----------
+#-------------- R-band -------------
+[[offsets]]
+name  = "R_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.3
+
+#----------- CALIBRATION -----------
+#-------------- J-band -------------
+[[offsets]]
+name  = "J_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#-------------- H-band -------------
+[[offsets]]
+name  = "H_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.05
+
+#----------- CALIBRATION -----------
+#-------------- B-band -------------
+[[offsets]]
+name  = "B_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#-------------- r-band -------------
+[[offsets]]
+name  = "r_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- i-band -------------
+[[offsets]]
+name  = "i_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- z-band -------------
+[[offsets]]
+name  = "z_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
+
+#--------------- SLOP --------------
+#--------------- slop --------------
+[[slop]]
+name  = "slop"
+scale = "linear"
+
+[slop.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 0.2

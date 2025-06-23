@@ -6,6 +6,10 @@ from jetfit.models.basemodels import AbsorptionFrequencyModel, BaseFireballModel
 from jetfit.models.basemodels import SynchrotronFrequencyModel
 from jetfit.models.basemodels import CoolingFrequencyModel, PeakFluxModel
 
+# ignore `dust_extinction` user warnings
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning)
+
 
 class StratifiedFireballModel(BaseFireballModel):
     """

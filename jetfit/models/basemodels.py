@@ -794,7 +794,7 @@ class BaseFluxModel:
                 b1[self.cam] = 2
 
         if fts:  # Fast-to-slow cooling smoothing
-            return self._fts_spectral_indices(b1, b2)
+            return self._fts_spectral_indices(b1, b3)
 
         return b1, b2, b3
 
@@ -904,14 +904,13 @@ class BaseFluxModel:
         """
         s12, s23 = self.smoothing()
         nu_ratio = self.nu_m / self.nu_c
-        pf = -0.5 + ((1 - self.p) / 2 - -0.5)
 
         # Transition smoother
         q12 = -s12 * (b3 - b1)
         q23 = -s23 * (b3 - b1)
 
-        b2a = pf / (1 + nu_ratio ** q12)
-        b2b = pf / (1 + nu_ratio ** q23)
+        b2a = -0.5 + ((1 - self.p) / 2 - -0.5) / (1 + nu_ratio ** q12)
+        b2b = -0.5 + ((1 - self.p) / 2 - -0.5) / (1 + nu_ratio ** q23)
 
         return b1, b2a, b2b, b3
 

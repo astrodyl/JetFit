@@ -311,18 +311,7 @@ scale = "log"
 #--------------- SLOP --------------
 #--------------- slop --------------
 [[slop]]
-name  = "slop_xray"
-scale = "linear"
-
-[slop.prior]
-    type  = "uniform"
-    lower = 0.0
-    upper = 0.2
-
-#--------------- SLOP --------------
-#--------------- slop --------------
-[[slop]]
-name  = "slop_other"
+name  = "slop"
 scale = "linear"
 
 [slop.prior]
