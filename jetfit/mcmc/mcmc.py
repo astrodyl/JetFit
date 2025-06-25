@@ -10,6 +10,7 @@ from jetfit.core import utils
 try:
     import ptemcee
 except ImportError:
+    # ptemcee is required if using parallel tempering
     pass
 
 
@@ -108,6 +109,8 @@ class PTSampler:
     kwargs
         Any kwargs to be passed to the sampler.
     """
+    name = 'parallel_tempered'
+
     def __init__(
         self, ntemps, nwalkers, ndim, log_like, log_prior,
         log_l_args=(), log_p_args=(), log_l_kwargs=(), log_p_kwargs=(),
@@ -151,6 +154,22 @@ class PTSampler:
     @property
     def ndim(self):
         return self._ndim
+
+    @property
+    def acor(self):
+        return self.get_autocorr_time()
+
+    @property
+    def acceptance_fraction(self):
+        return self.chain.jump_acceptance_ratio[0]
+
+    @property
+    def swap_acceptance_fraction(self):
+        return self.chain.swap_acceptance_ratio[0]
+
+    @property
+    def lnprobability(self):
+        return self.get_log_prob()
 
     def run_mcmc(self, x0, iterations, **kwargs):
         """
@@ -198,17 +217,21 @@ class PTSampler:
         self._chain = None
         self._iteration = 0
 
-    def get_last_sample(self):
-        """ Returns last samples with shape [ntemps, nwalkers, ndim]. """
-        if self.chain is None:
-            raise AttributeError(
-                'Tried to get the last sample, but '
-                'there are no samples. Have you '
-                'called `run_mcmc` yet?'
-            )
-        return self.chain.x[-1]
+    def save(self, path):
+        """
+        Saves the chain and log posterior to ``path``.
 
-    def draw_positions(self, params, models) -> np.ndarray:
+        To load the data, do: data = np.load(path)
+        To access the chain, do: data['chain']
+
+        Parameters
+        ----------
+        path : str
+            The path to save the file.
+        """
+        np.savez(path, chain=self.get_chain(), lnprob=self.get_log_prob())
+
+    def draw_positions(self, params, models):
         """
         Draw the initial positions from the priors.
 
@@ -249,6 +272,19 @@ class PTSampler:
             )
 
         return pos
+
+    def get_autocorr_time(self):
+        """ Returns the autocorrelation time for the 0th temperature. """
+        return self.chain.get_acts()[0]
+
+    def get_last_sample(self):
+        """ Returns last samples with shape [ntemps, nwalkers, ndim]. """
+        if self.chain is None:
+            raise AttributeError(
+                'Tried to get the last sample, but there are no '
+                'samples. Have you called `run_mcmc` yet?'
+            )
+        return self.chain.x[-1]
 
     def get_value(self, name, flat=False, thin=1, discard=0, temp=0):
         """
@@ -373,6 +409,8 @@ class EnsembleSampler(emcee.EnsembleSampler):
     """
     Adapter for ``emcee.EnsembleSampler``.
     """
+    name = 'ensemble'
+
     def __init__(self, nwalkers, ndim, log_prob_fn, args, **kw):
         super().__init__(nwalkers, ndim, log_prob_fn, args=args, **kw)
 
@@ -410,17 +448,14 @@ class MCMC:
     model : MCMCModels
         The afterglow model.
 
-    observation : Observation
-        The observational data.
-
     parameters : Parameters
         The model parameters.
     """
-    def __init__(self, model, observation, parameters):
+    def __init__(self, model, parameters):
         # Model
         self.models = model
         self.params = parameters
-        self.observation = observation
+        self.observation = model.obs
 
         # Sampler
         self.sampler = None

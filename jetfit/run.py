@@ -1,175 +1,145 @@
 import argparse
 import json
-import os.path
+import os
 from pathlib import Path
 
 import emcee
-import numpy as np
-from dust_extinction.parameter_averages import CCM89
-from matplotlib import pyplot as plt
 
-from jetfit.core.input import Observation
-from jetfit.mcmc.mcmc import MCMC, MCMCModels
+from jetfit.ampy import Ampy
 from jetfit.core import utils
-from jetfit.mcmc.parameters import Parameters
-from jetfit.models.boosted import HydroSimTable as HydroSimTable
-from jetfit.models.boosted import BoostedFireballModel
-from jetfit.models.fireball import FireballModel, StratifiedFireballModel
-from jetfit.models.jetsim import JetSimpy
-from jetfit.scripts.plot.freq import FrequencyPlotter
-from jetfit.scripts.plot.sfbm import SFBMDensityProfiler
-from jetfit.scripts.plot.dist import DistributionPlot
-from jetfit.scripts.plot.dist2 import SpectralIndexPlot, DensityProfilePlot
-from jetfit.scripts.plot.light_curve import LightCurvePlot
-from jetfit.scripts.plot.posterior import PosteriorPlot
+from scripts.plot import diagnose
+from scripts.plot import visualize
+from scripts.plot import histogram
 
 
-def plot_mcmc_diagnostics(mcmc: MCMC, results_dir: Path | str):
+def parse_args():
+    """ Optional command line arguments. """
+    parser = argparse.ArgumentParser(description="AMPy Parameters")
+    parser.add_argument('--event',   help='Event directory name.')
+    parser.add_argument('--mcmc',    help='Path to the MCMC TOML file.')
+    parser.add_argument('--model',   help='Path to the model TOML file.')
+    parser.add_argument('--obs',     help='Path to the input observation file.')
+    parser.add_argument('--results', help='Path the the results directory.')
+    return parser.parse_args()
+
+
+def log(ampy, out_dir):
     """
-    Plot corners and trace plots.
+    Write the best parameters and sampler metadata
+    to a json file.
 
     Parameters
     ----------
-    mcmc : MCMC
-        The finished MCMC object.
+    ampy : Ampy
+        The Ampy object.
 
-    results_dir : Path or str
-        The directory to save the results.
+    out_dir : str or Path
+        The path to the result's directory.
     """
-    import arviz as az
+    cs = -2 * ampy.mcmc.sampler.get_log_prob(flat=True).max()
 
-    # Plot corner
-    corner = PosteriorPlot(mcmc.sampler, mcmc.params.fitting)
-    corner.plot(out_dir=results_dir)
+    out_params = ampy.get_best_params()
+    out_params['chi_squared'] = cs
+    out_params['mcmc'] = {
+        'sampler': ampy.mcmc.sampler.name,
+        'prod_len': int(ampy.mcmc.sampler.iteration),
+        'burn_len': int(ampy.mcmc.sampler.iteration),
+        'nwalkers': ampy.mcmc.sampler.nwalkers,
+        'model': ampy.mcmc.params.model,
+    }
 
-    # Use arviz style
-    az.style.use("arviz-darkgrid")
+    # Store as an array to use as initial positions
+    # for the minimization routine.
+    out_params['best_array'] = ampy.get_best_params(False)
 
-    # Create the production inference data object
-    var_names = [p.name for p in mcmc.params.fitting]
-    inf_data = az.from_emcee(mcmc.sampler, var_names=var_names)
-
-    # Can't save the burn sampler due to multiprocessing issues.
-    chain = np.transpose(mcmc.burn_chain, (1, 0, 2))
-    burn = {name: chain[..., i] for i, name in enumerate(var_names)}
-    inf_data_burn = az.from_dict(posterior=burn)
-
-    # Save summary statistics to a csv
-    az.summary(inf_data).to_csv(results_dir / "summary.csv")
-
-    # Plot the trace plot
-    az.plot_trace(inf_data)
-    plt.savefig(results_dir / "trace.png")
-
-    # Plot the burn-in trace plot
-    az.plot_trace(inf_data_burn)
-    plt.savefig(results_dir / "trace_burn.png")
-
-    try:  # Optional stats
-        print(f"Acceptance Fraction..{mcmc.sampler.acceptance_fraction}\n")
-        print(f"Autocorrelation......{mcmc.sampler.acor}\n")
-    except Exception as e:
-        print(e)
+    with open(out_dir / 'best_fit.json', "w") as f:
+        json.dump(out_params, f, indent=4)  # type: ignore
 
 
-def main(
-    event: str,
-    mcmc_path: Path,
-    model_path: Path,
-    data_path: Path,
-    results_dir: Path
-) -> None:
+def plot_results(ampy, results_dir, event):
     """
-    Runs the MCMC sampling routine.
+    Plot the results of the MCMC run.
+
+    This includes; trace plots, corner plot, characteristic
+    frequencies, light curve, jet-corrected parameters,
+    spectral indices, and density profiles.
 
     Parameters
     ----------
-    event : str
-        The name of the event.
-
-    mcmc_path : Path
-        The path to the MCMC settings file.
-
-    model_path : Path
-        The path to the model parameter file.
-
-    data_path : Path
-        The path to the input file.
+    ampy : Ampy
+        The completed Ampy object.
 
     results_dir : Path
-        The directory where the results will be saved.
-    """
+        The path to the result's directory.
 
-    # -----------------------------------------------------------------
-    # -------------------------- Directories --------------------------
-    # -----------------------------------------------------------------
+    event : str
+        The event name.
+    """
+    params = ampy.mcmc.params
+
+    # Plot the lines!
+    visualize.plot_frequencies_ampy(ampy, out_dir=results_dir)
+    visualize.plot_light_curve_ampy(ampy, title=f'{event} LC', out_dir=results_dir)
+    visualize.plot_density_profile_ampy(ampy, out_dir=results_dir)
+
+    # Plot the histograms!
+    histogram.plot_spectral_indices_ampy(ampy, out_dir=results_dir)
+    histogram.plot_jet_correction_ampy(ampy, out_dir=results_dir)
+
+    # Plot the MCMC diagnostics!
+    diagnose.plot_corner(ampy.mcmc.sampler.get_chain(flat=True), params.fitting, results_dir)
+    diagnose.plot_trace(params, out_dir=results_dir, chain=ampy.mcmc.burn_chain)
+    diagnose.plot_trace(params, out_dir=results_dir, sampler=ampy.mcmc.sampler)
+
+
+def main(obs_path, params_path, mcmc_path, results_dir, event):
+    """
+    Run MCMC using AMPy.
+
+    Parameters
+    ----------
+    obs_path : Path
+        The path to the observation CSV file.
+
+    params_path : Path
+        The path to the model parameters TOML file.
+
+    mcmc_path : Path
+        The path to the MCMC TOML file.
+
+    results_dir : Path
+        The path to the result's directory.
+
+    event : str
+        The name of the event to model.
+
+    Returns
+    -------
+    Ampy
+        The finished Ampy object.
+    """
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
-    # -----------------------------------------------------------------
-    # ----------------------------- I/O -------------------------------
-    # -----------------------------------------------------------------
-    parameters  = Parameters.from_toml(model_path)
-    observation = Observation.from_csv(data_path)
+    # Create the AMPy object
+    ampy = Ampy(obs_path, params_path)
+
+    # Prepare the MCMC run
     mcmc_params = utils.MCMCSettingsReader(mcmc_path)
-
-    if parameters.has('nt'):
-        model = StratifiedFireballModel
-    elif parameters.has('A'):
-        model = JetSimpy
-    else:
-        model = FireballModel
-
-    if model.__name__ == 'BoostedFireballModel':
-        meta = {
-            'hydro_sim_table': HydroSimTable(
-                utils.get_hydro_sim_table_path()
-            ),
-        }
-    else:
-        meta = None
-
-    # -----------------------------------------------------------------
-    # ---------------------- Observed Flux Model ----------------------
-    # -----------------------------------------------------------------
-    # Pre-compute extinction values (if applicable)
-    ebv = {'ebv_milky_way': None}
-    wn = observation.as_arrays.wave_numbers[observation.extinguishable]
-    extinction_model = CCM89(Rv=3.1)
-
-    for p in parameters.fixed:
-        if p.name in ebv.keys():
-            ebv[p.name] = extinction_model.extinguish(wn, Ebv=p.value)
-
-    if parameters.has('rv_milky_way'):
-        ebv['ebv_milky_way'] = None
-
-    # -----------------------------------------------------------------
-    # ----------------------------- MCMC ------------------------------
-    # -----------------------------------------------------------------
-    # Define a filename to save the sampler to disk.
-    # Warning: The sampler files are very large ~1 GB each.
     sampler_name = mcmc_params.data['sampler']['name']
 
-    sampler_kw = {}
-    run_kw = {}
+    sampler_kw, run_kw = {}, {}
 
+    # Output progress bar and save samples in real-time
     if sampler_name == 'ensemble':
-        run_kw = {'progress': True}
+        run_kw['progress'] = True
 
-        filename = str(results_dir / f'{event}_chain.h5')
-        if filename is not None:
-            backend = emcee.backends.HDFBackend(filename)
-            backend.reset(mcmc_params.num_walkers, len(parameters.fitting))
-            sampler_kw['backend'] = backend
+        backend = emcee.backends.HDFBackend(str(results_dir / f'{event}_chain.h5'))
+        backend.reset(mcmc_params.num_walkers, len(ampy.mcmc.params.fitting))
+        sampler_kw['backend'] = backend
 
-    # Create the MCMC object and run. See you in a few hours!
-    mcmc = MCMC(
-        model=MCMCModels(observation, model, meta, CCM89, ext_mw_pc=ebv['ebv_milky_way']),
-        observation=observation,
-        parameters=parameters,
-    )
-    mcmc.run(
+    # Run the MCMC routine
+    ampy.run_mcmc(
         nwalkers=mcmc_params.num_walkers,
         iterations=mcmc_params.run_length,
         burn=mcmc_params.burn_length,
@@ -180,152 +150,54 @@ def main(
         sampler_kw=sampler_kw,
     )
 
-    # -----------------------------------------------------------------
-    # ----------------------------- PLOT ------------------------------
-    # -----------------------------------------------------------------
-    # Plot the light curves
-    best_params = mcmc.get_best_params()
+    # ptemcee does not support backend like emcee
+    if sampler_name == 'parallel_tempered':
+        ampy.mcmc.sampler.save(results_dir / 'chain.npz')
 
-    if model.__name__ == 'StratifiedFireballModel':
-        profiler = SFBMDensityProfiler(mcmc.sampler, parameters)
+    # Log the best fitr results and some metadata
+    log(ampy, results_dir)
 
-        profiler.profile(
-            observation.times().min(),
-            observation.times().max(),
-        )
-        profiler.plot_profile(results_dir)
+    # Plot some things
+    plot_results(ampy, results_dir, event)
 
-    elif model.__name__ == 'FireballModel':
-        # Plot the density profiles
-        density_plotter = DensityProfilePlot(
-            mcmc.sampler, parameters)
-
-        density_plotter.plot(
-            observation.times().min(),
-            observation.times().max(),
-            out_dir=results_dir
-        )
-
-        # # Plot distributions
-        dist_plotter = DistributionPlot(mcmc.sampler, parameters, observation)
-
-        # # Plot the opening angle and energy distribution
-        if parameters.has('tj'):
-            dist_plotter.beaming(out_dir=results_dir)
-
-        # Plot the spectral index distribution
-        spectral_index_plotter = SpectralIndexPlot(
-            mcmc.sampler, parameters, model)
-
-        spectral_index_plotter.model(
-            observation.data[observation.sindex_loc], out_dir=results_dir)
-
-    # -----------------------------------------------------------------
-    # ---------------------------- LOGGING ----------------------------
-    # -----------------------------------------------------------------
-    out_params = mcmc.get_best_params()
-    out_params['chi_squared'] = -2 * mcmc.sampler.get_log_prob(flat=True).max()
-    out_params['mcmc'] = {
-        'sampler': sampler_name,
-        'prod_len': mcmc_params.run_length,
-        'burn_len': mcmc_params.burn_length,
-        'nwalkers': mcmc_params.num_walkers,
-        'model': model.__name__,
-    }
-
-    with open(results_dir / "best_fit.json", "w") as jf:
-        json.dump(out_params, jf, indent=4)
-
-    # Plot frequencies
-    fp = FrequencyPlotter(mcmc.sampler, parameters, model, meta)
-    fp.plot_all(observation, out_dir=results_dir)
-
-    # Plot light curve
-    lc = LightCurvePlot(
-        model=model,
-        params=best_params,
-        observation=observation,
-        title=f'{event} Light Curve',
-        meta=meta
-    )
-    lc.plot(
-        out_dir=results_dir,
-        ext_model=extinction_model,
-    )
-
-    # -----------------------------------------------------------------
-    # -------------------------- DIAGNOSTICS --------------------------
-    # -----------------------------------------------------------------
-    plot_mcmc_diagnostics(mcmc, results_dir)
-
-    plt.close()
-    print(f'AMPy completed modeling of {event} successfully.')
+    return ampy
 
 
 if __name__ == "__main__":
+    args = parse_args()
 
-    # Parse the arguments
-    parser = argparse.ArgumentParser(description="JetFit Parameters")
-    parser.add_argument('--event', help='Event directory name.')
-    parser.add_argument('--mcmc',  help='Path to the MCMC settings.toml file.')
-    parser.add_argument('--model', help='Path to the model defaults.toml file.')
-    parser.add_argument('--data',  help='Path to the input data file.')
-    parser.add_argument('--results', help='Path the the results directory.')
-    args = parser.parse_args()
+    sub_dir = 'jetsim'
 
-    sub_dir = 'grbs'
-
+    # Specify the event to run
     if args.event is None:
-        # Specify the events to run
-        events = [
-            # '050525A',
-            # '050922C',
-            '080413B',
-            # '080319B_nature_mix_1',
-            # '090424',
-            # '090618',
-            # '111228A',
-            # '130612A',
-            # '130612A_1',
-            # '131030A',
-            # '140506A',
-            # '160131A',
-            # '171010A',
-            # '210905A',
-            # '220101A',
-            # '221009A',
-            # '250129A',
-            # '170817'
-        ]
+        event_name = '130612A'
     else:
-        events = [args.event]
+        event_name = args.event
 
-    # Run each event
-    for event in events:
+    # Run AMPy
+    main(
+        **{
+            'event':
+                event_name,
 
-        main(
-            **{
-                'event':
-                    event,
+            'mcmc_path':
+                Path(args.mcmc)
+                if args.mcmc is not None
+                else utils.get_mcmc_settings_path(),
 
-                'mcmc_path':
-                    Path(args.mcmc)
-                    if args.mcmc is not None
-                    else utils.get_mcmc_settings_path(),
+            'params_path':
+                Path(args.model)
+                if args.model is not None
+                else utils.get_event_path(sub_dir, event_name) / 'jetsim.toml',
 
-                'model_path':
-                    Path(args.model)
-                    if args.model is not None
-                    else utils.get_event_path(sub_dir, event) / 'parameters.toml',
+            'obs_path':
+                Path(args.obs)
+                if args.obs is not None
+                else utils.get_input_csv_path(sub_dir, event_name),
 
-                'data_path':
-                    Path(args.data)
-                    if args.data is not None
-                    else utils.get_input_csv_path(sub_dir, event),
-
-                'results_dir':
-                    Path(args.results)
-                    if args.results is not None
-                    else utils.get_results_path() / event,
-            }
-        )
+            'results_dir':
+                Path(args.results)
+                if args.results is not None
+                else utils.get_results_path() / event_name,
+        }
+    )

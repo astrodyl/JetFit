@@ -68,8 +68,8 @@ class StratifiedFireballModel(BaseFireballModel):
     """
     # noinspection PyPep8Naming
     def __init__(
-            self, E, p, eps_b, eps_e, z, dL, nt, rt, X,
-            k1=None, k2=None, tj=None, sj=None, sji=None, sn=None, sni=None, k1i=None, k2i=None, use_sa=True
+        self, E, p, eps_b, eps_e, z, dL, nt, rt, X,
+        k1=None, k2=None, tj=None, sj=None, sji=None, sn=None, sni=None, k1i=None, k2i=None, use_sa=True
     ):
         super().__init__(E, p, eps_b, eps_e, z, dL, X, tj, sj, sji, use_sa)
 
@@ -80,9 +80,14 @@ class StratifiedFireballModel(BaseFireballModel):
         self.k1 = k1 if k1 is not None else 1 / k1i
         self.k2 = k2 if k2 is not None else 1 / k2i
 
+        self.sn = (sn or 1 / sni) if (sn or sni) else None
         self.rt = rt
         self.nt = nt
-        self.sn = (sn or 1 / sni) if (sn or sni) else None
+
+    @property
+    def ref_radius(self):
+        """ Returns the reference radius [cm]."""
+        return self.rt
 
     @property
     def is_valid(self) -> bool:
@@ -415,6 +420,11 @@ class FireballModel(BaseFireballModel):
         self.rho0 = rho0
         self.k = k
 
+    @property
+    def ref_radius(self):
+        """ Returns the reference radius [cm]. """
+        return 1e17
+
     def model(self, obs: Observation, subset: np.ndarray = None):
         """
         Models the observational data, ``obs``.
@@ -439,6 +449,47 @@ class FireballModel(BaseFireballModel):
         return ObservedSpectrumModel(**self.spectrum(obs.times()),
             jet=self.jet_break(obs.times()), arrays=obs.as_arrays
         ).model(subset)
+
+    def smooth(self, t):
+        """
+        Temporary method to match stratified class. Makes
+        plotting more uniform. Will do better later.
+
+        Parameters
+        ----------
+        t : np.ndarray
+            The observer times [d].
+
+        Returns
+        -------
+        tuple of np.ndarray of float
+            The number density normalizations [cm-3] and
+            the density power-law indices.
+        """
+        return (
+            np.full(t.size, self.rho0),
+            np.full(t.size, self.k)
+        )
+
+    def radii(self, t):
+        """
+        Calculates the radius traversed by the blast wave
+        during time ``t`` in a stratified medium defined by
+        the power-law index ``k`` density at the reference
+        radius defines at 1e17cm.
+
+        Parameters
+        ----------
+        t : float or np.ndarray
+            The observer times [days].
+
+        Returns
+        -------
+        float or np.ndarray
+            The radii traversed by the blast wave [cm].
+        """
+        bwm = BlastWaveModel(self.E, self.rho0, self.k)
+        return bwm.shock_radius(self.z, t, bwm.decel_time() / 86_400)
 
     def spectrum(self, t):
         """

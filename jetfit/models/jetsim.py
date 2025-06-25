@@ -1,5 +1,7 @@
 import numpy as np
 
+from jetfit.core.utils import days_to_sec
+
 try:
     from jetsimpy import Jet, Gaussian
 except ImportError:
@@ -28,11 +30,6 @@ References
 .. [1] jetsimpy: A Highly Efficient Hydrodynamic Code for
     Gamma-ray Burst Afterglow. https://arxiv.org/abs/2402.19359.
 """
-
-
-def to_secs(t):
-    """ Converts dats to seconds. """
-    return t * 86_400
 
 
 class JetSimpy:
@@ -139,36 +136,40 @@ class JetSimpy:
         """
         res = np.full(obs.as_arrays.times.size, np.nan)
 
-        # Model the spectral flux
-        if (sfm := obs.as_arrays.sflux_loc).any():
-            if subset is not None:
-                sfm = np.logical_and(sfm, subset)
+        try:
+            # Model the spectral flux
+            if (sfm := obs.as_arrays.sflux_loc).any():
+                if subset is not None:
+                    sfm = np.logical_and(sfm, subset)
 
-            res[sfm] = self.spectral_flux(
-                obs.times()[sfm], obs.freqs()[sfm]
-            )
+                res[sfm] = self.spectral_flux(
+                    obs.times()[sfm], obs.freqs()[sfm]
+                )
 
-        # Model the integrated flux
-        if (ifm := obs.as_arrays.iflux_loc).any():
-            if subset is not None:
-                ifm = np.logical_and(ifm, subset)
+            # Model the integrated flux
+            if (ifm := obs.as_arrays.iflux_loc).any():
+                if subset is not None:
+                    ifm = np.logical_and(ifm, subset)
 
-            res[ifm] = self.integrated_flux(
-                obs.times()[ifm], obs.int_lowers()[ifm], obs.int_uppers()[ifm]
-            )
+                res[ifm] = self.integrated_flux(
+                    obs.times()[ifm], obs.int_lowers()[ifm], obs.int_uppers()[ifm]
+                )
 
-        # Model the spectral indices
-        if (sim := obs.as_arrays.sindex_loc).any():
-            if subset is not None:
-                sim = np.logical_and(sim, subset)
+            # Model the spectral indices
+            if (sim := obs.as_arrays.sindex_loc).any():
+                if subset is not None:
+                    sim = np.logical_and(sim, subset)
 
-            res[sim] = self.spectral_index(
-                obs.times()[sim], obs.int_lowers()[sim], obs.int_uppers()[sim]
-            )
+                res[sim] = self.spectral_index(
+                    obs.times()[sim], obs.int_lowers()[sim], obs.int_uppers()[sim]
+                )
+        except Exception as e:
+            print(e)
+            return np.array([np.nan])
 
         return res
 
-    def spectral_flux(self, t, nu, model="sync", **kwargs):
+    def spectral_flux(self, t, nu, model='sync', **kwargs):
         """
         Calculates the spectral flux at times ``t`` for the
         frequencies ``nu``.
@@ -189,25 +190,9 @@ class JetSimpy:
         np.ndarray of float
             The modeled spectral flux [mJy].
         """
-        return self.jet.FluxDensity(to_secs(t), nu, self.to_dict(('jet',)), model=model)
+        return self.jet.FluxDensity(days_to_sec(t), nu, self.to_dict(('jet',)), model=model)
 
-    def spectral_flux2(self, nu, t, fts=False):
-        """
-        """
-        return self.jet.FluxDensity(to_secs(t), nu, self.to_dict(('jet',)))
-
-    def integrate_flux(self, t, nu_lower, nu_upper):
-        # Wrap the spectral_flux2 method into something quad can use
-        def f_nu(nu):
-            return 1e-26 * self.spectral_flux2(nu, t)  # Convert mJy → erg/s/cm²/Hz
-
-        # Integrate over frequency range
-        from scipy.integrate import quad
-        result, err = quad(f_nu, nu_lower, nu_upper)
-
-        return result  # [erg/s/cm²]
-
-    def integrated_flux(self, t, lower, upper, model="sync", **kwargs):
+    def integrated_flux(self, t, lower, upper, model='sync', **kwargs):
         """
         Calculates the integrated flux at times ``t`` for
         the integration bounds, ``lower`` and ``upper``.
@@ -231,30 +216,12 @@ class JetSimpy:
         sflux = self.spectral_flux(t, lower, model)
         b = self.spectral_index(t, lower, upper, model)
 
-        x = 1e-26 * (
+        return 1e-26 * (
             (sflux * lower / (b + 1)) *
             (((upper / lower) ** (b + 1)) - 1)
         )
-        y = self.integrated_flux2(t, lower, upper)
 
-        z = []
-        for i in range(len(t)):
-            z.append(self.integrate_flux(t[i], lower[i], upper[i]))
-
-        from matplotlib import pyplot as plt
-        plt.loglog(t, self.nu_c(t), label='nu_c')
-        plt.loglog(t, self.nu_m(t), label='nu_m')
-        plt.legend()
-        plt.show()
-
-        plt.loglog(t, x, label='mine')
-        plt.loglog(t, y, label='jetsimpy')
-        plt.loglog(t, z, label='scipy', linestyle='--')
-        plt.legend()
-        plt.show()
-        return x
-
-    def integrated_flux2(self, t, lower, upper, fts=False):
+    def integrated_flux2(self, t, lower, upper, **kwargs):
         """
         Calculates the integrated flux at times ``t`` for
         the integration bounds, ``lower`` and ``upper``
@@ -306,7 +273,29 @@ class JetSimpy:
             np.log10(upper / lower)
         )
 
-    def f_peak(self, t):
+    def spectrum(self, t):
+        """
+        Returns the characteristics that define the GRB spectrum.
+
+        Parameters
+        ----------
+        t : np.ndarray of float or float
+            The observer time [d].
+
+        Returns
+        -------
+        dict
+            keys: f_peak, nu_a, nu_m, nu_c, p, k.
+        """
+        # What about when A and n0 both != 0?
+        k = 2.0 if self.A != 0.0 else 0.0
+
+        return {
+            'p': self.p, 'k': k, 'f_peak': self.f_peak(t),
+            'nu_m': self.nu_m(t), 'nu_c': self.nu_c(t), 'nu_a': self.nu_a(t),
+        }
+
+    def f_peak(self, t, **kwargs):
         """
         Calculates the peak flux at times ``t``
         as a weighted average.
@@ -321,11 +310,11 @@ class JetSimpy:
         np.ndarray of float
             The peak flux [mJy].
         """
-        t, p, nu = to_secs(t), self.to_dict(('jet',)), 1
+        t, p, nu = days_to_sec(t), self.to_dict(('jet',)), 1e16
 
         return self.jet.FluxDensity(t, nu, p, model='intensity')
 
-    def nu_m(self, t, model='sync'):
+    def nu_m(self, t, model='sync', **kwargs):
         """
         Calculates the synchrotron frequency at times ``t``
         as a weighted average.
@@ -343,13 +332,13 @@ class JetSimpy:
         np.ndarray of float
             The source-frame synchrotron frequencies [Hz].
         """
-        t, p, nu = to_secs(t), self.to_dict(('jet',)), 1e10
+        t, p, nu = days_to_sec(t), self.to_dict(('jet',)), 1e16
 
         return self.jet.WeightedAverage(
             t, nu, p, model, average_model='nu_m'
         )
 
-    def nu_c(self, t, model='sync'):
+    def nu_c(self, t, model='sync', **kwargs):
         """
         Calculates the synchrotron frequency at times ``t``
         as a weighted average.
@@ -367,13 +356,13 @@ class JetSimpy:
         np.ndarray of float
             The source-frame synchrotron frequencies [Hz].
         """
-        t, p, nu = to_secs(t), self.to_dict(('jet',)), 1e10
+        t, p, nu = days_to_sec(t), self.to_dict(('jet',)), 1e16
 
         return self.jet.WeightedAverage(
             t, nu, p, model, average_model='nu_c'
         )
 
-    def nu_a(self, t, model='sync'):
+    def nu_a(self, t, model='sync', **kwargs):
         """
         Calculates the sel-absorption frequency at times ``t``
         as a weighted average.
@@ -391,7 +380,7 @@ class JetSimpy:
         np.ndarray of float
             The source-frame self-absorption frequencies [Hz].
         """
-        t, p, nu = to_secs(t), self.to_dict(('jet',)), 1e10
+        t, p, nu = days_to_sec(t), self.to_dict(('jet',)), 1e16
 
         return self.jet.WeightedAverage(
             t, nu, p, model, average_model='nu_a'

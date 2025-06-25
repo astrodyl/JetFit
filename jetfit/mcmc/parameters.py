@@ -35,6 +35,9 @@ class Parameters:
     params : array_like
         The fixed and fitting MCMC parameters.
 
+    model : str
+        The name of the model that the parameters belong to.
+
     Attributes
     ----------
     all : np.ndarray
@@ -53,7 +56,9 @@ class Parameters:
     # Nyaa :3
     _valid_cats = ('model', 'extinction', 'host', 'offsets', 'slop')
 
-    def __init__(self, params):
+    def __init__(self, params, model):
+        self.model = model
+
         if not isinstance(params, np.ndarray):
             params = np.asarray(params)
 
@@ -100,6 +105,8 @@ class Parameters:
         if isinstance(d, (str, Path)):
             d = utils.TOMLReader(d).read()
 
+        model = d.pop('name')
+
         params = []
         for cat, vals in d.items():
             for val in vals:
@@ -107,7 +114,7 @@ class Parameters:
                     factory(val | {'category': cat})
                 )
 
-        return cls(np.asarray(params, dtype=object))
+        return cls(np.asarray(params, dtype=object), model)
 
     def has(self, name):
         """

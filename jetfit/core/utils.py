@@ -13,27 +13,40 @@ from jetfit.core.structs import ScaleType
 # TODO: validation for readers
 
 
-def save_plot_unique(filename_base, ext, directory):
+def sec_to_days(x):
+    """ Convert seconds to days. """
+    return x / 86400
+
+
+def days_to_sec(x):
+    """ Convert days to seconds. """
+    return x * 86400
+
+
+def save_plot_unique(filename_base, ext, directory, dpi=None):
     """
     Save a matplotlib plot to disk, adding a suffix if the file exists.
 
     Parameters
     ----------
     filename_base: str
-        base name without extension
+        The base name without extension.
 
     ext: str
-        file extension (default 'png')
+        The file extension.
 
     directory: str
-        directory to save in (default current directory)
+        The directory to save in.
+
+    dpi : int, optional
+        The dpi for the figure.
     """
     i = 0
     while True:
         filename = f"{filename_base}.{ext}" if i == 0 else f"{filename_base}_{i}.{ext}"
         filepath = os.path.join(directory, filename)
         if not os.path.exists(filepath):
-            plt.savefig(filepath, dpi=1200)
+            plt.savefig(filepath, dpi=dpi)
             return
         i += 1
 
@@ -184,7 +197,6 @@ class MCMCSettingsReader(TOMLReader):
     def validate(self) -> None:
         """ Validates that the MCMC settings file is valid. """
         self.validate_sampler()
-        self.validate_model()
 
     def validate_sampler(self) -> None:
         """ Validates that the sampler section is valid. """
@@ -193,10 +205,6 @@ class MCMCSettingsReader(TOMLReader):
         self.validate_value('burn_length', sampler.get('burn_length'), int)
         self.validate_value('run_length',  sampler.get('run_length'),  int)
         self.validate_value('num_walkers', sampler.get('num_walkers'), int)
-
-    def validate_model(self) -> None:
-        """ Validates that the model section is valid. """
-        self.validate_value('model', self.get_section('model'), str)
 
 
 # <editor-fold desc="Math">

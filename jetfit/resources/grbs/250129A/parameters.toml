@@ -1,4 +1,5 @@
 # MCMC Parameter Configuriation File
+name = 'FireballModel'
 
 #-------------- MODEL --------------
 #---------------- E ----------------
