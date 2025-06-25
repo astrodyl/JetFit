@@ -14,7 +14,17 @@ except ImportError:
     pass
 
 
-def get_pool_context(workers=None, executor='process'):
+_shared_params = None
+_shared_models = None
+
+
+def init(params, models):
+    global _shared_params, _shared_models
+    _shared_params = params
+    _shared_models = models
+
+
+def get_pool_context(workers=None, executor='process', **kwargs):
     """
     If ``executor==process`` and ``workers>1``:
         Returns ``ProcessPoolExecutor(max_workers=workers)``.
@@ -52,10 +62,10 @@ def get_pool_context(workers=None, executor='process'):
     if workers and workers > 1:
 
         if executor == 'process':
-            return ProcessPoolExecutor(max_workers=workers)
+            return ProcessPoolExecutor(max_workers=workers, **kwargs)
 
         if executor == 'thread':
-            return ThreadPoolExecutor(max_workers=workers)
+            return ThreadPoolExecutor(max_workers=workers, **kwargs)
 
     return nullcontext()
 
@@ -411,7 +421,7 @@ class EnsembleSampler(emcee.EnsembleSampler):
     """
     name = 'ensemble'
 
-    def __init__(self, nwalkers, ndim, log_prob_fn, args, **kw):
+    def __init__(self, nwalkers, ndim, log_prob_fn, args=(), **kw):
         super().__init__(nwalkers, ndim, log_prob_fn, args=args, **kw)
 
     def draw_positions(self, params, **kwargs) -> np.ndarray:
@@ -521,7 +531,7 @@ class MCMC:
         if sampler == 'ensemble':
             self.sampler = EnsembleSampler(
                 nwalkers, self.ndim, log_posterior_fn,
-                args=(self.params, self.models), pool=pool, **kwargs # type: ignore
+                pool=pool, **kwargs # type: ignore
             )
 
         elif sampler == 'parallel_tempered':
@@ -566,7 +576,12 @@ class MCMC:
         run_kw : dict, optional
             Any kwargs to pass to the ``run_mcmc`` method.
         """
-        with get_pool_context(workers) as pool:
+        pool_kw = {
+            'initializer': init,
+            'initargs': (self.params, self.models)
+        }
+
+        with get_pool_context(workers, **pool_kw) as pool:
             self.set_sampler(
                 sampler, nwalkers, pool, ntemps, **(sampler_kw or {})
             )
@@ -821,7 +836,7 @@ def log_likelihood_fn(theta, params, models) -> float:
     return -0.5 * chi_squared(modeled, models.obs, s)  # type: ignore
 
 
-def log_posterior_fn(theta, params, models) -> float:
+def log_posterior_fn(theta) -> float:
     """
     Calculates the natural log of the posterior
     probability.
@@ -835,19 +850,15 @@ def log_posterior_fn(theta, params, models) -> float:
     theta : np.ndarray of float
         The MCMC sampled values.
 
-    params : Parameters
-        The MCMC parameter container.
-
-    models : MCMCModels
-        The MCMC models container.
-
     Returns
     -------
     float
         The natural log of the posterior.
     """
-    if np.isfinite(lp := log_prior_fn(theta, params)):
-        ll = log_likelihood_fn(theta, params, models)
+    global _shared_params, _shared_models
+
+    if np.isfinite(lp := log_prior_fn(theta, _shared_params)):
+        ll = log_likelihood_fn(theta, _shared_params, _shared_models)
 
         if np.isfinite(ll):
             return lp + ll
