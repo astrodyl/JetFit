@@ -48,10 +48,6 @@ def log(ampy, out_dir):
         'model': ampy.mcmc.params.model,
     }
 
-    # Store as an array to use as initial positions
-    # for the minimization routine.
-    out_params['best_array'] = ampy.get_best_params(False)
-
     with open(out_dir / 'best_fit.json', "w") as f:
         json.dump(out_params, f, indent=4)  # type: ignore
 
