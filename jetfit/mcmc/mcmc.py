@@ -654,8 +654,12 @@ class MCMCModels:
         np.ndarray of float
             The modeled observed GRB afterglow flux.
         """
-        # Model the GRB afterglow flux
-        modeled = self.model_afterglow(params)
+        # Model the GRB afterglow data
+        try:
+            modeled = self.model_afterglow(params)
+        except Exception as e:
+            print(e)
+            return np.array([np.nan])
 
         if np.isnan(modeled.min()):
             return np.array([np.nan])

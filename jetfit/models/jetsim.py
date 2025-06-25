@@ -136,36 +136,32 @@ class JetSimpy:
         """
         res = np.full(obs.as_arrays.times.size, np.nan)
 
-        try:
-            # Model the spectral flux
-            if (sfm := obs.as_arrays.sflux_loc).any():
-                if subset is not None:
-                    sfm = np.logical_and(sfm, subset)
+        # Model the spectral flux
+        if (sfm := obs.as_arrays.sflux_loc).any():
+            if subset is not None:
+                sfm = np.logical_and(sfm, subset)
 
-                res[sfm] = self.spectral_flux(
-                    obs.times()[sfm], obs.freqs()[sfm]
-                )
+            res[sfm] = self.spectral_flux(
+                obs.times()[sfm], obs.freqs()[sfm]
+            )
 
-            # Model the integrated flux
-            if (ifm := obs.as_arrays.iflux_loc).any():
-                if subset is not None:
-                    ifm = np.logical_and(ifm, subset)
+        # Model the integrated flux
+        if (ifm := obs.as_arrays.iflux_loc).any():
+            if subset is not None:
+                ifm = np.logical_and(ifm, subset)
 
-                res[ifm] = self.integrated_flux(
-                    obs.times()[ifm], obs.int_lowers()[ifm], obs.int_uppers()[ifm]
-                )
+            res[ifm] = self.integrated_flux(
+                obs.times()[ifm], obs.int_lowers()[ifm], obs.int_uppers()[ifm]
+            )
 
-            # Model the spectral indices
-            if (sim := obs.as_arrays.sindex_loc).any():
-                if subset is not None:
-                    sim = np.logical_and(sim, subset)
+        # Model the spectral indices
+        if (sim := obs.as_arrays.sindex_loc).any():
+            if subset is not None:
+                sim = np.logical_and(sim, subset)
 
-                res[sim] = self.spectral_index(
-                    obs.times()[sim], obs.int_lowers()[sim], obs.int_uppers()[sim]
-                )
-        except Exception as e:
-            print(e)
-            return np.array([np.nan])
+            res[sim] = self.spectral_index(
+                obs.times()[sim], obs.int_lowers()[sim], obs.int_uppers()[sim]
+            )
 
         return res
 
