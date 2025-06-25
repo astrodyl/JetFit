@@ -1,0 +1,167 @@
+# MCMC Parameter Configuriation File
+name = 'FireballModel'
+
+#-------------- MODEL --------------
+#---------------- E ----------------
+[[model]]
+name  = "E"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -2.0
+    upper = 4.0
+#    initial_guess = 1.69
+#    initial_sigma = 0.10
+
+#-------------- MODEL --------------
+#---------------- n ----------------
+[[model]]
+name  = "rho0"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -6.0
+    upper = 6.0
+#    initial_guess = 0.07
+#    initial_sigma = 0.15
+
+#-------------- MODEL --------------
+#-------------- eps_e --------------
+[[model]]
+name  = "eps_e"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -6.0
+    upper = 0.0
+#    initial_guess = -1.74
+#    initial_sigma = 0.1
+
+#-------------- MODEL --------------
+#-------------- eps_b --------------
+[[model]]
+name  = "eps_b"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -6.0
+    upper = 0.0
+#    initial_guess = -0.25
+#    initial_sigma = 0.25
+
+#-------------- MODEL --------------
+#---------------- p ----------------
+[[model]]
+name  = "p"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = 2.0
+    upper = 3.0
+#    initial_guess = 2.29
+#    initial_sigma = 0.02
+
+#-------------- MODEL --------------
+#---------------- k ----------------
+[[model]]
+name  = "k"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = -1.0
+    upper = 3.0
+#    initial_guess = 1.828
+#    initial_sigma = 0.08
+
+#-------------- MODEL --------------
+#---------------- X ----------------
+[[model]]
+name  = "X"
+scale = "linear"
+value = 0.7
+
+#-------------- MODEL --------------
+#---------------- z ----------------
+[[model]]
+name  = "z"
+scale = "linear"
+value = 2.198
+
+#-------------- MODEL --------------
+#---------------- dL ---------------
+[[model]]
+name  = "dL"
+scale = "linear"
+value = 5.52
+
+#----------- EXTINCTION ------------
+#---------- source_frame -----------
+[[extinction]]
+name  = "ebv_source_frame"
+scale = "linear"
+
+[extinction.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 0.4
+#    initial_guess = 0.12
+#    initial_sigma = 0.01
+
+#----------- EXTINCTION ------------
+#------------ milky_way ------------
+[[extinction]]
+name  = "ebv_milky_way"
+scale = "linear"
+value = 0.1205
+
+#----------- CALIBRATION -----------
+#-------------- B-band -------------
+[[offsets]]
+name  = "B_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
+
+#----------- CALIBRATION -----------
+#-------------- R-band -------------
+[[offsets]]
+name  = "Rc_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- I-band -------------
+[[offsets]]
+name  = "Ic_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#--------------- SLOP --------------
+#--------------- slop --------------
+[[slop]]
+name  = "slop"
+scale = "linear"
+
+[slop.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 0.1
+#    initial_guess = 0.037
+#    initial_sigma = 0.01

@@ -285,8 +285,11 @@ def chi_squared_eff(
     return np.sum(2 * np.log(sig) + ((y - f) / sig) ** 2)
 
 
-def to_scale(value: float, from_s: str | ScaleType,
-             to_s: str | ScaleType) -> float:
+def to_scale(
+    value: float,
+    from_s: str | ScaleType,
+    to_s: str | ScaleType
+) -> float:
     """
     Converts ``value`` from ``from_s`` to ``to_s``.
 

@@ -36,10 +36,10 @@ def log(ampy, out_dir):
     out_dir : str or Path
         The path to the result's directory.
     """
-    cs = -2 * ampy.mcmc.sampler.get_log_prob(flat=True).max()
+    nmap = -2 * ampy.mcmc.sampler.get_log_prob(flat=True).max()
 
     out_params = ampy.get_best_params()
-    out_params['chi_squared'] = cs
+    out_params['nmap'] = nmap
     out_params['mcmc'] = {
         'sampler': ampy.mcmc.sampler.name,
         'prod_len': int(ampy.mcmc.sampler.iteration),

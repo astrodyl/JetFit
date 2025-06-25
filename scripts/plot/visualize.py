@@ -101,6 +101,7 @@ def plot_frequencies(sampler, obs, params, model, model_kw=None, out_dir=None):
     fp.plot_all(obs, out_dir=out_dir)
     plt.close()
 
+
 def plot_light_curve(model, params, obs, model_kw=None, title='Light Curve', out_dir=None, ext_model=None):
     """
     Plot the best fitting light curve over the data.
@@ -110,7 +111,7 @@ def plot_light_curve(model, params, obs, model_kw=None, title='Light Curve', out
     model :
         The afterglow model class.
 
-    params : Parameters
+    params : dict
         The model parameters.
 
     obs : Observation

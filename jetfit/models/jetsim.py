@@ -358,7 +358,7 @@ class JetSimpy:
             t, nu, p, model, average_model='nu_c'
         )
 
-    def nu_a(self, t, model='sync', **kwargs):
+    def nu_a(self, t, model='sync_sa', **kwargs):
         """
         Calculates the sel-absorption frequency at times ``t``
         as a weighted average.
@@ -376,8 +376,9 @@ class JetSimpy:
         np.ndarray of float
             The source-frame self-absorption frequencies [Hz].
         """
-        t, p, nu = days_to_sec(t), self.to_dict(('jet',)), 1e16
-
-        return self.jet.WeightedAverage(
-            t, nu, p, model, average_model='nu_a'
-        )
+        return None
+        # t, p, nu = days_to_sec(t), self.to_dict(('jet',)), 1e16
+        #
+        # return self.jet.WeightedAverage(
+        #     t, nu, p, model, average_model='nu_a'
+        # )

@@ -130,10 +130,6 @@ class Ampy:
         )
         return self.mcmc
 
-    def minimize(self):
-        """"""
-        pass
-
     def get_best_params(self, as_dict=True, **kwargs):
         """
         Returns the sampled values from the chain with the

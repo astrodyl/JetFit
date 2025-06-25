@@ -36,7 +36,6 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 47683.60004,,,s,0.017218686,0.002290742,0.002290742,mJy,Spectral Flux,1.33E+15,,,Hz,uvm2,uvm2_offset,slop
 76718.59998,,,s,0.009908319,0.00266396,0.00266396,mJy,Spectral Flux,1.33E+15,,,Hz,uvm2,uvm2_offset,slop
 382695,,,s,0.000440555,0.000256053,0.000256053,mJy,Spectral Flux,1.33E+15,,,Hz,uvm2,uvm2_offset,slop
-2101.199962,,,s,2.466039337,0.175171684,0.175171684,mJy,Spectral Flux,4.81E+14,,,Hz,r,r_offset,slop
 67991.99996,,,s,0.028575905,0.002273226,0.002273226,mJy,Spectral Flux,4.81E+14,,,Hz,r,r_offset,slop
 68963.99996,,,s,0.030199517,0.002145181,0.002145181,mJy,Spectral Flux,4.81E+14,,,Hz,r,r_offset,slop
 238686,,,s,0.005970353,0.000770393,0.000770393,mJy,Spectral Flux,4.81E+14,,,Hz,r,r_offset,slop
