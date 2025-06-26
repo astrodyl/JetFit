@@ -91,7 +91,8 @@ class Ampy:
 
     def run_mcmc(
         self, nwalkers, iterations, burn=0, sampler='ensemble',
-        workers=None, ntemps=None, sampler_kw=None, run_kw=None
+        workers=None, ntemps=None, sampler_kw=None, run_kw=None,
+        resume=False
     ):
         """
         Runs the MCMC sampling routine.
@@ -123,6 +124,9 @@ class Ampy:
 
         run_kw : dict, optional
             Any kwargs to pass to the ``run_mcmc`` method.
+
+        resume : bool, optional, default=False
+            Resume from a previous run?
         """
         self.mcmc.run(
             nwalkers, iterations, burn, sampler,

@@ -14,6 +14,47 @@ except ImportError:
     pass
 
 
+"""
+MCMC framework for modeling afterglow light curves.
+
+This module provides two adapters for the parallel tempered
+sampler from ``ptemcee`` [1]_ and the ensemble sampler from
+``emcee`` [2]_. 
+
+The ``MCMC`` class can be used directly, but it is strongly
+recommended to use the ``Ampy`` class instead. 
+
+Notes
+-----
+Multiprocessing vs. Multithreading:
+
+    When running MCMC sampling, you can parallelize likelihood
+    (or posterior) evaluations in two ways:
+
+    1. Multithreading
+       - Threads share the same memory space and interpreter instance.
+       - Low overhead for spawning and switching threads (i.e., fast!).
+       - Requires Python v3.13 with free-threading enabled
+       - Most libraries do not support multithreading yet.
+
+    2. Multiprocessing
+        - Each process has its own Python interpreter and memory space.
+        - Bypasses the GIL entirely, enabling true parallelism on multiple cores.
+        - Higher overhead to start processes and to pass data (i.e., slow!).
+        - Useful if likelihood takes > ~1s and has dependencies that require the GIL.
+
+The implementation for both is built into the ``MCMC`` class. Simply
+specify the executor and number of workers. However, it is up to the
+user to determine whether parallelization will actually be beneficial.
+
+References
+----------
+.. [1] https://arxiv.org/abs/1501.05823
+
+.. [2] https://arxiv.org/abs/1202.3665
+"""
+
+
 def get_pool_context(workers=None, executor='process'):
     """
     If ``executor==process`` and ``workers>1``:
@@ -73,8 +114,6 @@ class PTSampler:
 
     There is a community developed version called ``ptemcee``.
     However, the authors stopped maintaining it years ago.
-    Sadly, there's also zero documentation and/or tutorials,
-    and the API is completely different.
 
     This class aims to provide an API that matches ``emcee``.
     Methods are only added on an as-needed basis and are by
@@ -107,7 +146,7 @@ class PTSampler:
         log-probabilities in parallel.
 
     kwargs
-        Any kwargs to be passed to the sampler.
+        Any kwargs accepted by ``ptemcee.Sampler``.
     """
     name = 'parallel_tempered'
 
@@ -184,9 +223,7 @@ class PTSampler:
             The number of steps to run.
 
         kwargs
-            thin_by
-
-            random
+            Any kwargs accepted by ``ptemcee.Chain``.
 
         Returns
         -------
@@ -229,7 +266,7 @@ class PTSampler:
         path : str
             The path to save the file.
         """
-        np.savez(path, chain=self.get_chain(), lnprob=self.get_log_prob())
+        np.savez(path, chain=self.get_chain(), lnprob=self.get_log_prob(), betas=self.sampler.betas)
 
     def draw_positions(self, params, models):
         """
@@ -446,7 +483,7 @@ class MCMC:
     Parameters
     ----------
     model : MCMCModels
-        The afterglow model.
+        The model wrapper.
 
     parameters : Parameters
         The model parameters.
@@ -477,25 +514,23 @@ class MCMC:
         Parameters
         ----------
         as_dict : bool, optional, default=True
-            If True, return the sampled values as a dict.
+            Should the samples be returned as a dict? Where
+            key = param name and value = param value.
 
         kwargs : dict
-            cat : str, optional
-                Limit the params to the ``cat`` categories.
-
-            scale : str, optional, default='linear'
-                The scale to return the parameters in.
+            Any kwargs accepted by ``Parameters.samples_to_dict``.
 
         Returns
         -------
         dict or np.ndarray
             The values from the highest likelihood chain.
         """
-        max_index = np.nanargmax(self.sampler.get_log_prob(flat=True))
-        params = self.sampler.get_chain(flat=True)[max_index]
-        return self.params.samples_to_dict(params, **kwargs) if as_dict else params
+        params = utils.get_best_samples(self.sampler)
 
-    # <editor-fold desc="Sampling Routine">
+        if as_dict:
+            return self.params.samples_to_dict(params, **kwargs)
+        return params
+
     def set_sampler(self, sampler, nwalkers, pool, ntemps=None, **kwargs):
         """
         Sets the sampler. Duh.
@@ -503,7 +538,7 @@ class MCMC:
         Parameters
         ----------
         sampler : str
-            The sampler type. Must be ``ensemble`` or ``parallel_tempered``.
+            The sampler name. Must be ``ensemble`` or ``parallel_tempered``.
 
         nwalkers : int
             The number of walkers.
@@ -516,7 +551,7 @@ class MCMC:
             The number of temperatures for ``parallel_tempered``.
 
         kwargs
-            Any kwargs to be passed to the sampler.
+            Any kwargs accepted by the sampler.
         """
         if sampler == 'ensemble':
             self.sampler = EnsembleSampler(
@@ -531,9 +566,34 @@ class MCMC:
                 pool=pool, **kwargs
             )
 
+    def start_positions(self, resume=False):
+        """
+        Determines the starting positions.
+
+        Parameters
+        ----------
+        resume : bool, optional, default=False
+            Use the end of a previous run to determine
+            the starting positions?
+
+        Returns
+        -------
+        np.ndarray or ``emcee.State``
+            The starting positions.
+        """
+        if resume and isinstance(self.sampler, EnsembleSampler):
+            # Use the backend to determine start positions
+            return self.sampler.get_last_sample()
+
+        # Use priors to determine start positions
+        return self.sampler.draw_positions(
+            params=self.params, models=self.models
+        )
+
     def run(
         self, nwalkers, iterations, burn=0, sampler='ensemble',
-        workers=None, ntemps=None, sampler_kw=None, run_kw=None
+        workers=None, ntemps=None, sampler_kw=None, run_kw=None,
+        resume=False
     ):
         """
         Runs the MCMC sampling routine.
@@ -561,19 +621,20 @@ class MCMC:
             The number of temperatures for ``PTSampler``.
 
         sampler_kw : dict, optional
-            Any kwargs to pass to the sampler.
+            Any kwargs accepted by the sampler.
 
         run_kw : dict, optional
-            Any kwargs to pass to the ``run_mcmc`` method.
+            Any kwargs accepted by ``run_mcmc``.
+
+        resume : bool, optional, default=False
+            Resume from a previous run?
         """
         with get_pool_context(workers) as pool:
             self.set_sampler(
                 sampler, nwalkers, pool, ntemps, **(sampler_kw or {})
             )
 
-            start_pos = self.sampler.draw_positions(
-                params=self.params, models=self.models
-            )
+            start_pos = self.start_positions(resume)
 
             if burn < 1:
                 self.start_run_pos = start_pos
@@ -744,19 +805,13 @@ class MCMCModels:
             **p.get('init')).extinguish(wn, **p.get('eval'))
 
 
-# https://emcee.readthedocs.io/en/stable/tutorials/parallel/
-# For multiprocessing purposes, emcee requires that methods and
-# arguments be pickle-able. As such, the methods below are made
-# global to meet this requirement.
-
-
 def log_prior_fn(theta, params) -> float:
     """
     Evaluates the natural log of the priors.
 
     Parameters
     ----------
-    theta : np.ndarray of float, with length of `fitting_params`
+    theta : np.ndarray of float, with length of ``params.fitting``
         The sampled MCMC parameter values.
 
     params : Parameters
@@ -785,7 +840,7 @@ def log_likelihood_fn(theta, params, models) -> float:
 
     Parameters
     ----------
-    theta : np.ndarray of float
+    theta : np.ndarray of float, with length of ``params.fitting``
         The MCMC sampled values.
 
     params : Parameters
@@ -832,7 +887,7 @@ def log_posterior_fn(theta, params, models) -> float:
 
     Parameters
     ----------
-    theta : np.ndarray of float
+    theta : np.ndarray of float, with length of ``params.fitting``
         The MCMC sampled values.
 
     params : Parameters

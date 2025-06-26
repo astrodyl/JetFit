@@ -20,6 +20,7 @@ def parse_args():
     parser.add_argument('--model',   help='Path to the model TOML file.')
     parser.add_argument('--obs',     help='Path to the input observation file.')
     parser.add_argument('--results', help='Path the the results directory.')
+    parser.add_argument('--resume',  help='Continue from previous run?')
     return parser.parse_args()
 
 
@@ -88,7 +89,7 @@ def plot_results(ampy, results_dir, event):
     diagnose.plot_trace(params, out_dir=results_dir, sampler=ampy.mcmc.sampler)
 
 
-def main(obs_path, params_path, mcmc_path, results_dir, event):
+def main(obs_path, params_path, mcmc_path, results_dir, event, resume=False):
     """
     Run MCMC using AMPy.
 
@@ -108,6 +109,11 @@ def main(obs_path, params_path, mcmc_path, results_dir, event):
 
     event : str
         The name of the event to model.
+
+    resume : bool, optional, default=False
+        Resume from a previous run? Only supported for
+        ``EnsembleSampler`` since ``PTSampler`` does not
+        use a ``backend``.
 
     Returns
     -------
@@ -131,7 +137,8 @@ def main(obs_path, params_path, mcmc_path, results_dir, event):
         run_kw['progress'] = True
 
         backend = emcee.backends.HDFBackend(str(results_dir / f'{event}_chain.h5'))
-        backend.reset(mcmc_params.num_walkers, len(ampy.mcmc.params.fitting))
+        if not resume:
+            backend.reset(mcmc_params.num_walkers, len(ampy.mcmc.params.fitting))
         sampler_kw['backend'] = backend
 
     # Run the MCMC routine
@@ -162,7 +169,7 @@ def main(obs_path, params_path, mcmc_path, results_dir, event):
 if __name__ == "__main__":
     args = parse_args()
 
-    sub_dir = 'jetsim'
+    sub_dir = 'grbs'
 
     # Specify the event to run
     if args.event is None:
@@ -184,7 +191,7 @@ if __name__ == "__main__":
             'params_path':
                 Path(args.model)
                 if args.model is not None
-                else utils.get_event_path(sub_dir, event_name) / 'jetsim.toml',
+                else utils.get_event_path(sub_dir, event_name) / 'parameters.toml',
 
             'obs_path':
                 Path(args.obs)
@@ -195,5 +202,10 @@ if __name__ == "__main__":
                 Path(args.results)
                 if args.results is not None
                 else utils.get_results_path() / event_name,
+
+            'resume':
+                args.resume
+                if args.resume is not None
+                else False,
         }
     )

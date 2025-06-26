@@ -51,6 +51,16 @@ def save_plot_unique(filename_base, ext, directory, dpi=None):
         i += 1
 
 
+def get_best_index(sampler):
+    """ Returns the index with the highest log posterior. """
+    return np.nanargmax(sampler.get_log_prob(flat=True))
+
+
+def get_best_samples(sampler):
+    """ Returns the MCMC samples with the highest log posterior. """
+    return sampler.get_chain(flat=True)[get_best_index(sampler)]
+
+
 class CSVReader:
     """
     Reads an input CSV.
