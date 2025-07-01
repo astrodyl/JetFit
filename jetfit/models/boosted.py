@@ -5,8 +5,8 @@ from scipy.interpolate import RegularGridInterpolator as RGInterpolator
 
 from jetfit.core.structs import ScaleType
 from jetfit.core.input import Observation
-from jetfit.models.basemodels import ObservedSpectrumModel, SpectralFluxModel
-from jetfit.models.basemodels import IntegratedFluxModel, SpectralIndexModel
+from jetfit.models.base import ObservedSpectrumModel, SpectralFluxModel
+from jetfit.models.base import IntegratedFluxModel, SpectralIndexModel
 
 
 def nans(n: int):
@@ -289,7 +289,7 @@ class BoostedFireballModel:
 
         See Also
         --------
-        `models.basemodels.SpectralFluxModel.evaluate`
+        `models.base.SpectralFluxModel.evaluate`
             See for information on how various shapes
             of t and f are handled.
         """
@@ -320,7 +320,7 @@ class BoostedFireballModel:
 
         See Also
         --------
-        `models.basemodels.SpectralFluxModel.evaluate`
+        `models.base.SpectralFluxModel.evaluate`
             See for information on how various shapes
             of t, lower, upper are handled.
         """
@@ -351,7 +351,7 @@ class BoostedFireballModel:
 
         See Also
         --------
-        `models.basemodels.SpectralFluxModel.evaluate`
+        `models.base.SpectralFluxModel.evaluate`
             See for information on how various shapes
             of t, lower, upper are handled.
         """

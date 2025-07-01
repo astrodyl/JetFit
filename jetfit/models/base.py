@@ -4,7 +4,1541 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as const
 
+from numba import njit
+
 from jetfit.core.structs import SpectralFlux, IntegratedFlux, SpectralIndex
+
+
+"""
+Base models
+
+
+Notes
+-----
+Although it would be much easier and much, much cleaner to simply
+write the spectral functions (f_peak, nu_a, nu_m, nu_c) in terms
+of their fundamental physics (magnetic field, Lorentz factor, and
+radius), it would also be significantly slower. Since these methods
+are intended to be used with MCMC, I prioritized performance over
+simplicity. The current implementations of the spectral functions
+takes a fraction of a milli-second to execute.
+
+Numba: https://numba.pydata.org/numba-doc/dev/user/5minguide.html.
+Many methods make use of the @njit decorator. This compiles the
+decorated methods into machine code. There are some restrictions
+on the methods that use this. See the link above for details.
+"""
+
+
+# Useful constants and conversions
+SoL     = 2.99792458e+10  # [cm s-1]
+MassE   = 9.1093837e-28   # [g]
+MassP   = 1.67262192e-24  # [g]
+SigmaT  = 6.6524e-25      # [cm2]
+ECharge = 4.8032e-10      # [g1/2 cm3/2 s-1]
+CGS2MJY = 1.0e26
+DAY2SEC = 86_400.0
+
+
+@njit
+def days_to_sec(x):
+    """ Convert days to seconds. """
+    return x * 86400.0
+
+
+# # noinspection PyPep8Naming
+# @njit(cache=True)
+# def radius(E, n0, k, t_src, adiabatic=True):
+#     """
+#     Calculates the source-frame blast wave radius [cm].
+#
+#     Parameters
+#     ----------
+#     E : float
+#         The explosion energy [erg]. If ``evo==radiative``,
+#         assumes that ``E=E0 / Gamma0``.
+#
+#     n0 : float or np.ndarray of float
+#         The number density normalization [cm-3] normalized
+#         to 1 cm.
+#
+#     k : float or np.ndarray of float
+#         The density power-law index.
+#
+#     t_src : float or np.ndarray of float
+#         The source-frame times [s].
+#
+#     adiabatic : bool, optional, default=True
+#         How is the blas wave evolving? Must be
+#         True for 'adiabatic' or False for 'radiative'.
+#
+#     Returns
+#     -------
+#     float or np.ndarray of float
+#         The source-frame blast wave radius [cm].
+#     """
+#     # Hydrodynamic coefficients
+#     hdc_a = 16.0 / (17.0 - 4.0 * k)
+#     hdc_b = 4.0 - k
+#
+#     if adiabatic:
+#         return (
+#             # where 1.575318e-13 = pi * MassP * SoL
+#             hdc_b * E * t_src / (1.575318e-13 * hdc_a * n0)
+#         ) ** (1 / (4 - k))
+#
+#     return (
+#         # where 7.4e-16 = (pi * MassP) ** 2 * SoL ** 3
+#         hdc_b * E ** 2 * t_src / (7.439734e-16 * (hdc_a * n0) ** 2)
+#     ) ** (1 / (7 - 2 * k))
+
+
+# # noinspection PyPep8Naming
+# @njit(cache=True)
+# def lf(E, n0, k, t_src, adiabatic=True):
+#     """
+#     Calculates the Lorentz factor(s).
+#
+#     Parameters
+#     ----------
+#     E : float
+#         The explosion energy [erg]. If ``evo==radiative``,
+#         assumes that ``E=E0 / Gamma0``.
+#
+#     n0 : float or np.ndarray of float
+#         The number density normalization [cm-3] normalized
+#         to 1 cm.
+#
+#     k : float or np.ndarray of float
+#         The density power-law index.
+#
+#     t_src : float or np.ndarray of float
+#         The source-frame times [s].
+#
+#     adiabatic : bool, optional, default=True
+#         How is the blas wave evolving? Must be
+#         True for 'adiabatic' or False for 'radiative'.
+#
+#     Returns
+#     -------
+#     float or np.ndarray of float
+#         The Lorentz factor(s).
+#     """
+#     # Hydrodynamic coefficients
+#     hdc_a = 16.0 / (17.0 - 4.0 * k)
+#     hdc_b = 4.0 - k
+#
+#     exp = -0.5 / (4 - k) if adiabatic else -1 / (7 - 2 * k)
+#
+#     return (
+#         hdc_a * hdc_b ** (3 - k) * np.pi *
+#         SoL ** (5 - k) * MassP * n0 / E * t_src ** (3 - k)
+#     ) ** exp
+
+
+# noinspection PyPep8Naming
+# @njit(cache=True)
+# def nu_c(E, n0, k, eps_b, z, t_obs, adiabatic=True):
+#     """
+#     Calculates the observer-frame cooling frequency [Hz].
+#
+#     Parameters
+#     ----------
+#
+#     Returns
+#     -------
+#     float or np.ndarray of float
+#         The observer-frame cooling frequency [Hz].
+#     """
+#     # Hydrodynamic coefficients
+#     hdc_a = 16.0 / (17.0 - 4.0 * k)
+#     hdc_b = 4.0 - k
+#
+#     t_src = DAY2SEC * t_obs / (1.0 + z)
+#
+#     # Lorentz factor
+#     lf = (
+#         hdc_a * hdc_b ** (3.0 - k) * np.pi *
+#         SoL ** (5.0 - k) * MassP * n0 / E * t_src ** (3.0 - k)
+#     ) ** -(0.5 / (4 - k) if adiabatic else -1.0 / (7.0 - 2.0 * k))
+#
+#     # Radius
+#     if adiabatic:
+#         R = (
+#             # where 1.575318e-13 = pi * MassP * SoL
+#             hdc_b * E * t_src / (1.575318e-13 * hdc_a * n0)
+#         ) ** (1.0 / (4.0 - k))
+#
+#     else:
+#         R = (
+#             # where 7.4e-16 = (pi * MassP) ** 2 * SoL ** 3
+#             hdc_b * E ** 2.0 * t_src / (7.439734e-16 * (hdc_a * n0) ** 2.0)
+#         ) ** (1.0 / (7.0 - 2.0 * k))
+#
+#     # Magnetic field
+#     B = 0.388749 * lf * np.sqrt(eps_b * n0 * R ** -k)
+#
+#     # return observer-frame cooling frequency [Hz]
+#     return (1.0 + z) * 1.676123e+24 / B ** 3.0 / lf / t_src ** 2.0
+
+
+# noinspection PyPep8Naming
+# @njit(cache=True)
+# def mag_field(E, n0, k, eps_b, t_src, adiabatic=True):
+#     """
+#     Returns the comoving magnetic field strength [G].
+#
+#     Parameters
+#     ----------
+#     E : float
+#         The explosion energy [erg]. If ``evo==radiative``,
+#         assumes that ``E=E0 / Gamma0``.
+#
+#     n0 : float or np.ndarray of float
+#         The number density normalization [cm-3] normalized
+#         to 1 cm.
+#
+#     k : float or np.ndarray of float
+#         The density power-law index.
+#
+#     eps_b : float
+#         The fraction of thermal energy in the magnetic field.
+#         Must be in the range [0, 1].
+#
+#     t_src : float or np.ndarray of float
+#         The source-frame time(s) [s].
+#
+#     adiabatic : bool, optional, default=True
+#         How is the blas wave evolving? Must be
+#         True for 'adiabatic' or False for 'radiative'.
+#
+#     Returns
+#     -------
+#     float or np.ndarray of float
+#         The magnetic field strength [G].
+#     """
+#     # where 0.388749 = SoL * sqrt(32 * pi * MassP)
+#     return 0.388749 * lf(E, n0, k, t_src, adiabatic) * np.sqrt(
+#         eps_b * n0 * radius(E, n0, k, t_src, adiabatic) ** -k
+#     )
+
+
+# # noinspection PyPep8Naming
+# @njit
+# def gamma_m(E, n0, k, p, eps_e, hmf, t_src, adiabatic=True):
+#     """
+#     Calculates the comoving minimum Lorentz factor(s).
+#
+#     Parameters
+#     ----------
+#     E : float
+#         The explosion energy [erg]. If ``adiabatic==False``,
+#         assumes that ``E=E0 / Gamma0``.
+#
+#     n0 : float or np.ndarray of float
+#         The number density normalization [cm-3] normalized
+#         to 1 cm.
+#
+#     k : float or np.ndarray of float
+#         The density power-law index.
+#
+#     p : float
+#         The electron energy index.
+#
+#     hmf : float
+#         The hydrogen mass fraction. Must be in the range [0, 1].
+#         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+#
+#     eps_e : float
+#         The fraction of thermal energy in the electric field.
+#         Must be in the range [0, 1].
+#
+#     t_src : float or np.ndarray of float
+#         The source-frame time(s) [s].
+#
+#     adiabatic : bool, optional, default=True
+#         How is the blas wave evolving? Must be
+#         True for 'adiabatic' or False for 'radiative'.
+#
+#     Returns
+#     -------
+#     float or np.ndarray of float
+#         The comoving minimum Lorentz factor(s).
+#     """
+#     # where 3672.305347 = 2 * MassP / MassE
+#     return 3672.305347 * (
+#         (p - 2) / (p - 1) * eps_e * lf(E, n0, k, t_src, adiabatic) / (1 + hmf)
+#     )
+#
+#
+# # noinspection PyPep8Naming
+# @njit
+# def gamma_c(E, n0, k, eps_b, t_src, adiabatic=True):
+#     """
+#     Calculates the comoving critical Lorentz factor(s).
+#
+#     Parameters
+#     ----------
+#     E : float
+#         The explosion energy [erg]. If ``adiabatic==False``,
+#         assumes that ``E=E0 / Gamma0``.
+#
+#     n0 : float or np.ndarray of float
+#         The number density normalization [cm-3] normalized
+#         to 1 cm.
+#
+#     k : float or np.ndarray of float
+#         The density power-law index.
+#
+#     eps_b : float
+#         The fraction of thermal energy in the magnetic field.
+#         Must be in the range [0, 1].
+#
+#     t_src : float or np.ndarray of float
+#         The source-frame time(s) [s].
+#
+#     adiabatic : bool, optional, default=True
+#         How is the blas wave evolving? Must be
+#         True for 'adiabatic' or False for 'radiative'.
+#
+#     Returns
+#     -------
+#     float or np.ndarray of float
+#         The comoving critical Lorentz factor(s).
+#     """
+#     # 6 * pi * MassE * SoL / SigmaT
+#     constant = 7.738067e8
+#
+#     return constant / (
+#         lf(E, n0, k, t_src, adiabatic) * mag_field(E, n0, k, eps_b, t_src, adiabatic) ** 2 * t_src
+#     )
+#
+#
+# # noinspection PyPep8Naming
+# @njit
+# def f_peak(E, n0, k, eps_b, dL, z, hmf, t_obs, adiabatic=True):
+#     """
+#     Calculates the observer-frame peak fluxes [mJy].
+#
+#     Parameters
+#     ----------
+#     E : float
+#         The explosion energy [erg]. If ``adiabatic==False``,
+#         assumes that ``E=E0 / Gamma0``.
+#
+#     n0 : float or np.ndarray of float
+#         The number density normalization [cm-3] normalized
+#         to 1 cm.
+#
+#     k : float or np.ndarray of float
+#         The density power-law index.
+#
+#     eps_b : float
+#         The fraction of thermal energy in the magnetic field.
+#         Must be in the range [0, 1].
+#
+#     dL : float
+#         The luminosity distance to the event [cm].
+#
+#     z : float
+#         The redshift to the event.
+#
+#     hmf : float
+#         The hydrogen mass fraction. Must be in the range [0, 1].
+#         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+#
+#     t_obs : float or np.ndarray of float
+#         The observer-frame times [d].
+#
+#     adiabatic : bool, optional, default=True
+#         How is the blas wave evolving? Must be
+#         True for 'adiabatic' or False for 'radiative'.
+#
+#     Returns
+#     -------
+#     float or np.ndarray of float
+#         The observer-frame peak fluxes [mJy].
+#     """
+#     t_src = days_to_sec(t_obs) / (1 + z)
+#
+#     # (2/3)e26 * sqrt(2pi) * ECharge**3 / MassE / MassP / SoL
+#     constant = 876.960194
+#
+#     # return peak flux [mJy]
+#     return constant * (1 + z) * (
+#         (1 + hmf) * eps_b ** 0.5 / dL ** 2 *
+#         lf(E, n0, k, t_src, adiabatic) ** 2 * n0 ** 1.5 *
+#         radius(E, n0, k, t_src, adiabatic) ** (3 - 1.5 * k)
+#     )
+#
+#
+# # noinspection PyPep8Naming
+# @njit
+# def nu_m(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True):
+#     """
+#     Calculates the observer-frame synchrotron frequency [Hz].
+#
+#     Parameters
+#     ----------
+#     E : float
+#         The explosion energy [erg]. If ``adiabatic==False``,
+#         assumes that ``E=E0 / Gamma0``.
+#
+#     n0 : float or np.ndarray of float
+#         The number density normalization [cm-3] normalized
+#         to 1 cm.
+#
+#     k : float or np.ndarray of float
+#         The density power-law index.
+#
+#     p : float
+#         The electron energy index.
+#
+#     eps_b : float
+#         The fraction of thermal energy in the magnetic field.
+#         Must be in the range [0, 1].
+#
+#     eps_e : float
+#         The fraction of thermal energy in the electric field.
+#         Must be in the range [0, 1].
+#
+#     z : float
+#         The redshift to the event.
+#
+#     hmf : float
+#         The hydrogen mass fraction. Must be in the range [0, 1].
+#         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+#
+#     t_obs : float or np.ndarray of float
+#         The observer-frame times [d].
+#
+#     adiabatic : bool, optional, default=True
+#         How is the blas wave evolving? Must be
+#         True for 'adiabatic' or False for 'radiative'.
+#
+#     Returns
+#     -------
+#     float or np.ndarray of float
+#         The observer-frame synchrotron frequency [Hz].
+#     """
+#     t_src = days_to_sec(t_obs) / (1 + z)
+#
+#     # where 2799246.24 = ECharge / 2 * pi / MassE / SoL
+#     constant = 2799246.24
+#
+#     # return observer-frame synchrotron frequency [Hz]
+#     return constant / (1 + z) * (
+#         gamma_m(E, n0, k, p, eps_e, hmf, t_src, adiabatic) ** 2 *
+#         mag_field(E, n0, k, eps_b, t_src, adiabatic) *
+#         lf(E, n0, k, t_src, adiabatic)
+#     )
+#
+#
+# # noinspection PyPep8Naming
+# @njit
+# def nu_c(E, n0, k, eps_b, z, t_obs, adiabatic=True):
+#     """
+#     Calculates the observer-frame cooling frequency [Hz].
+#
+#     Parameters
+#     ----------
+#     E : float
+#         The explosion energy [erg]. If ``adiabatic==False``,
+#         assumes that ``E=E0 / Gamma0``.
+#
+#     n0 : float or np.ndarray of float
+#         The number density normalization [cm-3] normalized
+#         to 1 cm.
+#
+#     k : float or np.ndarray of float
+#         The density power-law index.
+#
+#     eps_b : float
+#         The fraction of thermal energy in the magnetic field.
+#         Must be in the range [0, 1].
+#
+#     z : float
+#         The redshift to the event.
+#
+#     t_obs : float or np.ndarray of float
+#         The observer-frame times [d].
+#
+#     adiabatic : bool, optional, default=True
+#         How is the blas wave evolving? Must be
+#         True for 'adiabatic' or False for 'radiative'.
+#
+#     Returns
+#     -------
+#     float or np.ndarray of float
+#         The observer-frame cooling frequency [Hz].
+#     """
+#     t_src = days_to_sec(t_obs) / (1 + z)
+#
+#     # where 2799246.24 = ECharge / 2 * pi / MassE / SoL
+#     constant = 2799246.24
+#
+#     # return observer-frame cooling frequency [Hz]
+#     return constant / (1 + z) * (
+#         gamma_c(E, n0, k, eps_b, t_src, adiabatic) ** 2 *
+#         mag_field(E, n0, k, eps_b, t_src, adiabatic) *
+#         lf(E, n0, k, t_src, adiabatic)
+#     )
+
+
+def newnewnew():
+    pass
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def peak_flux(E, n0, k, eps_b, dL, z, hmf, t_obs, adiabatic=True):
+    """
+    Calculates the observer-frame peak fluxes [mJy] for
+    an ultra-relativistic shock moving through an external
+    medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``adiabatic==False``,
+        assumes the ``E`` is divided by the initial Lorentz
+        factor (i.e., E0 / Gamma0).
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    dL : float
+        The luminosity distance to the event [cm].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float
+        The observer-frame times [d].
+
+    adiabatic : bool, optional, default=True
+        How is the blast wave evolving? Must be True
+        for 'adiabatic' or False for 'radiative'.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The observer-frame peak fluxes [mJy].
+    """
+    if adiabatic:
+        return f_peak_ad(E, n0, k, eps_b, dL, z, hmf, t_obs)
+    return f_peak_rad(E, n0, k, eps_b, dL, z, hmf, t_obs)
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic=True):
+    """
+    Calculates the observer-frame cooling frequencies [Hz] for
+    an ultra-relativistic shock moving through an external
+    medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``adiabatic==False``,
+        assumes that ``E=E0 / Gamma0``.
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    t_obs : float or np.ndarray of float64
+        The observer-frame times [d].
+
+    adiabatic : bool, optional, default=True
+        How is the blast wave evolving? Must be True
+        for 'adiabatic' or False for 'radiative'.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The observer-frame cooling frequency [Hz].
+    """
+    if adiabatic:
+        return nu_c_ad(E, n0, k, eps_b, z, t_obs)
+    return nu_c_rad(E, n0, k, eps_b, z, t_obs)
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True):
+    """
+    Calculates the observer-frame synchrotron frequencies [Hz]
+    for an ultra-relativistic shock moving through an external
+    medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``adiabatic==False``,
+        assumes that ``E=E0 / Gamma0``.
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    p : float
+        The electron energy index.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    eps_e : float
+        The fraction of thermal energy in the electric field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float64
+        The observer-frame times [d].
+
+    adiabatic : bool, optional, default=True
+        How is the blast wave evolving? Must be True
+        for 'adiabatic' or False for 'radiative'.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The observer-frame synchrotron frequencies [Hz].
+    """
+    if adiabatic:
+        return nu_m_ad(E, k, p, eps_b, eps_e, z, hmf, t_obs)
+    return nu_m_rad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
+
+
+# noinspection PyPep8Naming
+# @njit(cache=True)
+# def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True):
+#     """"""
+#     # Make sure I'm working with arrays
+#     t_obs = np.asarray(t_obs)
+#
+#     # Calculate to determine regimes
+#     nu_m = synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic)
+#     nu_c = cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic)
+#
+#     if adiabatic:
+#         fast = nu_c < nu_m
+#
+#         # Determine slow-cooling absorption frequencies
+#         nu_amc = nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
+#         nu_mac = nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
+#
+#         # Initialize with slow cooling values
+#         res = np.where(nu_amc < nu_m, nu_amc, nu_mac)
+#
+#         if fast.any():
+#             # Determine fast-cooling absorption frequencies
+#             nu_acm = nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs)
+#             nu_cam = nu_a_cam_ad(E, n0, k, z, hmf, t_obs)
+#
+#             # Overwrite with fast cooling values
+#             res = np.where(fast, np.where(nu_acm < nu_c, nu_acm, nu_cam), res)
+#             # res[fast] = np.where(nu_acm < nu_c, nu_acm, nu_cam)[fast]
+#
+#         return res
+#
+#     # Determine radiative absorption frequencies
+#     nu_acm = nu_a_acm_rad(E, n0, k, eps_b, z, hmf, t_obs)
+#     nu_cam = nu_a_cam_rad(E, n0, k, z, hmf, t_obs)
+#
+#     return np.where(nu_acm < nu_c, nu_acm, nu_cam)
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def f_peak_ad(E, n0, k, eps_b, dL, z, hmf, t_obs):
+    """
+    Calculates the observer-frame peak fluxes [mJy] for
+    an ultra-relativistic shock moving adiabatically through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg].
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    dL : float
+        The luminosity distance to the event [cm].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The adiabatic, observer-frame peak fluxes [mJy].
+    """
+    t_obs_s = DAY2SEC * t_obs
+    # The constant 22.836128 below is:
+    #   log10(4/6 * sqrt(2) * ECharge**3 / MassE / MassP)
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Evaluate exponents once
+    exp_nrg = (8.0 - 3.0 * k) / 2.0
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = 4.0 - k, MassP * n0
+
+    lin_fac = (
+        hdc_a ** -exp_nrg * hdc_b ** -(k / 2.0) *
+        np.pi ** -(2.0 - k) * (1.0 + z) ** ((8.0 - k) / 2.0)
+    ) ** (1.0 / x)
+
+    # 22.8 ~= log10(4/6 * sqrt(2) * ECharge**3 / MassE / MassP)
+    log_fac = 22.836128 + (
+        np.log10(rho0) * 2.0 +
+        np.log10(E) * exp_nrg+
+        np.log10(SoL) * -((24.0 - 7.0 * k) / 2.0) +
+        np.log10(t_obs_s) * -(k / 2.0)
+    ) / x
+
+    # return observer-frame peak flux [mJy]
+    return CGS2MJY * (
+        (1.0 + hmf) / dL ** 2.0 * eps_b ** 0.5 * lin_fac * 10.0 ** log_fac
+    )
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def f_peak_rad(E, n0, k, eps_b, dL, z, hmf, t_obs):
+    """
+    Calculates the observer-frame peak fluxes [mJy] for
+    an ultra-relativistic shock moving radiatively through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg] divided by the initial
+        Lorentz factor (i.e., E0 / Gamma0).
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    dL : float
+        The luminosity distance to the event [cm].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The radiative, observer-frame peak fluxes [mJy].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = 7.0 - 2.0 * k, MassP * n0
+
+    lin_fac = (
+        hdc_a ** -(8.0 - 3.0 * k) * hdc_b ** -((6.0 - k) / 2.0)  *
+        np.pi ** -(9.0 - 4.0 * k) * (1.0 + z) ** (2.5 * (4.0 - k))
+    ) ** (1 / x)
+
+    # 22.8 ~= log10(4/6 * sqrt(2) * ECharge**3 / MassE / MassP)
+    log_fac = 22.836128 + (
+        np.log10(rho0) * 2.5 +
+        np.log10(E) * (8.0 - 3.0 * k) +
+        np.log10(SoL) * -((52.0 - 17.0 * k) / 2.0) +
+        np.log10(t_obs_s) * -((6.0 - k) / 2.0)
+    ) / x
+
+    # return observer-frame peak flux [mJy]
+    return CGS2MJY / dL ** 2.0 * (
+        (1.0 + hmf) * eps_b ** 0.5 * lin_fac * 10.0 ** log_fac
+    )
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def nu_c_ad(E, n0, k, eps_b, z, t_obs):
+    """
+    Calculates the observer-frame cooling frequencies [Hz] for
+    an ultra-relativistic shock moving adiabatically through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``adiabatic==False``,
+        assumes that ``E=E0 / Gamma0``.
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    t_obs : float or np.ndarray of float
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The adiabatic, observer-frame cooling frequency [Hz].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Shared exponents
+    exp_nrg = -(4.0 - 3.0 * k) / 2.0
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = 4.0 - k, MassP * n0
+
+    lin_fac = (
+        hdc_a ** -exp_nrg * hdc_b ** ((12.0 - k) / 2.0) *
+        np.pi ** -(8.0 - k) * (1.0 + z) ** -((4.0 + k) / 2.0)
+    ) ** (1.0 / x)
+
+    # -71.8 ~= log10(81/8192 * sqrt(2) / ECharge**7 * MassE**5)
+    log_fac = -71.827659 + (
+        np.log10(rho0) * -4.0 +
+        np.log10(E) * exp_nrg +
+        np.log10(SoL) * ((68.0 - 19.0 * k) / 2.0) +
+        np.log10(t_obs_s) * exp_nrg
+    ) / x
+
+    # return observer-frame cooling frequency [Hz]
+    return eps_b ** -1.5 * lin_fac * 10 ** log_fac
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def nu_c_rad(E, n0, k, eps_b, z, t_obs):
+    """
+    Calculates the observer-frame cooling frequencies [Hz] for
+    an ultra-relativistic shock moving radiatively through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg] divided by the initial
+        Lorentz factor (i.e., E0 / Gamma0).
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    t_obs : float or np.ndarray of float
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The radiative, observer-frame cooling frequency [Hz].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = 7.0 - 2.0 * k, MassP * n0
+
+    lin_fac = (
+        hdc_a ** (4.0 - 3.0 * k) * hdc_b ** ((24.0 - 5.0 * k) / 2.0) *
+        np.pi ** -(27 - 4.0 * k) * (1.0 + z) ** -((10.0 - k) / 2.0)
+    ) ** (1.0 / x)
+
+    # -71.8 ~= log10(81/8192 * sqrt(2) / ECharge**7 * MassE**5)
+    log_fac = -71.827659 + (
+        np.log10(rho0) * -6.5 +
+        np.log10(E) * -(4.0 - 3.0 * k) +
+        np.log10(SoL) * ((124.0 - 41.0 * k) / 2.0) +
+        np.log10(t_obs_s) * -((4.0 - 3.0 * k) / 2.0)
+    ) / x
+
+    # return observer-frame cooling frequency [Hz]
+    return eps_b ** -1.5 * lin_fac * 10.0 ** log_fac
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def nu_m_ad(E, k, p, eps_b, eps_e, z, hmf, t_obs):
+    """
+    Calculates the observer-frame synchrotron frequencies [Hz]
+    for an ultra-relativistic shock moving adiabatically through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``adiabatic==False``,
+        assumes that ``E=E0 / Gamma0``.
+
+    p : float
+        The electron energy index.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    eps_e : float
+        The fraction of thermal energy in the electric field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The adiabatic, observer-frame synchrotron frequencies [Hz].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # return synchrotron frequency [Hz]
+    return (hdc_a ** -0.5) * (hdc_b ** -1.5) * 0.041139 * (
+        # 0.04 ~= 8 * sqrt(2) / pi * ECharge / MassE**3 * MassP**2 / SoL**-2.5
+        (1.0 + hmf) ** -2.0 * (1.0 + z) ** 0.5 * eps_e ** 2.0 * eps_b ** 0.5 *
+        E ** 0.5 * ((p - 2.0) / (p - 1.0)) ** 2.0 * t_obs_s ** -1.5
+    )
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def nu_m_rad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
+    """
+    Calculates the observer-frame synchrotron frequencies [Hz]
+    for an ultra-relativistic shock moving radiatively through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg] divided by the initial
+        Lorentz factor (i.e., E0 / Gamma0).
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    p : float
+        The electron energy index.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    eps_e : float
+        The fraction of thermal energy in the electric field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The radiative, observer-frame synchrotron frequencies [Hz].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = 7.0 - 2.0 * k, MassP * n0
+
+    lin_fac = (
+        hdc_a ** -(4.0 - k) * hdc_b ** -((24.0 - 7.0 * k) / 2.0) *
+        np.pi ** -((15.0 - 4.0 * k) / 2) * (1 + z) ** ((10.0 - 3.0 * k) / 2.0)
+    ) ** (1.0 / x)
+
+    # 25.3 ~= log10(8 * sqrt(2) * ECharge / MassE**3 * MassP**2)
+    log_fac = 25.303464 + (
+        np.log10(rho0) * -0.5 + np.log10(SoL) * -((40.0 - 11.0 * k) / 2.0) +
+        np.log10(E) * (4.0 - k) + np.log10(t_obs_s) * -((24.0 - 7.0 * k) / 2.0)
+    ) / x
+
+    # return observer-frame synchrotron frequencies [Hz]
+    return ((p - 2.0) / (p - 1.0)) ** 2.0 / (1.0 + hmf) ** 2.0 * (
+        eps_e ** 2.0 * eps_b ** 0.5 * lin_fac * 10.0 ** log_fac
+    )
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
+    """
+    Calculates the self-absorption frequency [Hz] in the
+    weak self-absorption regime (nu_a < nu_m < nu_c) for
+    an ultra-relativistic shock moving adiabatically through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg].
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    p : float
+        The electron energy index.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    eps_e : float
+        The fraction of thermal energy in the electric field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float64
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The adiabatic, observer-frame self-absorption frequencies [Hz].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Electron energy index factors
+    eei = (p + 2.0 / 3.0) ** -0.6 * (p + 2.0) ** 0.6 * (p - 1.0) ** 1.6 / (p - 2.0)
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = 5.0 * (4.0 - k), MassP * n0
+
+    lin_fac = (
+        hdc_a ** -(4.0 * (1.0 - k)) * hdc_b ** -(3.0 * k) *
+        np.pi ** (4.0 + 2.0 * k) * (1.0 + z) ** -(4.0 * (5.0 - 2.0 * k))
+    ) ** (1.0 / x)
+
+    # 23.3 ~= log10(2 * 3**0.8 * (ECharge / MassP / 2)**8/5)
+    log_fac = 23.334091 + (
+        np.log10(rho0) * 12.0 +
+        np.log10(E) * (4.0 * (1.0 - k)) +
+        np.log10(SoL) * -(4.0 * (5.0 - 2.0 * k)) +
+        np.log10(t_obs_s) * -(3.0 * k)
+    ) / x
+
+    # return observer-frame self-absorption frequency [Hz]
+    return (1.0 + hmf) ** 1.6 * eei * (
+        eps_b ** 0.2 / eps_e * lin_fac * 10.0 ** log_fac
+    )
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs):
+    """
+    Calculates the self-absorption frequency [Hz] in the
+    weak self-absorption regime (nu_a < nu_c < nu_m) for
+    an ultra-relativistic shock moving adiabatically through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg].
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float64
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The adiabatic, observer-frame self-absorption frequencies [Hz].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = 5.0 * (4.0 - k), MassP * n0
+
+    lin_fac = (
+        hdc_a ** -(14.0 - 9.0 * k) *
+        hdc_b ** -(2.0 * (15.0 - k)) *
+        np.pi ** (2.0 + 5.0 * k) *
+        (1.0 + z) ** -(2.0 * (5.0 - 4.0 * k))
+    ) ** (1.0 / x)
+
+    # 23.3 ~= log10(2 * 3**0.8 * (ECharge / MassP / 2)**8/5)
+    log_fac = 71.463454 + (
+        np.log10(rho0) * 22.0 +
+        np.log10(E) * (14.0 - 9.0 * k) +
+        np.log10(SoL) * -(2.0 * (65.0 - 19.0 * k)) +
+        np.log10(t_obs_s) * -(10.0 + 3.0 * k)
+    ) / x
+
+    # return observer-frame self-absorption frequencies [Hz]
+    return (1.0 + hmf) ** 0.6 * (
+        eps_b ** 1.2 * lin_fac * 10.0 ** log_fac
+    )
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
+    """
+    Calculates the self-absorption frequency [Hz] in the
+    weak self-absorption regime (nu_m < nu_a < nu_c) for
+    an ultra-relativistic shock moving adiabatically through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg].
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    p : float
+        The electron energy index.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    eps_e : float
+        The fraction of thermal energy in the electric field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float64
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The adiabatic, observer-frame self-absorption frequencies [Hz].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, y, rho0 = 4.0 - k, p + 4.0, MassP * n0
+
+    eei = (
+        # Electron energy index factors
+        (p - 2.0) ** (2.0 * (p - 1.0)) *
+        (p - 1.0) ** -(2.0 * (p - 2.0)) *
+        (p + 2.0) ** 2.0
+    ) ** (1.0 / y)
+
+    lin_fac = (
+        # Linear factors ^ 1 / (2 * x * y)
+        np.pi ** -((8.0 * (p + 2.0) - 2.0 * k * y) / 2.0 / x) *
+        hdc_a ** -((4.0 * (p + 2.0) - k * (p + 6.0)) / 2.0 / x) *
+        hdc_b ** -((4.0 * (3.0 * p + 2.0) - k * (3.0 * p - 2.0)) / 2.0 / x) *
+        (1.0 + z) ** ((4.0 * (p - 6.0) - k * (p - 10.0)) / 2.0 / x) *
+
+        # Linear factors ^ 1 / y
+        ((1.0 + hmf) / 2.0) ** -(2.0 * (p + 2.0)) *
+        eps_b ** ((p + 2.0) / 2.0) *
+        eps_e ** (2.0 * (p - 1.0)) *
+        math.gamma(p / 2.0 + 1.0 / 3.0) ** 2.0
+
+    ) ** (1.0 / y)
+
+    log_fac = (
+        1.272323 +
+
+        # Log factors ^ 1 / (2 * x * y)
+        np.log10(rho0) * (8.0 / x) +
+        np.log10(E) * ((4.0 * (p + 2.0) - k * (p + 6.0)) / 2.0 / x) +
+        np.log10(SoL) * -((4.0 * (5.0 * p + 10.0) - k * (5.0 * p + 14.0)) / 2.0 / x) +
+        np.log10(t_obs_s) * -((4.0 * (3.0 * p + 2.0) - k * (3.0 * p - 2.0)) / 2.0 / x) +
+
+        # Log factors ^ 1 / y
+        np.log10(2.0) * ((9.0 * p - 22.0) / 6.0) +
+        np.log10(ECharge) * (p + 6.0) +
+        np.log10(MassE) * -(3.0 * p + 2.0) +
+        np.log10(MassP) * (2.0 * (p - 2.0))
+
+    ) / y
+
+    # return observer-frame self-absorption frequency [Hz]
+    return eei * lin_fac * 10.0 ** log_fac
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def nu_a_cam_ad(E, n0, k, z, hmf, t_obs):
+    """
+    Calculates the self-absorption frequency [Hz] in the
+    strong self-absorption regime (nu_c < nu_a < nu_m) for
+    an ultra-relativistic shock moving adiabatically through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg].
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float64
+        The density power-law index.
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float64
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The adiabatic, observer-frame self-absorption frequencies [Hz].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = 4.0 - k, MassP * n0
+
+    # 0.75 ~= cbrt(27/32 * cbrt(1.5) * Gamma(4/3))
+    lin_fac = 2.5782473920911e+23 * (
+        hdc_a ** (k - 2.0) * hdc_b ** -2.0 *
+        np.pi ** (2.0 * (k - 3.0)) *
+        (1.0 + z) ** (2.0 * (k - 3.0))
+    ) ** (1.0 / x)
+
+    log_fac = (
+        np.log10(rho0) * 2.0 +
+        np.log10(E) * (2.0 - k) +
+        np.log10(SoL) * 2.0 +
+        np.log10(t_obs_s) * (k - 6.0)
+    ) / x
+
+    # return observer-frame self-absorption frequency [Hz]
+    return np.cbrt((1.0 + hmf) * lin_fac * 10.0 ** log_fac)
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def nu_a_acm_rad(E, n0, k, eps_b, z, hmf, t_obs):
+    """
+    Calculates the self-absorption frequency [Hz] in the
+    weak self-absorption regime (nu_a < nu_c < nu_m) for
+    an ultra-relativistic shock moving adiabatically through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg] divided by the initial
+        Lorentz factor (i.e., E0 / Gamma0).
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float64
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The adiabatic, observer-frame self-absorption frequencies [Hz].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = 7.0 - 2.0 * k, MassP * n0
+
+    lin_fac = (
+        np.pi ** (2.0 * k) *
+        hdc_a ** -(0.4 * (14.0 - 9.0 * k)) *
+        hdc_b ** -((63.0 - 13.0 * k) / 5.0) *
+        (1.0 + z) ** -(1.4 * (1.0 - k))
+    ) ** (1.0 / x)
+
+    # 71.4 ~= log10(2**28/5 * 3**-0.6 * (ECharge**25 / MassE**4 / MassP**-3 / 2)**0.2)
+    log_fac = 71.463454 + (
+        np.log10(rho0) * 7.0 +
+        np.log10(E) * (0.4 * (14.0 - 9.0 * k)) +
+        np.log10(SoL) * (17.0 * k - 49.0) +
+        np.log10(t_obs_s) * ((3.0 * k - 28.0) / 5.0)
+    ) / x
+
+    # return observer-frame self-absorption frequencies [Hz]
+    return (1.0 + hmf) ** 0.6 * (
+        eps_b ** 1.2 * lin_fac * 10.0 ** log_fac
+    )
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def nu_a_cam_rad(E, n0, k, z, hmf, t_obs):
+    """
+    Calculates the self-absorption frequency [Hz] in the
+    strong self-absorption regime (nu_c < nu_a < nu_m) for
+    an ultra-relativistic shock moving radiatively through
+    an external medium with density rho = rho0 * R^-k.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg].
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float64
+        The observer-frame times [d].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The radiative, observer-frame self-absorption frequencies [Hz].
+    """
+    t_obs_s = DAY2SEC * t_obs
+
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = 7.0 - 2.0 * k, MassP * n0
+
+    lin_fac = (
+        np.pi ** (4.0 * k - 11.0) *
+        hdc_a ** (2.0 * k - 4.0) *
+        hdc_b ** (k + 5.0) *
+        (1.0 + z) ** (5.0 - k)
+    ) ** (1.0 / x)
+
+    # 23.4 ~= log10(27/32 * cbrt(1.5) * Gamma(4/3) / MassP)
+    log_fac = 23.411324 + (
+        np.log10(rho0) * 3.0 +
+        np.log10(E) * (2.0 * (2.0 - k)) +
+        np.log10(SoL) * (1.0 + k) +
+        np.log10(t_obs_s) * (3.0 * (k - 4.0))
+    ) / x
+
+    # return observer-frame self-absorption frequency [Hz]
+    return np.cbrt((1.0 + hmf) * lin_fac * 10.0 ** log_fac)
 
 
 def has_fts_transition(nu_m, nu_c) -> bool:
@@ -732,7 +2266,7 @@ class BaseFluxModel:
     def spectral_breaks(self) -> tuple:
         """
         Creates arrays of critical frequencies that define
-        the GRB spectrum. See ``basemodels.SpectralFlux``
+        the GRB spectrum. See ``base.SpectralFlux``
         for a description of the 12, 23 notation.
 
         Returns
@@ -1500,7 +3034,7 @@ class CoolingFrequencyModel(BaseSpectralModel):
         Returns
         -------
         float or np.array of float
-            The cooling frequencies [Hz].
+            The observer-frame cooling frequencies [Hz].
         """
         # convenience variables
         k, x = self.k, 4 - self.k

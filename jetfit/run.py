@@ -80,7 +80,7 @@ def plot_results(ampy, results_dir, event):
     visualize.plot_density_profile_ampy(ampy, out_dir=results_dir)
 
     # Plot the histograms!
-    histogram.plot_spectral_indices_ampy(ampy, out_dir=results_dir)
+    # histogram.plot_spectral_indices_ampy(ampy, out_dir=results_dir)
     histogram.plot_jet_correction_ampy(ampy, out_dir=results_dir)
 
     # Plot the MCMC diagnostics!
@@ -173,7 +173,7 @@ if __name__ == "__main__":
 
     # Specify the event to run
     if args.event is None:
-        event_name = '130612A'
+        event_name = '090618'
     else:
         event_name = args.event
 

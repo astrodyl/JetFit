@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from jetfit.core.utils import save_plot_unique
-from jetfit.models.basemodels import SpectralIndexModel, has_fts_transition, OpeningAngleModel
+from jetfit.models.base import SpectralIndexModel, has_fts_transition, OpeningAngleModel
 from scripts.plot.base import Profiler
 
 

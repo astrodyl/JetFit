@@ -1,10 +1,13 @@
+import matplotlib.pyplot as plt
 import numpy as np
 
 from jetfit.core.input import Observation
-from jetfit.models.basemodels import BlastWaveModel, ObservedSpectrumModel
-from jetfit.models.basemodels import AbsorptionFrequencyModel, BaseFireballModel
-from jetfit.models.basemodels import SynchrotronFrequencyModel
-from jetfit.models.basemodels import CoolingFrequencyModel, PeakFluxModel
+from jetfit.models.base import BlastWaveModel, ObservedSpectrumModel, f_peak_ad, synchrotron_frequency, \
+    cooling_frequency, nu_c_ad, nu_m_ad, nu_m_rad, f_peak_rad, nu_a_amc_ad, nu_a_mac_ad, nu_a_cam_ad, nu_a_acm_ad, \
+    nu_c_rad, nu_a_acm_rad, nu_a_cam_rad
+from jetfit.models.base import AbsorptionFrequencyModel, BaseFireballModel
+from jetfit.models.base import SynchrotronFrequencyModel
+from jetfit.models.base import CoolingFrequencyModel, PeakFluxModel
 
 # ignore `dust_extinction` user warnings
 import warnings
@@ -404,6 +407,9 @@ class FireballModel(BaseFireballModel):
     X : float
         The hydrogen mass fraction.
 
+    lf0 : float, optional, default=None
+        The initial Lorentz factor.
+
     tj : float, optional, default=None
         The jet break observer-frame time [d].
 
@@ -414,10 +420,11 @@ class FireballModel(BaseFireballModel):
         Should self-absorption be modeled?
     """
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, tj=None, sj=None, sji=None, use_sa=True):
+    def __init__(self, E, p, eps_b, eps_e, z, dL, rho0, k, X, lf0=None, tj=None, sj=None, sji=None, use_sa=True):
         super().__init__(E, p, eps_b, eps_e, z, dL, X, tj, sj, sji, use_sa)
 
         self.rho0 = rho0
+        self.lf0 = lf0
         self.k = k
 
     @property
@@ -492,6 +499,82 @@ class FireballModel(BaseFireballModel):
         return bwm.shock_radius(self.z, t, bwm.decel_time() / 86_400)
 
     def spectrum(self, t):
+        """"""
+        # Transform values (temp)
+        n0 = self.rho0 * (self.ref_radius ** self.k)
+        dL = 1e28 * self.dL
+        E = 1e52 * self.E
+
+        # Default to adiabatic values
+        f_pk = f_peak_ad(E, n0, self.k, self.eps_b, dL, self.z, self.X, t)
+        nu_c = nu_c_ad(E, n0, self.k, self.eps_b, self.z, t)
+        nu_m = nu_m_ad(E, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t)
+        nu_a = self._nu_a(E, n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t)
+
+        # Radiative evolution
+        if self.eps_e > 0.4 and self.lf0 is not None:
+            rad = nu_m > nu_c  # radiative positions
+
+            # Overwrite radiative positions
+            f_pk[rad] = f_peak_rad(E, n0, self.k, self.eps_b, dL, self.z, self.X, t[rad])
+            nu_c[rad] = nu_c_rad(E, n0, self.k, self.eps_b, self.z, t[rad])
+            nu_m[rad] = nu_m_rad(E, n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t[rad])
+            nu_a[rad] = self._nu_a(E, n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t[rad], adiabatic=False)
+            nu_a[rad] = self._nu_a(E, n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t[rad], adiabatic=False)
+
+            # rad_f_pk = f_peak_rad(E, n0, self.k, self.eps_b, dL, self.z, self.X, t)
+            # rad_nu_c = nu_c_rad(E, n0, self.k, self.eps_b, self.z, t)
+            # rad_nu_m = nu_m_rad(E, n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t)
+            # rad_nu_a = absorption_frequency(E, n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t, adiabatic=False)
+            # eff = 1.0 / (1.0 + (t / t[np.argmax(~rad)]) ** 3.0)
+            # f_pk = eff * rad_f_pk + (1.0 - eff) * f_pk
+            # nu_c = eff * rad_nu_c + (1.0 - eff) * nu_c
+            # nu_m = eff * rad_nu_m + (1.0 - eff) * nu_m
+            # nu_a_s = eff * np.log10(rad_nu_a) + (1.0 - eff) * np.log10(nu_a)
+
+        return {
+            'p': self.p, 'k': self.k, 'f_peak': f_pk,
+            'nu_m': nu_m, 'nu_c': nu_c, 'nu_a': nu_a,
+        }
+
+    def _nu_a(self, E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True):
+        """"""
+        # Make sure I'm working with arrays
+        t_obs = np.atleast_1d(t_obs)
+
+        # Calculate to determine regimes
+        nu_m = synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic)
+        nu_c = cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic)
+
+        if adiabatic:
+            fast = nu_c < nu_m
+
+            # Determine slow-cooling absorption frequencies
+            nu_amc = nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
+            nu_mac = nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
+
+            # Initialize with slow cooling values
+            res = np.where(nu_amc < nu_m, nu_amc, nu_mac)
+
+            if fast.any():
+                # Determine fast-cooling absorption frequencies
+                nu_acm = nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs)
+                nu_cam = nu_a_cam_ad(E, n0, k, z, hmf, t_obs)
+
+                # Overwrite with fast cooling values
+                res[fast] = np.where(nu_acm < nu_c, nu_acm, nu_cam)[fast]
+
+            return res[0] if res.size == 1 else res
+
+        # Determine radiative absorption frequencies
+        nu_acm = nu_a_acm_rad(E, n0, k, eps_b, z, hmf, t_obs)
+        nu_cam = nu_a_cam_rad(E, n0, k, z, hmf, t_obs)
+        res = np.where(nu_acm < nu_c, nu_acm, nu_cam)
+
+        return res[0] if res.size == 1 else res
+
+
+    def spectrum2(self, t):
         """
         Returns the characteristics that define the GRB spectrum.
 
@@ -529,8 +612,7 @@ class FireballModel(BaseFireballModel):
         float or np.ndarray of float
             The peak flux value(s) [mJy] at time(s) ``t``.
         """
-        return PeakFluxModel(
-            self.E, self.rho0, self.eps_b, self.dL, self.z, self.k, self.X)(t)
+        return self.spectrum(t)['f_peak']
 
     def nu_c(self, t):
         """
@@ -548,8 +630,7 @@ class FireballModel(BaseFireballModel):
         float or np.ndarray of float
             The cooling frequency value(s) [Hz] at time(s) ``t``.
         """
-        return CoolingFrequencyModel(
-            self.E, self.rho0, self.eps_b, self.k, self.z)(t)
+        return self.spectrum(t)['nu_c']
 
     def nu_m(self, t):
         """
@@ -567,8 +648,7 @@ class FireballModel(BaseFireballModel):
         float or np.ndarray of float
             The synchrotron frequency value(s) [Hz] at time(s) ``t``.
         """
-        return SynchrotronFrequencyModel(
-            self.E, self.eps_e, self.eps_b, self.k, self.z, self.X, self.p)(t)
+        return self.spectrum(t)['nu_m']
 
     def nu_a(self, t, nu_m=None, nu_c=None):
         """
@@ -601,25 +681,4 @@ class FireballModel(BaseFireballModel):
         float or np.ndarray of float
             The self-absorption frequency value(s) [Hz] at time(s) ``t``.
         """
-        model = AbsorptionFrequencyModel(
-            self.E, self.rho0, self.eps_e, self.eps_b,
-            self.k, self.z, self.X, self.p
-        )
-
-        nu_m = self.nu_m(t) if nu_m is None else nu_m
-        nu_c = self.nu_c(t) if nu_c is None else nu_c
-        fast = nu_c < nu_m
-
-        # Evaluate nu_a for all orderings
-        nu_amc = model.evaluate_amc(t)
-        nu_mac = model.evaluate_mac(t)
-        nu_cam = model.evaluate_cam(t)
-        nu_acm = model.evaluate_acm(t)
-
-        # Initialize with slow cooling values
-        res = np.where(nu_amc < nu_m, nu_amc, nu_mac)
-
-        # Overwrite with fast cooling values
-        res[fast] = np.where(nu_acm < nu_c, nu_acm, nu_cam)[fast]
-
-        return res
+        return self.spectrum(t)['nu_a']

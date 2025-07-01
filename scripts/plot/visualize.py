@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 
 from jetfit.core.structs import DataType
 from jetfit.core.utils import save_plot_unique, days_to_sec, sec_to_days
-from jetfit.models.basemodels import has_fts_transition
+from jetfit.models.base import has_fts_transition
 from scripts.plot.base import OPTION_MAP, Profiler
 
 

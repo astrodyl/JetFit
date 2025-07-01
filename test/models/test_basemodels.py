@@ -1,3 +1,4 @@
+import time
 import unittest
 
 import numpy as np
@@ -5,8 +6,11 @@ import astropy.units as u
 import astropy.constants as const
 from matplotlib import pyplot as plt
 
-from jetfit.models.basemodels import PeakFluxModel, SynchrotronFrequencyModel
-from jetfit.models.basemodels import CoolingFrequencyModel, AbsorptionFrequencyModel
+from jetfit.core.input import Observation
+from jetfit.models.base import PeakFluxModel, SynchrotronFrequencyModel, \
+    f_peak_ad, nu_c_ad, nu_m_ad, f_peak_rad, nu_c_rad, nu_m_rad, nu_a_amc_ad, nu_a_acm_ad, nu_a_mac_ad, nu_a_cam_ad, \
+    cooling_frequency
+from jetfit.models.base import CoolingFrequencyModel, AbsorptionFrequencyModel
 from jetfit.models.fireball import FireballModel, StratifiedFireballModel
 
 
@@ -19,6 +23,130 @@ c = const.c.cgs  # noqa
 
 class TestSelfAbsorptionModel(unittest.TestCase):
     """"""
+    def test_radiative_models(self):
+        """"""
+        t = np.geomspace(0.01, 100, 500)
+        t = 1
+
+        E52 = 1
+        k = 2.0
+        n017 = 30
+        z = 0
+
+        f_pk_rad = f_peak_rad(1e52 * E52, n017 * 1e17 ** k, k,0.1, 1, z, 0.7, t)
+        f_pk_ad = f_peak_ad(1e52 * E52, n017 * 1e17 ** k, k,0.1, 1, z, 0.7, t)
+
+        nu_c_rad_val = nu_c_rad(1e52 * E52, n017 * 1e17 ** k, k, 0.1, z, t)
+        nu_m_rad_val = nu_m_rad(1e52 * E52, n017 * 1e17 ** k, k, 2.2, 0.1, 0.1, z, 0.7, t)
+        print()
+
+
+    def test_new_radiation(self):
+        """"""
+        # Params
+        k = 0
+        z = 0
+
+        # Normalized
+        E52 = 1
+        n017 = 1.0
+
+        # Un-normalized
+        n0 = n017 * 1e17 ** k
+        E = E52 * 1e52
+
+        # Models
+        old_nu_a_model = AbsorptionFrequencyModel(E52, n017, .1, .1, k, z, 0.7, 2.2)
+        old_nu_m_model = SynchrotronFrequencyModel(E52, .1, .1, k, z, 0.7, 2.2)
+        old_nu_c_model = CoolingFrequencyModel(E52, n017, .1, k, z)
+        old_f_pk_model = PeakFluxModel(E52, n017, .1, 1.0, z, k, 0.7)
+
+        # Observer-frame time [d]
+        t = np.geomspace(0.01, 100, 500)
+
+        # Compare nu_m values
+        nu_m_old = old_nu_m_model.evaluate(t)
+        nu_m_fast2 = nu_m_ad(E, k, 2.2, 0.1, 0.1,z, 0.7, t)
+        np.testing.assert_allclose(nu_m_fast2, nu_m_old, rtol=1e-4)
+
+        # Compare nu_c values
+        nu_c_old = old_nu_c_model.evaluate(t)
+        nu_c_fast2 = nu_c_ad(E, n0, k, 0.1, z, t)
+        np.testing.assert_allclose(nu_c_fast2, nu_c_old, rtol=1e-4)
+
+        # Compare f_pk values
+        f_pk_old = old_f_pk_model.evaluate(t)
+        f_pk_fast2 = f_peak_ad(E, n0, k,0.1, 1e28, z, 0.7, t)
+        np.testing.assert_allclose(f_pk_fast2, f_pk_old, rtol=1e-4)
+
+        # Compare AMC values
+        nu_a_amc_new = nu_a_amc_ad(E, n0, k, 2.2, 0.1, 0.1,z, 0.7, t)
+        nu_a_amc_old = old_nu_a_model.evaluate_amc(t)
+        np.testing.assert_allclose(nu_a_amc_new, nu_a_amc_old, rtol=1e-4)
+
+        # Compare ACM values
+        nu_a_acm_new = nu_a_acm_ad(E, n0, k, 0.1, z, 0.7, t)
+        nu_a_acm_old = old_nu_a_model.evaluate_acm(t)
+        np.testing.assert_allclose(nu_a_acm_new, nu_a_acm_old, rtol=1e-4)
+
+        # Compare CAM values
+        nu_a_mac_new = nu_a_mac_ad(E, n0, k, 2.2, 0.1, 0.1, z, 0.7, t)
+        nu_a_mac_old = old_nu_a_model.evaluate_mac(t)
+        np.testing.assert_allclose(nu_a_mac_new, nu_a_mac_old, rtol=1e-4)
+
+        # Compare CAM values
+        nu_a_cam_new = nu_a_cam_ad(E, n0, k, z, 0.7, t)
+        nu_a_cam_old = old_nu_a_model.evaluate_cam(t)
+        np.testing.assert_allclose(nu_a_cam_new, nu_a_cam_old, rtol=1e-4)
+
+        # t_src = days_to_sec(t) / (1 + z)
+        # r = radius(1e52 * E52, n017 * 1e17 ** k, k, t / (1 + z))
+        # g = lf(1e52 * E52, n017 * 1e17 ** k, k, t / (1 + z))
+        # B = mag_field(1e52 * E52, n017 * 1e17 ** k, k, 0.1, t / (1 + z))
+
+        # Compile the methods first
+        # nu_c_ad(1e52 * E52, n017 * 1e17 ** k, k, 0.1, z, t)
+
+        # start = time.time()
+        # for _ in range(10_000):
+            # cooling_frequency(E, n0, k, 0.1, z, t)
+            # nu_c_ad(1e52 * E52, n017 * 1e17 ** k, k, 0.1, z, t)
+            # f_peak_ad(1e52 * E52, n017 * 1e17 ** k, k,0.1, 1, z, 0.7, t)
+            # nu_m(1e52 * E52, n017 * 1e17 ** k, k, 2.2, 0.1, 0.1, z, 0.7, t)
+            # nu_c(1e52 * E52, n017 * 1e17 ** k, k, 0.1, z, t)
+            # rad_model.nu_a_acm(t)
+            # rad_model.nu_a_cam(t)
+            # rad_model.nu_a_mac(t)
+            # rad_model.nu_a_amc(t)
+        # end = time.time()
+        # print(end - start)
+
+        # start = time.time()
+        # for _ in range(10_000):
+            # nu_c_ad2(1e52 * E52, n017 * 1e17 ** k, k, 0.1, z, t)
+            # f_peak_rad(1e52 * E52, n017 * 1e17 ** k, k, 0.1, 1, z, 0.7, t)
+            # rad_model.f_peak(t)
+            # old_nu_c_model.evaluate(t)
+            # old_nu_m_model.evaluate(t)
+            # old_f_pk_model.evaluate(t)
+            # old_nu_a_model .evaluate_acm(t)
+            # old_nu_a_model.evaluate_mac(t)
+            # old_nu_a_model.evaluate_amc(t)
+        # end = time.time()
+        # print(end - start)
+
+        # Speed tests
+        fb_model = FireballModel(10, 2.5, 0.1, 0.5, 1.0, 2, 1, 0.0, 0.7, lf0=300)
+        obs = Observation.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\grbs\090618\090618.csv")
+
+        start = time.time()
+        for _ in range(1_000):
+            modeled = fb_model.model(obs)
+            # old_nu_c_model.evaluate(t)
+            # old_nu_m_model.evaluate(t)
+        end = time.time()
+        print(end - start)
+
     def test_nu_a_cam(self):
         """
         Tests the self-absorption frequency in the fast-cooling
