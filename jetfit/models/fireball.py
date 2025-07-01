@@ -516,11 +516,10 @@ class FireballModel(BaseFireballModel):
             rad = nu_m > nu_c  # radiative positions
 
             # Overwrite radiative positions
-            f_pk[rad] = f_peak_rad(E, n0, self.k, self.eps_b, dL, self.z, self.X, t[rad])
-            nu_c[rad] = nu_c_rad(E, n0, self.k, self.eps_b, self.z, t[rad])
-            nu_m[rad] = nu_m_rad(E, n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t[rad])
-            nu_a[rad] = self._nu_a(E, n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t[rad], adiabatic=False)
-            nu_a[rad] = self._nu_a(E, n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t[rad], adiabatic=False)
+            f_pk[rad] = f_peak_rad((E/self.lf0), n0, self.k, self.eps_b, dL, self.z, self.X, t[rad])
+            nu_c[rad] = nu_c_rad((E/self.lf0), n0, self.k, self.eps_b, self.z, t[rad])
+            nu_m[rad] = nu_m_rad((E/self.lf0), n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t[rad])
+            nu_a[rad] = self._nu_a((E/self.lf0), n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.X, t[rad], adiabatic=False)
 
             # rad_f_pk = f_peak_rad(E, n0, self.k, self.eps_b, dL, self.z, self.X, t)
             # rad_nu_c = nu_c_rad(E, n0, self.k, self.eps_b, self.z, t)

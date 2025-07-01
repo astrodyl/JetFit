@@ -11,8 +11,19 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
-    initial_guess = 3.90
-    initial_sigma = 1.00
+#    initial_guess = 3.90
+#    initial_sigma = 1.00
+
+#-------------- MODEL --------------
+#--------------- lfo ---------------
+[[model]]
+name  = "lf0"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 2.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -23,9 +34,9 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -6.0
-    upper = 5.0
-    initial_guess = 0.29
-    initial_sigma = 1.00
+    upper = 6.0
+#    initial_guess = 0.29
+#    initial_sigma = 1.00
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -35,10 +46,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.5
+    lower = -6.0
     upper = 0.0
-    initial_guess = -3.074
-    initial_sigma = 0.8
+#    initial_guess = -3.074
+#    initial_sigma = 0.8
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -59,10 +70,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.25
-    upper = 3.00
-    initial_guess = 2.474
-    initial_sigma = 0.2
+    lower = 2.0
+    upper = 3.0
+#    initial_guess = 2.474
+#    initial_sigma = 0.2
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -72,10 +83,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 0.0
-    upper = 3.2
-    initial_guess = 2.233
-    initial_sigma = 0.4
+    lower = -1.0
+    upper = 3.0
+#    initial_guess = 2.233
+#    initial_sigma = 0.4
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -107,9 +118,9 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.00
-    upper = 0.4
-    initial_guess = 0.04
-    initial_sigma = 0.04
+    upper = 0.5
+#    initial_guess = 0.04
+#    initial_sigma = 0.04
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -224,5 +235,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
-    initial_guess = 0.003
-    initial_sigma = 0.01
+#    initial_guess = 0.003
+#    initial_sigma = 0.01

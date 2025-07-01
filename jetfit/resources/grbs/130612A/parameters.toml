@@ -13,6 +13,17 @@ scale = "log"
     upper = 4.0
 
 #-------------- MODEL --------------
+#--------------- lfo ---------------
+[[model]]
+name  = "lf0"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 2.0
+    upper = 3.0
+
+#-------------- MODEL --------------
 #---------------- n ----------------
 [[model]]
 name  = "rho0"

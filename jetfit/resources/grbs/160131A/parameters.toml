@@ -9,10 +9,21 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = 0.6
-    upper = 2.4
-    initial_guess = 1.59
-    initial_sigma = 0.25
+    lower = -2.0
+    upper = 4.0
+#    initial_guess = 1.59
+#    initial_sigma = 0.25
+
+#-------------- MODEL --------------
+#--------------- lfo ---------------
+[[model]]
+name  = "lf0"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 2.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -22,10 +33,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
-    upper = 4.0
-    initial_guess = 0.71
-    initial_sigma = 0.5
+    lower = -6.0
+    upper = 6.0
+#    initial_guess = 0.71
+#    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -35,10 +46,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.4
+    lower = -6.0
     upper = 0.0
-    initial_guess = -1.45
-    initial_sigma = 0.3
+#    initial_guess = -1.45
+#    initial_sigma = 0.3
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -48,7 +59,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -4.0
+    lower = -6.0
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -59,10 +70,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.05
-    upper = 2.125
-    initial_guess = 2.08
-    initial_sigma = 0.01
+    lower = 2.0
+    upper = 3.0
+#    initial_guess = 2.08
+#    initial_sigma = 0.01
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -72,10 +83,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 1.4
-    upper = 2.0
-    initial_guess = 1.72
-    initial_sigma = 0.05
+    lower = -1.0
+    upper = 3.0
+#    initial_guess = 1.72
+#    initial_sigma = 0.05
 
 #-------------- MODEL --------------
 #------------ tj (days) ------------
@@ -86,9 +97,9 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.24
-    initial_guess = 0.13
-    initial_sigma = 0.02
+    upper = 0.5
+#    initial_guess = 0.13
+#    initial_sigma = 0.02
 
 #-------------- MODEL --------------
 #--------------- sji ---------------
@@ -131,7 +142,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.01
+    upper = 0.5
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -248,4 +259,4 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.03
+    upper = 0.2
