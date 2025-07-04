@@ -21,7 +21,7 @@ of their fundamental physics (magnetic field, Lorentz factor, and
 radius), it would also be significantly slower. Since these methods
 are intended to be used with MCMC, I prioritized performance over
 simplicity. The current implementations of the spectral functions
-takes a fraction of a milli-second to execute.
+take mirco-seconds to execute.
 
 Numba: https://numba.pydata.org/numba-doc/dev/user/5minguide.html.
 Many methods make use of the @njit decorator. This compiles the
@@ -32,461 +32,469 @@ on the methods that use this. See the link above for details.
 
 # Useful constants and conversions
 SoL     = 2.99792458e+10  # [cm s-1]
-MassE   = 9.1093837e-28   # [g]
 MassP   = 1.67262192e-24  # [g]
+MassE   = 9.1093837e-28   # [g]
 SigmaT  = 6.6524e-25      # [cm2]
 ECharge = 4.8032e-10      # [g1/2 cm3/2 s-1]
 CGS2MJY = 1.0e26
-DAY2SEC = 86_400.0
+DAY2SEC = 86_400.0        # [s d-1]
 
 
-@njit
-def days_to_sec(x):
-    """ Convert days to seconds. """
-    return x * 86400.0
+# <editor-fold desc="Blast Wave Properties">
+# noinspection PyPep8Naming
+class BlastWaveModel2:
+    """"""
+    def __init__(self, E, lf0, n0, k):
+        self.E = E
+        self.lf0 = lf0
+        self.n0 = n0
+        self.k = k
 
+    def gamma(self, t_src, adiabatic):
+        """ The bulk Lorentz factor. """
+        return gamma(
+            self.E / self.lf0, self.n0, self.k, t_src, adiabatic=adiabatic
+        )
 
-# # noinspection PyPep8Naming
-# @njit(cache=True)
-# def radius(E, n0, k, t_src, adiabatic=True):
-#     """
-#     Calculates the source-frame blast wave radius [cm].
-#
-#     Parameters
-#     ----------
-#     E : float
-#         The explosion energy [erg]. If ``evo==radiative``,
-#         assumes that ``E=E0 / Gamma0``.
-#
-#     n0 : float or np.ndarray of float
-#         The number density normalization [cm-3] normalized
-#         to 1 cm.
-#
-#     k : float or np.ndarray of float
-#         The density power-law index.
-#
-#     t_src : float or np.ndarray of float
-#         The source-frame times [s].
-#
-#     adiabatic : bool, optional, default=True
-#         How is the blas wave evolving? Must be
-#         True for 'adiabatic' or False for 'radiative'.
-#
-#     Returns
-#     -------
-#     float or np.ndarray of float
-#         The source-frame blast wave radius [cm].
-#     """
-#     # Hydrodynamic coefficients
-#     hdc_a = 16.0 / (17.0 - 4.0 * k)
-#     hdc_b = 4.0 - k
-#
-#     if adiabatic:
-#         return (
-#             # where 1.575318e-13 = pi * MassP * SoL
-#             hdc_b * E * t_src / (1.575318e-13 * hdc_a * n0)
-#         ) ** (1 / (4 - k))
-#
-#     return (
-#         # where 7.4e-16 = (pi * MassP) ** 2 * SoL ** 3
-#         hdc_b * E ** 2 * t_src / (7.439734e-16 * (hdc_a * n0) ** 2)
-#     ) ** (1 / (7 - 2 * k))
-
-
-# # noinspection PyPep8Naming
-# @njit(cache=True)
-# def lf(E, n0, k, t_src, adiabatic=True):
-#     """
-#     Calculates the Lorentz factor(s).
-#
-#     Parameters
-#     ----------
-#     E : float
-#         The explosion energy [erg]. If ``evo==radiative``,
-#         assumes that ``E=E0 / Gamma0``.
-#
-#     n0 : float or np.ndarray of float
-#         The number density normalization [cm-3] normalized
-#         to 1 cm.
-#
-#     k : float or np.ndarray of float
-#         The density power-law index.
-#
-#     t_src : float or np.ndarray of float
-#         The source-frame times [s].
-#
-#     adiabatic : bool, optional, default=True
-#         How is the blas wave evolving? Must be
-#         True for 'adiabatic' or False for 'radiative'.
-#
-#     Returns
-#     -------
-#     float or np.ndarray of float
-#         The Lorentz factor(s).
-#     """
-#     # Hydrodynamic coefficients
-#     hdc_a = 16.0 / (17.0 - 4.0 * k)
-#     hdc_b = 4.0 - k
-#
-#     exp = -0.5 / (4 - k) if adiabatic else -1 / (7 - 2 * k)
-#
-#     return (
-#         hdc_a * hdc_b ** (3 - k) * np.pi *
-#         SoL ** (5 - k) * MassP * n0 / E * t_src ** (3 - k)
-#     ) ** exp
+    def energy_loss(self, t_src):
+        """ The fractional energy remaining after radiative cooling ends [erg]. """
+        return self.gamma(t_src, adiabatic=False) / self.lf0
 
 
 # noinspection PyPep8Naming
-# @njit(cache=True)
-# def nu_c(E, n0, k, eps_b, z, t_obs, adiabatic=True):
-#     """
-#     Calculates the observer-frame cooling frequency [Hz].
-#
-#     Parameters
-#     ----------
-#
-#     Returns
-#     -------
-#     float or np.ndarray of float
-#         The observer-frame cooling frequency [Hz].
-#     """
-#     # Hydrodynamic coefficients
-#     hdc_a = 16.0 / (17.0 - 4.0 * k)
-#     hdc_b = 4.0 - k
-#
-#     t_src = DAY2SEC * t_obs / (1.0 + z)
-#
-#     # Lorentz factor
-#     lf = (
-#         hdc_a * hdc_b ** (3.0 - k) * np.pi *
-#         SoL ** (5.0 - k) * MassP * n0 / E * t_src ** (3.0 - k)
-#     ) ** -(0.5 / (4 - k) if adiabatic else -1.0 / (7.0 - 2.0 * k))
-#
-#     # Radius
-#     if adiabatic:
-#         R = (
-#             # where 1.575318e-13 = pi * MassP * SoL
-#             hdc_b * E * t_src / (1.575318e-13 * hdc_a * n0)
-#         ) ** (1.0 / (4.0 - k))
-#
-#     else:
-#         R = (
-#             # where 7.4e-16 = (pi * MassP) ** 2 * SoL ** 3
-#             hdc_b * E ** 2.0 * t_src / (7.439734e-16 * (hdc_a * n0) ** 2.0)
-#         ) ** (1.0 / (7.0 - 2.0 * k))
-#
-#     # Magnetic field
-#     B = 0.388749 * lf * np.sqrt(eps_b * n0 * R ** -k)
-#
-#     # return observer-frame cooling frequency [Hz]
-#     return (1.0 + z) * 1.676123e+24 / B ** 3.0 / lf / t_src ** 2.0
+@njit(cache=True)
+def energy_ad(n0, k, gammaB, R):
+    """
+    Returns the adiabatic comoving energy [erg].
+
+    Parameters
+    ----------
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    gammaB : float or np.ndarray
+        The bulk Lorentz factor.
+
+    R : float or np.ndarray
+        The blast wave radius [cm].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The energy [erg].
+    """
+    # 0.07 ~= 16 * pi * MassP * SoL**2
+    return 0.075562 / (17.0 - 4.0 * k) * n0 * gammaB ** 2 * R ** (3.0 - k)
 
 
 # noinspection PyPep8Naming
-# @njit(cache=True)
-# def mag_field(E, n0, k, eps_b, t_src, adiabatic=True):
-#     """
-#     Returns the comoving magnetic field strength [G].
-#
-#     Parameters
-#     ----------
-#     E : float
-#         The explosion energy [erg]. If ``evo==radiative``,
-#         assumes that ``E=E0 / Gamma0``.
-#
-#     n0 : float or np.ndarray of float
-#         The number density normalization [cm-3] normalized
-#         to 1 cm.
-#
-#     k : float or np.ndarray of float
-#         The density power-law index.
-#
-#     eps_b : float
-#         The fraction of thermal energy in the magnetic field.
-#         Must be in the range [0, 1].
-#
-#     t_src : float or np.ndarray of float
-#         The source-frame time(s) [s].
-#
-#     adiabatic : bool, optional, default=True
-#         How is the blas wave evolving? Must be
-#         True for 'adiabatic' or False for 'radiative'.
-#
-#     Returns
-#     -------
-#     float or np.ndarray of float
-#         The magnetic field strength [G].
-#     """
-#     # where 0.388749 = SoL * sqrt(32 * pi * MassP)
-#     return 0.388749 * lf(E, n0, k, t_src, adiabatic) * np.sqrt(
-#         eps_b * n0 * radius(E, n0, k, t_src, adiabatic) ** -k
-#     )
+@njit(cache=True)
+def energy_rad(n0, k, gammaB, gamma0, R):
+    """
+    Returns the radiative comoving energy [erg].
+
+    Parameters
+    ----------
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    gammaB : float or np.ndarray
+        The bulk Lorentz factor.
+
+    gamma0 : float
+        The initial Lorentz factor.
+
+    R : float or np.ndarray
+        The blast wave radius [cm].
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The energy [erg].
+    """
+    # 0.07 ~= 16 * pi * MassP * SoL**2
+    return 0.075562 / (17.0 - 4.0 * k) * n0 * gamma0 * gammaB * R ** (3.0 - k)
 
 
-# # noinspection PyPep8Naming
-# @njit
-# def gamma_m(E, n0, k, p, eps_e, hmf, t_src, adiabatic=True):
-#     """
-#     Calculates the comoving minimum Lorentz factor(s).
-#
-#     Parameters
-#     ----------
-#     E : float
-#         The explosion energy [erg]. If ``adiabatic==False``,
-#         assumes that ``E=E0 / Gamma0``.
-#
-#     n0 : float or np.ndarray of float
-#         The number density normalization [cm-3] normalized
-#         to 1 cm.
-#
-#     k : float or np.ndarray of float
-#         The density power-law index.
-#
-#     p : float
-#         The electron energy index.
-#
-#     hmf : float
-#         The hydrogen mass fraction. Must be in the range [0, 1].
-#         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
-#
-#     eps_e : float
-#         The fraction of thermal energy in the electric field.
-#         Must be in the range [0, 1].
-#
-#     t_src : float or np.ndarray of float
-#         The source-frame time(s) [s].
-#
-#     adiabatic : bool, optional, default=True
-#         How is the blas wave evolving? Must be
-#         True for 'adiabatic' or False for 'radiative'.
-#
-#     Returns
-#     -------
-#     float or np.ndarray of float
-#         The comoving minimum Lorentz factor(s).
-#     """
-#     # where 3672.305347 = 2 * MassP / MassE
-#     return 3672.305347 * (
-#         (p - 2) / (p - 1) * eps_e * lf(E, n0, k, t_src, adiabatic) / (1 + hmf)
-#     )
-#
-#
-# # noinspection PyPep8Naming
-# @njit
-# def gamma_c(E, n0, k, eps_b, t_src, adiabatic=True):
-#     """
-#     Calculates the comoving critical Lorentz factor(s).
-#
-#     Parameters
-#     ----------
-#     E : float
-#         The explosion energy [erg]. If ``adiabatic==False``,
-#         assumes that ``E=E0 / Gamma0``.
-#
-#     n0 : float or np.ndarray of float
-#         The number density normalization [cm-3] normalized
-#         to 1 cm.
-#
-#     k : float or np.ndarray of float
-#         The density power-law index.
-#
-#     eps_b : float
-#         The fraction of thermal energy in the magnetic field.
-#         Must be in the range [0, 1].
-#
-#     t_src : float or np.ndarray of float
-#         The source-frame time(s) [s].
-#
-#     adiabatic : bool, optional, default=True
-#         How is the blas wave evolving? Must be
-#         True for 'adiabatic' or False for 'radiative'.
-#
-#     Returns
-#     -------
-#     float or np.ndarray of float
-#         The comoving critical Lorentz factor(s).
-#     """
-#     # 6 * pi * MassE * SoL / SigmaT
-#     constant = 7.738067e8
-#
-#     return constant / (
-#         lf(E, n0, k, t_src, adiabatic) * mag_field(E, n0, k, eps_b, t_src, adiabatic) ** 2 * t_src
-#     )
-#
-#
-# # noinspection PyPep8Naming
-# @njit
-# def f_peak(E, n0, k, eps_b, dL, z, hmf, t_obs, adiabatic=True):
-#     """
-#     Calculates the observer-frame peak fluxes [mJy].
-#
-#     Parameters
-#     ----------
-#     E : float
-#         The explosion energy [erg]. If ``adiabatic==False``,
-#         assumes that ``E=E0 / Gamma0``.
-#
-#     n0 : float or np.ndarray of float
-#         The number density normalization [cm-3] normalized
-#         to 1 cm.
-#
-#     k : float or np.ndarray of float
-#         The density power-law index.
-#
-#     eps_b : float
-#         The fraction of thermal energy in the magnetic field.
-#         Must be in the range [0, 1].
-#
-#     dL : float
-#         The luminosity distance to the event [cm].
-#
-#     z : float
-#         The redshift to the event.
-#
-#     hmf : float
-#         The hydrogen mass fraction. Must be in the range [0, 1].
-#         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
-#
-#     t_obs : float or np.ndarray of float
-#         The observer-frame times [d].
-#
-#     adiabatic : bool, optional, default=True
-#         How is the blas wave evolving? Must be
-#         True for 'adiabatic' or False for 'radiative'.
-#
-#     Returns
-#     -------
-#     float or np.ndarray of float
-#         The observer-frame peak fluxes [mJy].
-#     """
-#     t_src = days_to_sec(t_obs) / (1 + z)
-#
-#     # (2/3)e26 * sqrt(2pi) * ECharge**3 / MassE / MassP / SoL
-#     constant = 876.960194
-#
-#     # return peak flux [mJy]
-#     return constant * (1 + z) * (
-#         (1 + hmf) * eps_b ** 0.5 / dL ** 2 *
-#         lf(E, n0, k, t_src, adiabatic) ** 2 * n0 ** 1.5 *
-#         radius(E, n0, k, t_src, adiabatic) ** (3 - 1.5 * k)
-#     )
-#
-#
-# # noinspection PyPep8Naming
-# @njit
-# def nu_m(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True):
-#     """
-#     Calculates the observer-frame synchrotron frequency [Hz].
-#
-#     Parameters
-#     ----------
-#     E : float
-#         The explosion energy [erg]. If ``adiabatic==False``,
-#         assumes that ``E=E0 / Gamma0``.
-#
-#     n0 : float or np.ndarray of float
-#         The number density normalization [cm-3] normalized
-#         to 1 cm.
-#
-#     k : float or np.ndarray of float
-#         The density power-law index.
-#
-#     p : float
-#         The electron energy index.
-#
-#     eps_b : float
-#         The fraction of thermal energy in the magnetic field.
-#         Must be in the range [0, 1].
-#
-#     eps_e : float
-#         The fraction of thermal energy in the electric field.
-#         Must be in the range [0, 1].
-#
-#     z : float
-#         The redshift to the event.
-#
-#     hmf : float
-#         The hydrogen mass fraction. Must be in the range [0, 1].
-#         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
-#
-#     t_obs : float or np.ndarray of float
-#         The observer-frame times [d].
-#
-#     adiabatic : bool, optional, default=True
-#         How is the blas wave evolving? Must be
-#         True for 'adiabatic' or False for 'radiative'.
-#
-#     Returns
-#     -------
-#     float or np.ndarray of float
-#         The observer-frame synchrotron frequency [Hz].
-#     """
-#     t_src = days_to_sec(t_obs) / (1 + z)
-#
-#     # where 2799246.24 = ECharge / 2 * pi / MassE / SoL
-#     constant = 2799246.24
-#
-#     # return observer-frame synchrotron frequency [Hz]
-#     return constant / (1 + z) * (
-#         gamma_m(E, n0, k, p, eps_e, hmf, t_src, adiabatic) ** 2 *
-#         mag_field(E, n0, k, eps_b, t_src, adiabatic) *
-#         lf(E, n0, k, t_src, adiabatic)
-#     )
-#
-#
-# # noinspection PyPep8Naming
-# @njit
-# def nu_c(E, n0, k, eps_b, z, t_obs, adiabatic=True):
-#     """
-#     Calculates the observer-frame cooling frequency [Hz].
-#
-#     Parameters
-#     ----------
-#     E : float
-#         The explosion energy [erg]. If ``adiabatic==False``,
-#         assumes that ``E=E0 / Gamma0``.
-#
-#     n0 : float or np.ndarray of float
-#         The number density normalization [cm-3] normalized
-#         to 1 cm.
-#
-#     k : float or np.ndarray of float
-#         The density power-law index.
-#
-#     eps_b : float
-#         The fraction of thermal energy in the magnetic field.
-#         Must be in the range [0, 1].
-#
-#     z : float
-#         The redshift to the event.
-#
-#     t_obs : float or np.ndarray of float
-#         The observer-frame times [d].
-#
-#     adiabatic : bool, optional, default=True
-#         How is the blas wave evolving? Must be
-#         True for 'adiabatic' or False for 'radiative'.
-#
-#     Returns
-#     -------
-#     float or np.ndarray of float
-#         The observer-frame cooling frequency [Hz].
-#     """
-#     t_src = days_to_sec(t_obs) / (1 + z)
-#
-#     # where 2799246.24 = ECharge / 2 * pi / MassE / SoL
-#     constant = 2799246.24
-#
-#     # return observer-frame cooling frequency [Hz]
-#     return constant / (1 + z) * (
-#         gamma_c(E, n0, k, eps_b, t_src, adiabatic) ** 2 *
-#         mag_field(E, n0, k, eps_b, t_src, adiabatic) *
-#         lf(E, n0, k, t_src, adiabatic)
-#     )
+# noinspection PyPep8Naming
+@njit(cache=True)
+def mag_field(E, n0, k, eps_b, t_src, adiabatic=True):
+    """
+    Returns the comoving magnetic field strength [G].
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``evo==radiative``,
+        assumes that ``E=E0 / Gamma0``.
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    t_src : float or np.ndarray of float
+        The source-frame time(s) [s].
+
+    adiabatic : bool, optional, default=True
+        How is the blast wave evolving? Must be
+        True for 'adiabatic' or False for 'radiative'.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The magnetic field strength [G].
+    """
+    # where 0.38 ~= SoL * sqrt(32 * pi * MassP)
+    return 0.388749 * gamma(E, n0, k, t_src, adiabatic) * np.sqrt(
+        eps_b * n0 * radius(E, n0, k, t_src, adiabatic) ** -k
+    )
 
 
-def newnewnew():
-    pass
+# noinspection PyPep8Naming
+@njit(cache=True)
+def gamma_m(E, n0, k, p, eps_e, hmf, t_src, adiabatic=True):
+    """
+    Calculates the comoving minimum Lorentz factor(s).
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``adiabatic==False``,
+        assumes that ``E=E0 / Gamma0``.
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    p : float
+        The electron energy index.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    eps_e : float
+        The fraction of thermal energy in the electric field.
+        Must be in the range [0, 1].
+
+    t_src : float or np.ndarray of float
+        The source-frame time(s) [s].
+
+    adiabatic : bool, optional, default=True
+        How is the blast wave evolving? Must be
+        True for 'adiabatic' or False for 'radiative'.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The comoving minimum Lorentz factor(s).
+    """
+    # where 3672 ~= 2 * MassP / MassE
+    return 3672.305347 * (p - 2) / (p - 1) * (
+        eps_e * gamma(E, n0, k, t_src, adiabatic) / (1 + hmf)
+    )
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def gamma_c(E, n0, k, eps_b, t_src, adiabatic=True):
+    """
+    Calculates the comoving critical Lorentz factor(s).
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``adiabatic==False``,
+        assumes that ``E=E0 / Gamma0``.
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    t_src : float or np.ndarray of float
+        The source-frame time(s) [s].
+
+    adiabatic : bool, optional, default=True
+        How is the blast wave evolving? Must be
+        True for 'adiabatic' or False for 'radiative'.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The comoving critical Lorentz factor(s).
+    """
+    # 7.3 ~= 6 * pi * MassE * SoL / SigmaT
+    return 7.738067e8 * t_src / (
+        gamma(E, n0, k, t_src, adiabatic) *
+        mag_field(E, n0, k, eps_b, t_src, adiabatic) ** 2
+    )
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def gamma(E, n0, k, t_src, adiabatic=True):
+    """
+    Calculates the bulk Lorentz factor(s).
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``evo==radiative``,
+        assumes that ``E=E0 / Gamma0``.
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    t_src : float or np.ndarray
+        The source-frame times [s].
+
+    adiabatic : bool, optional, default=True
+        How is the blast wave evolving? Must be
+        True for 'adiabatic' or False for 'radiative'.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The bulk Lorentz factor(s).
+    """
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    exp = -0.5 / (4.0 - k) if adiabatic else -1.0 / (7.0 - 2.0 * k)
+
+    return (
+        hdc_a * hdc_b ** (3.0 - k) * np.pi *
+        SoL ** (5.0 - k) * MassP * n0 / E * t_src ** (3.0 - k)
+    ) ** exp
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def radius(E, n0, k, t_src, adiabatic=True):
+    """
+    Calculates the source-frame blast wave radius [cm].
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``evo==radiative``,
+        assumes that ``E=E0 / Gamma0``.
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    t_src : float or np.ndarray of float64
+        The source-frame times [s].
+
+    adiabatic : bool, optional, default=True
+        How is the blas wave evolving? Must be
+        True for 'adiabatic' or False for 'radiative'.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The source-frame blast wave radius [cm].
+    """
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    if adiabatic:
+        return (
+            # where 1.5e-13 ~= pi * MassP * SoL
+            hdc_b * E * t_src / (1.575318e-13 * hdc_a * n0)
+        ) ** (1 / (4 - k))
+
+    return (
+        # where 7.4e-16 ~= (pi * MassP)**2 * SoL**3
+        hdc_b * E ** 2 * t_src / (7.439734e-16 * (hdc_a * n0) ** 2)
+    ) ** (1 / (7 - 2 * k))
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def deceleration_radius(E, n0, k, gamma0):
+    """
+    Calculates the source-frame blast wave radius [cm].
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg].
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    gamma0 : float
+        The initial Lorentz factor.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The source-frame blast wave radius [cm].
+    """
+    # where 0.018 ~= 4 * pi * MassP * SoL**2
+    return ((3.0 - k) * E / (n0 * 0.0188907 * gamma0 ** 2.0)) ** (1.0 / (3.0 - k))
+
+
+# noinspection PyPep8Naming
+@njit(cache=True)
+def deceleration_time(E, n0, k, gamma0):
+    """
+    Calculates the time [s] once the blast waves starts to decelerate.
+
+    The deceleration time is given by:
+
+        .. math:: t = \frac{R_d}{\beta \Gamma_0^2 c}
+
+    And occurs when the swept-up mass equals approximately:
+
+        .. math:: M = \frac{E_0}{\Gamma_0^2 c^2}
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg].
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm-3] normalized
+        to 1 cm.
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    gamma0 : float
+        The initial Lorentz factor.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The source-frame blast wave radius [cm].
+    """
+    # Don't use the ``deceleration_radius`` method because calling
+    # other methods is too slow. 0.018 ~= 4 * pi * MassP * SoL**2
+    r_decel = ((3.0 - k) * E / (n0 * 0.0188907 * gamma0 ** 2.0)) ** (1.0 / (3.0 - k))
+
+    return r_decel / gamma0 ** 2.0 / (4.0 - k) / SoL
+# </editor-fold>
+
+
+# <editor-fold desc="Radiation Properties">
+# noinspection PyPep8Naming
+class RadiationModel:
+    """
+    Radiation model.
+
+    Parameters
+    ----------
+    n0 : float
+        The density normalization [cm(k-3)].
+
+    k : float
+        The density power-law index.
+
+    p : float
+        The electron energy index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    eps_e : float
+        The fraction of thermal energy carried by relativistic
+        electrons. Must be in the range [0, 1].
+
+    dL : float
+        The luminosity distance [cm].
+
+    z : float
+        The redshift.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+    """
+    def __init__(self, n0, k, p, eps_b, eps_e, dL, z, hmf):
+        self.n0 = n0
+        self.k = k
+        self.p = p
+        self.eps_b = eps_b
+        self.eps_e = eps_e
+        self.dL = dL
+        self.z = z
+        self.hmf = hmf
+
+    def peak_flux(self, E, t_obs, adiabatic=True):
+        """ Observer-frame peak flux [mJy]. """
+        return peak_flux(
+            E, self.n0, self.k, self.eps_b,
+            self.dL, self.z, self.hmf, t_obs, adiabatic
+        )
+
+    def cooling_frequency(self, E, t_obs, adiabatic=True):
+        """ Observer-frame cooling frequency [Hz]. """
+        return cooling_frequency(
+            E, self.n0, self.k, self.eps_b, self.z, t_obs, adiabatic
+        )
+
+    def synchrotron_frequency(self, E, t_obs, adiabatic=True):
+        """ Observer-frame synchrotron frequency [Hz]. """
+        return synchrotron_frequency(
+            E, self.n0, self.k, self.p, self.eps_b,
+            self.eps_e, self.z, self.hmf, t_obs, adiabatic
+        )
+
+    def absorption_frequency(self, E, t_obs, adiabatic=True):
+        """ Observer-frame self-absorption frequency [Hz]. """
+        return absorption_frequency(
+            E, self.n0, self.k, self.p, self.eps_b,
+            self.eps_e, self.z, self.hmf, t_obs, adiabatic
+        )
+
+    def rad_to_ad_time(self, E):
+        """ Observer-frame radiative to adiabatic transition time [s]. """
+        return rad_to_ad_time(
+            E, self.n0, self.k, self.p, self.eps_b,
+            self.eps_e, self.z, self.hmf
+        )
 
 
 # noinspection PyPep8Naming
@@ -644,42 +652,88 @@ def synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=Tr
 
 
 # noinspection PyPep8Naming
-# @njit(cache=True)
-# def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True):
-#     """"""
-#     # Make sure I'm working with arrays
-#     t_obs = np.asarray(t_obs)
-#
-#     # Calculate to determine regimes
-#     nu_m = synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic)
-#     nu_c = cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic)
-#
-#     if adiabatic:
-#         fast = nu_c < nu_m
-#
-#         # Determine slow-cooling absorption frequencies
-#         nu_amc = nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
-#         nu_mac = nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
-#
-#         # Initialize with slow cooling values
-#         res = np.where(nu_amc < nu_m, nu_amc, nu_mac)
-#
-#         if fast.any():
-#             # Determine fast-cooling absorption frequencies
-#             nu_acm = nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs)
-#             nu_cam = nu_a_cam_ad(E, n0, k, z, hmf, t_obs)
-#
-#             # Overwrite with fast cooling values
-#             res = np.where(fast, np.where(nu_acm < nu_c, nu_acm, nu_cam), res)
-#             # res[fast] = np.where(nu_acm < nu_c, nu_acm, nu_cam)[fast]
-#
-#         return res
-#
-#     # Determine radiative absorption frequencies
-#     nu_acm = nu_a_acm_rad(E, n0, k, eps_b, z, hmf, t_obs)
-#     nu_cam = nu_a_cam_rad(E, n0, k, z, hmf, t_obs)
-#
-#     return np.where(nu_acm < nu_c, nu_acm, nu_cam)
+def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True):
+    """
+    Calculates the observer-frame self-absorption frequencies [Hz]
+    for an ultra-relativistic shock moving through an external
+    medium with density rho = rho0 * R^-k.
+
+    The analytic approximation for the self-absorption is crude and
+    only valid when the breaks are sufficiently far apart. As the
+    breaks cross, there will be a sharp jump in the self-absorption
+    frequency. A true treatment of the self-absorption requires
+    numerical methods.
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg]. If ``adiabatic==False``,
+        assumes that ``E=E0 / Gamma0``.
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm(k-3)].
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    p : float
+        The electron energy index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    eps_e : float
+        The fraction of thermal energy in the electric field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    t_obs : float or np.ndarray of float64
+        The observer-frame times [d].
+
+    adiabatic : bool, optional, default=True
+        How is the blast wave evolving? Must be True
+        for 'adiabatic' or False for 'radiative'.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The observer-frame self-absorption frequencies [Hz].
+    """
+    nu_m = synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic)
+    nu_c = cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic)
+
+    if adiabatic:
+        fast = nu_c < nu_m
+
+        # Determine slow-cooling absorption frequencies
+        nu_amc = nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
+        nu_mac = nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
+
+        # Initialize with slow cooling values
+        res = np.where(nu_amc < nu_m, nu_amc, nu_mac)
+
+        if fast.any():  # type: ignore
+            # Determine fast-cooling absorption frequencies
+            nu_acm = nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs)
+            nu_cam = nu_a_cam_ad(E, n0, k, z, hmf, t_obs)
+
+            # Overwrite with fast cooling values
+            res[fast] = np.where(nu_acm < nu_c, nu_acm, nu_cam)[fast]
+
+    else:
+        # Determine radiative absorption frequencies
+        nu_acm = nu_a_acm_rad(E, n0, k, eps_b, z, hmf, t_obs)
+        nu_cam = nu_a_cam_rad(E, n0, k, z, hmf, t_obs)
+        res = np.where(nu_acm < nu_c, nu_acm, nu_cam)
+
+    return res
 
 
 # noinspection PyPep8Naming
@@ -716,7 +770,7 @@ def f_peak_ad(E, n0, k, eps_b, dL, z, hmf, t_obs):
         The hydrogen mass fraction. Must be in the range [0, 1].
         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
-    t_obs : float or np.ndarray of float
+    t_obs : float or np.ndarray
         The observer-frame times [d].
 
     Returns
@@ -725,8 +779,6 @@ def f_peak_ad(E, n0, k, eps_b, dL, z, hmf, t_obs):
         The adiabatic, observer-frame peak fluxes [mJy].
     """
     t_obs_s = DAY2SEC * t_obs
-    # The constant 22.836128 below is:
-    #   log10(4/6 * sqrt(2) * ECharge**3 / MassE / MassP)
 
     # Hydrodynamic coefficients
     hdc_a = 16.0 / (17.0 - 4.0 * k)
@@ -793,7 +845,7 @@ def f_peak_rad(E, n0, k, eps_b, dL, z, hmf, t_obs):
         The hydrogen mass fraction. Must be in the range [0, 1].
         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
-    t_obs : float or np.ndarray of float
+    t_obs : float or np.ndarray
         The observer-frame times [d].
 
     Returns
@@ -841,8 +893,7 @@ def nu_c_ad(E, n0, k, eps_b, z, t_obs):
     Parameters
     ----------
     E : float
-        The explosion energy [erg]. If ``adiabatic==False``,
-        assumes that ``E=E0 / Gamma0``.
+        The explosion energy [erg].
 
     n0 : float or np.ndarray of float
         The number density normalization [cm-3] normalized
@@ -858,7 +909,7 @@ def nu_c_ad(E, n0, k, eps_b, z, t_obs):
     z : float
         The redshift to the event.
 
-    t_obs : float or np.ndarray of float
+    t_obs : float or np.ndarray
         The observer-frame times [d].
 
     Returns
@@ -911,8 +962,7 @@ def nu_c_rad(E, n0, k, eps_b, z, t_obs):
         Lorentz factor (i.e., E0 / Gamma0).
 
     n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+        The number density normalization [cm-(k-3)].
 
     k : float or np.ndarray of float
         The density power-law index.
@@ -924,7 +974,7 @@ def nu_c_rad(E, n0, k, eps_b, z, t_obs):
     z : float
         The redshift to the event.
 
-    t_obs : float or np.ndarray of float
+    t_obs : float or np.ndarray
         The observer-frame times [d].
 
     Returns
@@ -994,7 +1044,7 @@ def nu_m_ad(E, k, p, eps_b, eps_e, z, hmf, t_obs):
         The hydrogen mass fraction. Must be in the range [0, 1].
         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
-    t_obs : float or np.ndarray of float
+    t_obs : float or np.ndarray
         The observer-frame times [d].
 
     Returns
@@ -1055,7 +1105,7 @@ def nu_m_rad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
         The hydrogen mass fraction. Must be in the range [0, 1].
         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
-    t_obs : float or np.ndarray of float
+    t_obs : float or np.ndarray
         The observer-frame times [d].
 
     Returns
@@ -1075,7 +1125,7 @@ def nu_m_rad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
 
     lin_fac = (
         hdc_a ** -(4.0 - k) * hdc_b ** -((24.0 - 7.0 * k) / 2.0) *
-        np.pi ** -((15.0 - 4.0 * k) / 2) * (1 + z) ** ((10.0 - 3.0 * k) / 2.0)
+        np.pi ** -((15.0 - 4.0 * k) / 2.0) * (1 + z) ** ((10.0 - 3.0 * k) / 2.0)
     ) ** (1.0 / x)
 
     # 25.3 ~= log10(8 * sqrt(2) * ECharge / MassE**3 * MassP**2)
@@ -1258,11 +1308,11 @@ def nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
         The number density normalization [cm-3] normalized
         to 1 cm.
 
-    p : float
-        The electron energy index.
-
     k : float or np.ndarray of float
         The density power-law index.
+
+    p : float
+        The electron energy index.
 
     eps_b : float
         The fraction of thermal energy in the magnetic field.
@@ -1541,6 +1591,74 @@ def nu_a_cam_rad(E, n0, k, z, hmf, t_obs):
     return np.cbrt((1.0 + hmf) * lin_fac * 10.0 ** log_fac)
 
 
+# noinspection PyPep8Naming
+@njit(cache=True)
+def rad_to_ad_time(E, n0, k, p, eps_b, eps_e, z, hmf):
+    """
+    Calculates the observer-frame radiative to adiabatic
+    transition time [s].
+
+    Parameters
+    ----------
+    E : float
+        The explosion energy [erg].
+
+    n0 : float or np.ndarray of float
+        The number density normalization [cm(k-3)].
+
+    k : float or np.ndarray of float
+        The density power-law index.
+
+    p : float
+        The electron energy index.
+
+    eps_b : float
+        The fraction of thermal energy in the magnetic field.
+        Must be in the range [0, 1].
+
+    eps_e : float
+        The fraction of thermal energy in the electric field.
+        Must be in the range [0, 1].
+
+    z : float
+        The redshift to the event.
+
+    hmf : float
+        The hydrogen mass fraction. Must be in the range [0, 1].
+        0 indicates hydrogen depleted. 1 indicates hydrogen rich.
+
+    Returns
+    -------
+    float or np.ndarray of float
+        The observer-frame transition time [s].
+    """
+    # Hydrodynamic coefficients
+    hdc_a = 16.0 / (17.0 - 4.0 * k)
+    hdc_b = 4.0 - k
+
+    # Break up the evaluations for the factors with
+    # massive exponents to prevent overflow errors.
+    x, rho0 = k - 5.0, MassP * n0
+
+    lin_fac = (1.0 + z) * (
+        hdc_a ** (4.0 - 2.0 * k) * hdc_b ** (12.0 - 3.0 * k) *
+        (eps_e * eps_b / (1.0 + hmf)) ** -(7.0 - 2.0 * k) *
+        ((p - 1.0) / (p - 2.0)) ** (7.0 - 2.0 * k) *
+        np.pi ** (k - 39.0 / 4.0)
+    ) ** (1.0 / x)
+
+    log_fac = (
+        -48.565561 * (7.0 - 2.0 * k) +
+        np.log10(rho0) * -3.0 +
+        np.log10(E) * (2.0 * k - 4.0) +
+        np.log10(SoL) * (41.0 - 13.0 * k)
+    ) / x
+
+    # return radiative to adiabatic transition time [s]
+    return lin_fac * 10.0 ** log_fac
+# </editor-fold>
+
+
 def has_fts_transition(nu_m, nu_c) -> bool:
     """
     Is there a fast-to-slow cooling transition?
@@ -1740,8 +1858,7 @@ class BlastWaveModel(BaseBlastWaveModel):
             The deceleration time [s].
         """
         return (1 + z) * (
-            self.decel_radius(gamma) /
-            ((4 - self.k) * gamma ** 2 * self.c)
+            self.decel_radius(gamma) / ((4 - self.k) * gamma ** 2 * self.c)
         )
 
 
@@ -2032,10 +2149,10 @@ class BaseFireballModel:
 
     Parameters
     ----------
-    E : float
+    E52 : float
         The explosion energy normalized to 1e52 ergs.
 
-    dL : float
+    dL28 : float
         The luminosity distance to the event normalized to 1e28 cm.
         Requiring the distance to be provided in addition to the
         redshift prevents the need to assume a cosmology here.
@@ -2054,7 +2171,7 @@ class BaseFireballModel:
     z : float
         The redshift of the event.
 
-    X : float
+    hmf : float
         The hydrogen mass fraction. Must be in the range [0, 1].
         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
@@ -2073,19 +2190,18 @@ class BaseFireballModel:
     [1] Broadband view of blast wave physics: A study
         of gamma-ray burst afterglows
     """
-    m_p = const.m_p.cgs.value  # type: ignore
 
     # noinspection PyPep8Naming
-    def __init__(self, E, p, eps_b, eps_e, z, dL, X, tj=None, sj=None, sji=None, use_sa=True):
+    def __init__(self, E52, p, eps_b, eps_e, z, dL28, hmf, tj=None, sj=None, sji=None, use_sa=True):
         # Intrinsic properties
-        self.E = E
+        self.E52 = E52
         self.p = p
         self.eps_b = eps_b
         self.eps_e = eps_e
-        self.X = X
+        self.hmf = hmf
 
         # Extrinsic properties
-        self.dL = dL
+        self.dL28 = dL28
         self.z = z
 
         # Jet properties
@@ -2097,6 +2213,18 @@ class BaseFireballModel:
     def __repr__(self):
         """ Human-readable representation. """
         return f'{self.__class__.__name__}(E={self.E}, p={self.p}, .., z={self.z})'
+
+    # noinspection PyPep8Naming
+    @property
+    def E(self):
+        """ Returns the initial explosion energy [erg]. """
+        return 1e52 * self.E52
+
+    # noinspection PyPep8Naming
+    @property
+    def dL(self):
+        """ Returns the luminosity distance [cm]. """
+        return 1e28 * self.dL28
 
     @property
     def is_valid(self) -> bool:
@@ -2135,7 +2263,7 @@ class BaseFireballModel:
         Parameters
         ----------
         t : float or np.ndarray of float
-            The observer times [d].
+            The observer-frame time(s) [d].
 
         nu : float or np.ndarray of float
             The average band frequencies [Hz].
@@ -2160,7 +2288,7 @@ class BaseFireballModel:
         Parameters
         ----------
         t : float or np.ndarray of float
-            The observer times [d].
+            The observer-frame time(s) [d].
 
         lower, upper : float or np.ndarray of float
             The integration bounds [Hz].
@@ -2185,7 +2313,7 @@ class BaseFireballModel:
         Parameters
         ----------
         t : float or np.ndarray of float
-            The observer times [d].
+            The observer-frame time(s) [d].
 
         lower, upper : float or np.ndarray of float
             The integration bounds [Hz].
@@ -2327,9 +2455,13 @@ class BaseFluxModel:
                 # Overwrite: nu_c < nu_a < nu_m
                 b1[self.cam] = 2
 
-        if fts:  # Fast-to-slow cooling smoothing
+        # It's important that this check is not moved into the above
+        # `if fast` scope. `fts` is not determined based on the data
+        # provided, but based on the entire light curve. So even if
+        # the data we're modeling does not have `fts`, the greater
+        # light curve may have a `fts`.
+        if fts:
             return self._fts_spectral_indices(b1, b3)
-
         return b1, b2, b3
 
     def smoothing(self, fts=False):
@@ -2381,7 +2513,12 @@ class BaseFluxModel:
                 # Overwrite: nu_c < nu_a < nu_m
                 s12[self.cam] = 0.9
 
-        if fts:  # Fast-to-slow cooling smoothing
+        # It's important that this check is not moved into the above
+        # `if fast` scope. `fts` is not determined based on the data
+        # provided, but based on the entire light curve. So even if
+        # the data we're modeling does not have `fts`, the greater
+        # light curve may have a `fts`.
+        if fts:
             return self._fts_smoothing(s12, s23)
 
         return s12, s23
@@ -2413,12 +2550,12 @@ class BaseFluxModel:
 
         # S12 smoothing
         s12_slow = 1.84 - (0.040 * k) - (0.40 - 0.010 * k) * p
-        s12 = 0.597 + (s12_slow - 0.597) / (1 + nu_ratio ** q12)
+        s12 = 0.597 + (s12_slow - 0.597) / (1.0 + nu_ratio ** q12)
 
         # s23 smoothing
         s23_fast = 3.34 + 0.17 * k - (0.82 + 0.035 * k) * p
         s23_slow = 1.15 - (0.125 * k) - (0.06 - 0.015 * k) * p
-        s23 = s23_fast + (s23_slow - s23_fast) / (1 + nu_ratio ** q23)
+        s23 = s23_fast + (s23_slow - s23_fast) / (1.0 + nu_ratio ** q23)
 
         return s12, s23
 
@@ -2443,8 +2580,9 @@ class BaseFluxModel:
         q12 = -s12 * (b3 - b1)
         q23 = -s23 * (b3 - b1)
 
-        b2a = -0.5 + ((1 - self.p) / 2 - -0.5) / (1 + nu_ratio ** q12)
-        b2b = -0.5 + ((1 - self.p) / 2 - -0.5) / (1 + nu_ratio ** q23)
+        # Smooth the middle spectral index from -0.5 to (1 - p) / 2
+        b2a = -0.5 + ((1.0 - self.p) / 2.0 + 0.5) / (1.0 + nu_ratio ** q12)
+        b2b = -0.5 + ((1.0 - self.p) / 2.0 + 0.5) / (1.0 + nu_ratio ** q23)
 
         return b1, b2a, b2b, b3
 

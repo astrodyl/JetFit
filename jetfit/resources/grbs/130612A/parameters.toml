@@ -4,7 +4,7 @@ name = 'FireballModel'
 #-------------- MODEL --------------
 #---------------- E ----------------
 [[model]]
-name  = "E"
+name  = "E52"
 scale = "log"
 
 [model.prior]
@@ -26,7 +26,7 @@ scale = "log"
 #-------------- MODEL --------------
 #---------------- n ----------------
 [[model]]
-name  = "rho0"
+name  = "n017"
 scale = "log"
 
 [model.prior]
@@ -83,7 +83,7 @@ scale = "linear"
 #-------------- MODEL --------------
 #---------------- X ----------------
 [[model]]
-name  = "X"
+name  = "hmf"
 scale = "linear"
 value = 0.7
 
@@ -97,7 +97,7 @@ value = 2.006
 #-------------- MODEL --------------
 #---------------- dL ---------------
 [[model]]
-name  = "dL"
+name  = "dL28"
 scale = "linear"
 value = 4.94
 

@@ -85,7 +85,10 @@ def plot_results(ampy, results_dir, event):
 
     # Plot the MCMC diagnostics!
     diagnose.plot_corner(ampy.mcmc.sampler.get_chain(flat=True), params.fitting, results_dir)
-    diagnose.plot_trace(params, out_dir=results_dir, chain=ampy.mcmc.burn_chain)
+
+    if ampy.mcmc.burn_chain is not None:
+        diagnose.plot_trace(params, out_dir=results_dir, chain=ampy.mcmc.burn_chain)
+
     diagnose.plot_trace(params, out_dir=results_dir, sampler=ampy.mcmc.sampler)
 
 

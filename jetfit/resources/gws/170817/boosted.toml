@@ -4,7 +4,7 @@ name = 'BoostedFireballModel'
 #-------------- MODEL --------------
 #---------------- E ----------------
 [[model]]
-name  = "E"
+name  = "E52"
 scale = "log"
 value = -0.79944
 

@@ -78,7 +78,7 @@ def latex(key: str) -> str:
     try:
         return {
             # Jetsimpy
-            'Eiso': r'$log10_{E_{iso}}$',
+            'Eiso': r'$log_{10}E_{iso}$',
             'lf': r'$\Gamma$',
             'theta_c': r'$\theta_c$',
             'theta_v': r'$\theta_v$',
@@ -89,7 +89,7 @@ def latex(key: str) -> str:
             'obs_angle': r'$\theta_{obs}$',
 
             # Stratified Fireball Model
-            'nt': r'$log_{10}n_{0, t}$',
+            'n0t': r'$log_{10}n_{0, t}$',
             'rt': r'$log_{10}R_t$',
             'k1': r'$k_{pre}$',
             'k2': r'$k_{post}$',
@@ -98,13 +98,14 @@ def latex(key: str) -> str:
             'tj': r'$log_{10}t_j$',
 
             # Generic Fireball Model
-            'E': r'$log_{10}E_{52}$',
+            'lf0': r'$\Gamma_0$',
+            'E52': r'$log_{10}E_{52}$',
             'eps_e': r'$log_{10}\epsilon_e$',
             'eps_b': r'$log_{10}\epsilon_B$',
             'rv_milky_way': r'$log_{10}R_{v}^{MW}$',
             'ebv_source_frame': r'$E(B-V)_{sf}$',
             'ebv_milky_way': r'$E(B-V)_{MW}$',
-            'rho0': r'$log_{10}n$',
+            'n017': r'$log_{10}n_{0, 17}$',
         }[key]
     except KeyError:
         return key

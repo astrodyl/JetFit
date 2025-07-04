@@ -2,8 +2,8 @@ import unittest
 
 import numpy as np
 
-from jetfit.models.base import cooling_frequency, synchrotron_frequency, peak_flux, nu_a_amc_ad, nu_a_mac_ad, \
-    nu_a_acm_ad, nu_a_acm_rad
+from jetfit.models.base import cooling_frequency, synchrotron_frequency
+from jetfit.models.base import peak_flux, nu_a_amc_ad, nu_a_mac_ad, nu_a_acm_ad, nu_a_acm_rad
 
 
 class TestSpectralFunctions(unittest.TestCase):
@@ -48,6 +48,81 @@ class TestSpectralFunctions(unittest.TestCase):
         # Assert equal within 1%
         self.assertAlmostEqual(f_pk_ism / f_pk_ism_true, 1.0, delta=0.01)
         self.assertAlmostEqual(f_pk_win / f_pk_win_true, 1.0, delta=0.01)
+
+    def test_cooling_frequency_scaling_adiabatic_ism(self):
+        """
+            Tests that changing the values scales the cooling frequency
+            in the adiabatic regime for an ISM medium properly.
+        """
+        # Vary the following values
+        z = 2.1
+        nrg = 2.5e52
+        n0 = 3.2
+        t = 12.11
+
+        # Evaluate cooling frequency for ISM
+        nu_c_ism = cooling_frequency(nrg, n0, 0.0, eps_b=0.1, z=z, t_obs=t)
+
+        # Value taken fro VHD09
+        nu_c_ism_true_nrg = 5.98e13 * (
+            (0.5 * (1 + z)) ** -0.5 *  # redshift scaling
+            (nrg / 1e52) ** -0.5 *     # energy scaling
+            n0 ** -1.0 *               # density scaling
+            t ** -0.5                  # time scaling
+        )
+
+        # Assert equal within 1%
+        self.assertAlmostEqual(nu_c_ism / nu_c_ism_true_nrg, 1.0, delta=0.01)
+
+    def test_cooling_frequency_scaling_radiative_ism(self):
+        """
+            Tests that changing the values scales the cooling frequency
+            in the radiative regime for an ISM medium properly.
+        """
+        # Vary the following values
+        z = 2.1
+        nrg = 2.5e52
+        n0 = 3.2
+        t = 3.41
+
+        # Evaluate cooling frequency for ISM
+        nu_c_ism = cooling_frequency(nrg, n0, 0.0, eps_b=0.1, z=z, t_obs=t, adiabatic=False)
+
+        # Value taken fro VHD09
+        nu_c_ism_true_nrg = 2.01e12 * (
+            (0.5 * (1 + z)) ** -(5 / 7) *   # redshift scaling
+            (nrg / 1e52) ** -(4 / 7) *      # energy scaling
+            n0 ** -(13 / 14) *              # density scaling
+            t ** -(2/7)                     # time scaling
+        )
+
+        # Assert equal within 1%
+        self.assertAlmostEqual(nu_c_ism / nu_c_ism_true_nrg, 1.0, delta=0.01)
+
+    def test_cooling_frequency_scaling_radiative_wind(self):
+        """
+            Tests that changing the values scales the cooling frequency
+            in the radiative regime for a wind medium properly.
+        """
+        # Vary the following values
+        z = 2.1
+        nrg = 2.5e52
+        n0 = 4.2e35
+        t = 3.41
+
+        # Evaluate cooling frequency for WIND
+        nu_c_win = cooling_frequency(nrg, n0, 2.0, eps_b=0.1, z=z, t_obs=t, adiabatic=False)
+
+        # Value taken fro VHD09
+        nu_c_win_true_nrg = 9.02e10 * (
+            (0.5 * (1 + z)) ** -(4/3) * # redshift scaling
+            (nrg / 1e52) ** (2/3) *     # energy scaling
+            (n0 / 3.0e35) ** -(13/6) *  # density scaling
+            t ** (1/3)                  # time scaling
+        )
+
+        # Assert equal within 1%
+        self.assertAlmostEqual(nu_c_win / nu_c_win_true_nrg, 1.0, delta=0.01)
 
     def test_cooling_frequency_adiabatic(self):
         """ Tests that the adiabatic cooling frequency model returns the correct values. """

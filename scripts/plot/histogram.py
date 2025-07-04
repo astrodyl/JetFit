@@ -404,21 +404,21 @@ class Beaming(Profiler):
 
             # Model the jet opening angle
             angles[i] = OpeningAngleModel(
-                samp['E'], samp['rho0'], samp['k'], samp['z']
+                samp['E52'], samp['n017'], samp['k'], samp['z']
             )(samp['tj'])
 
             # Calculate the beaming-corrected energy
-            energies[i] = (1 - np.cos(angles[i])) * samp['E']
+            energies[i] = (1 - np.cos(angles[i])) * samp['E52']
 
         # Calculate the most likely opening angle
         best_samp = self.best(cat='model').get('model')
 
         best_ang = OpeningAngleModel(
-            best_samp['E'], best_samp['rho0'], best_samp['k'], best_samp['z']
+            best_samp['E52'], best_samp['n017'], best_samp['k'], best_samp['z']
         )(best_samp['tj'])
 
         # Calculate the most likely energy
-        best_en = (1 - np.cos(best_ang)) * best_samp['E']
+        best_en = (1 - np.cos(best_ang)) * best_samp['E52']
 
         # Plot the jet opening angle distribution
         title = f"Jet Opening Angle Distribution"

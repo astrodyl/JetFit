@@ -117,7 +117,7 @@ def plot_light_curve(model, params, obs, model_kw=None, title='Light Curve', out
     obs : Observation
         The observational data.
 
-    model_kw : dict
+    model_kw : dict, optional
         Any kwargs used in ``model`` constructor.
 
     title : str, optional, default='Light Curve'

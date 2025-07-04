@@ -249,7 +249,8 @@ class PTSampler:
             self.sampler.logl, self.sampler.logp,
             self.sampler.logl_args, self.sampler.logp_args,
             self.sampler.logl_kwargs, self.sampler.logp_kwargs,
-            ptemcee.make_ladder(self.ndim, self.ntemps)
+            ptemcee.make_ladder(self.ndim, self.ntemps),
+            mapper=self.sampler._mapper
         )
         self._chain = None
         self._iteration = 0
