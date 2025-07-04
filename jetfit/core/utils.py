@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import astropy.units as u
 from matplotlib import pyplot as plt
 
 from jetfit.core.structs import ScaleType
@@ -61,6 +62,25 @@ def get_best_samples(sampler):
     return sampler.get_chain(flat=True)[get_best_index(sampler)]
 
 
+def crosses(x, y):
+    """
+    Do ``x`` and ``y`` cross?
+
+    Parameters
+    ----------
+    x, y : np.ndarray
+        Arrays of same shape.
+
+    Returns
+    -------
+    int
+        The first index of crossing. If no crossing was
+        found, returns -1.
+    """
+    cross_idx = np.where(np.diff(np.sign(x - y)))[0]
+    return -1 if len(cross_idx) == 0 else cross_idx[0]
+
+
 class CSVReader:
     """
     Reads an input CSV.
@@ -82,14 +102,15 @@ class CSVReader:
 
     def __init__(self, path: str | Path):
         df = pd.read_csv(path)
-        df_sorted = df.sort_values(by='Time')
-        df_sorted = df_sorted.reset_index(drop=True)
-        self.df = df_sorted
+        self.df = self._sort(df)
 
     @staticmethod
-    def sort(df):
+    def _sort(df):
         """ Sort the dataframe object. """
-        return df.sort_values(by='Time').reset_index(drop=True)
+        quantities = [t * u.Unit(unit) for t, unit in zip(df["Time"], df["TimeUnits"])]
+        times_in_seconds = [q.to(u.s).value for q in quantities]
+        df["Time_sec"] = times_in_seconds
+        return df.sort_values("Time_sec").reset_index(drop=True)
 
     def rows(self):
         """ Return the rows of the CSV file. """
@@ -218,6 +239,10 @@ class MCMCSettingsReader(TOMLReader):
 
 
 # <editor-fold desc="Math">
+def hill(x1, x2, w):
+    """ Decreasing hill function. """
+    return w * x1 + (1.0 - w) * x2
+
 def chi_squared(
     f: np.ndarray[float],
     y: np.ndarray[float],

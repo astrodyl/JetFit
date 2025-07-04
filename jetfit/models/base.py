@@ -4,10 +4,11 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as const
 
+from scipy import optimize
 from numba import njit
 
 from jetfit.core.structs import SpectralFlux, IntegratedFlux, SpectralIndex
-
+from jetfit.core.utils import crosses, hill
 
 """
 Base models
@@ -40,6 +41,10 @@ CGS2MJY = 1.0e26
 DAY2SEC = 86_400.0        # [s d-1]
 
 
+# <editor-fold desc="Empirical Models">
+
+# </editor-fold>
+
 # <editor-fold desc="Blast Wave Properties">
 # noinspection PyPep8Naming
 class BlastWaveModel2:
@@ -57,7 +62,7 @@ class BlastWaveModel2:
         )
 
     def energy_loss(self, t_src):
-        """ The fractional energy remaining after radiative cooling ends [erg]. """
+        """ The fractional energy remaining after radiative cooling ends. """
         return self.gamma(t_src, adiabatic=False) / self.lf0
 
 
@@ -69,11 +74,10 @@ def energy_ad(n0, k, gammaB, R):
 
     Parameters
     ----------
-    n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+    n0 : float or np.ndarray
+        The number density normalization [cm(k-3)].
 
-    k : float or np.ndarray of float
+    k : float or np.ndarray
         The density power-law index.
 
     gammaB : float or np.ndarray
@@ -99,11 +103,10 @@ def energy_rad(n0, k, gammaB, gamma0, R):
 
     Parameters
     ----------
-    n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+    n0 : float or np.ndarray
+        The number density normalization [cm(k-3)].
 
-    k : float or np.ndarray of float
+    k : float or np.ndarray
         The density power-law index.
 
     gammaB : float or np.ndarray
@@ -136,9 +139,8 @@ def mag_field(E, n0, k, eps_b, t_src, adiabatic=True):
         The explosion energy [erg]. If ``evo==radiative``,
         assumes that ``E=E0 / Gamma0``.
 
-    n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+    n0 : float or np.ndarray
+        The number density normalization [cm(k-3)].
 
     k : float or np.ndarray of float
         The density power-law index.
@@ -177,9 +179,8 @@ def gamma_m(E, n0, k, p, eps_e, hmf, t_src, adiabatic=True):
         The explosion energy [erg]. If ``adiabatic==False``,
         assumes that ``E=E0 / Gamma0``.
 
-    n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+    n0 : float or np.ndarray
+        The number density normalization [cm(k-3)].
 
     k : float or np.ndarray of float
         The density power-law index.
@@ -225,9 +226,8 @@ def gamma_c(E, n0, k, eps_b, t_src, adiabatic=True):
         The explosion energy [erg]. If ``adiabatic==False``,
         assumes that ``E=E0 / Gamma0``.
 
-    n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+    n0 : float or np.ndarray
+        The number density normalization [cm(k-3)].
 
     k : float or np.ndarray of float
         The density power-law index.
@@ -267,9 +267,8 @@ def gamma(E, n0, k, t_src, adiabatic=True):
         The explosion energy [erg]. If ``evo==radiative``,
         assumes that ``E=E0 / Gamma0``.
 
-    n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+    n0 : float or np.ndarray
+        The number density normalization [cm(k-3)].
 
     k : float or np.ndarray of float
         The density power-law index.
@@ -310,9 +309,8 @@ def radius(E, n0, k, t_src, adiabatic=True):
         The explosion energy [erg]. If ``evo==radiative``,
         assumes that ``E=E0 / Gamma0``.
 
-    n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+    n0 : float or np.ndarray
+        The number density normalization [cm(k-3)].
 
     k : float or np.ndarray of float
         The density power-law index.
@@ -356,9 +354,8 @@ def deceleration_radius(E, n0, k, gamma0):
     E : float
         The explosion energy [erg].
 
-    n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+    n0 : float or np.ndarray
+        The number density normalization [cm(k-3)].
 
     k : float or np.ndarray of float
         The density power-law index.
@@ -394,9 +391,8 @@ def deceleration_time(E, n0, k, gamma0):
     E : float
         The explosion energy [erg].
 
-    n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+    n0 : float or np.ndarray
+        The number density normalization [cm(k-3)].
 
     k : float or np.ndarray of float
         The density power-law index.
@@ -489,12 +485,50 @@ class RadiationModel:
             self.eps_e, self.z, self.hmf, t_obs, adiabatic
         )
 
-    def rad_to_ad_time(self, E):
+    def rad_to_ad_smooth(self, t, t_trans, rad, ad):
+        """ Smooths the radiative and adiabatic evolutions. """
+        # Generalized s(p) from GS02 for break 9 (s23) and break 11 (s12)
+        s = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
+
+        # Radiative efficiency
+        eff = 1.0 / (1.0 + (t / t_trans) ** (s * (self.p / 2 + 1 / 3)))
+
+        return {
+            'p': self.p, 'k': self.k,
+            'nu_c': hill(rad['nu_c'], ad['nu_c'], eff),
+            'nu_a': hill(rad['nu_a'], ad['nu_a'], eff),
+            'nu_m': hill(rad['nu_m'], ad['nu_m'], eff),
+            'f_peak': hill(rad['f_peak'], ad['f_peak'], eff),
+        }
+
+    def rad_to_ad_time(self, E, t_obs=None, nu_m=None, nu_c=None):
         """ Observer-frame radiative to adiabatic transition time [s]. """
+        if isinstance(self.k, np.ndarray):
+            # Is there actually a root to find?
+            if (i := crosses(nu_m, nu_c)) == -1:
+                return
+
+            # return the transition time for a stratified medium [s]
+            return optimize.root_scalar(
+                self._rad_to_ad_time_stratified, bracket=[t_obs[i], t_obs[i+1]], args=(t_obs, E)
+            ).root * DAY2SEC
+
+        # return transition time for a general medium [s]
         return rad_to_ad_time(
-            E, self.n0, self.k, self.p, self.eps_b,
-            self.eps_e, self.z, self.hmf
+            E, self.n0, self.k, self.p, self.eps_b, self.eps_e, self.z, self.hmf
         )
+
+    def _rad_to_ad_time_stratified(self, t, t_obs, E):
+        """
+            Observer-frame radiative to adiabatic transition time [s]
+            for a stratified medium.
+        """
+        k = np.interp(t, t_obs, self.k)
+        n0 = np.interp(t, t_obs, self.n0)
+
+        nu_c = cooling_frequency(E, n0, k, self.eps_b, self.z, t, adiabatic=False)
+        nu_m = synchrotron_frequency(E, n0, k, self.p, self.eps_b, self.eps_e, self.z, self.hmf, t, adiabatic=False)
+        return nu_c - nu_m
 
 
 # noinspection PyPep8Naming
@@ -564,11 +598,11 @@ def cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic=True):
         The explosion energy [erg]. If ``adiabatic==False``,
         assumes that ``E=E0 / Gamma0``.
 
-    n0 : float or np.ndarray of float
+    n0 : float or np.ndarray
         The number density normalization [cm-3] normalized
         to 1 cm.
 
-    k : float or np.ndarray of float
+    k : float or np.ndarray
         The density power-law index.
 
     eps_b : float
@@ -609,14 +643,13 @@ def synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=Tr
         The explosion energy [erg]. If ``adiabatic==False``,
         assumes that ``E=E0 / Gamma0``.
 
-    n0 : float or np.ndarray of float
-        The number density normalization [cm-3] normalized
-        to 1 cm.
+    n0 : float or np.ndarray
+        The number density normalization [cm(k-3)].
 
     p : float
         The electron energy index.
 
-    k : float or np.ndarray of float
+    k : float or np.ndarray
         The density power-law index.
 
     eps_b : float
@@ -706,6 +739,8 @@ def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=Tru
     float or np.ndarray of float
         The observer-frame self-absorption frequencies [Hz].
     """
+    t_obs = np.atleast_1d(t_obs)
+
     nu_m = synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic)
     nu_c = cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic)
 
@@ -1676,6 +1711,7 @@ def has_fts_transition(nu_m, nu_c) -> bool:
     return np.sign(nu_c[0] - nu_m[0]) < np.sign(nu_c[-1] - nu_m[-1])
 
 
+
 # noinspection PyPep8Naming
 class BaseBlastWaveModel:
     """
@@ -2192,13 +2228,14 @@ class BaseFireballModel:
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, E52, p, eps_b, eps_e, z, dL28, hmf, tj=None, sj=None, sji=None, use_sa=True):
+    def __init__(self, E52, p, eps_b, eps_e, z, dL28, hmf, lf0=None, tj=None, sj=None, sji=None, use_sa=True):
         # Intrinsic properties
         self.E52 = E52
         self.p = p
         self.eps_b = eps_b
         self.eps_e = eps_e
         self.hmf = hmf
+        self.lf0 = lf0
 
         # Extrinsic properties
         self.dL28 = dL28
@@ -2233,6 +2270,11 @@ class BaseFireballModel:
         if self.sj is not None and abs(self.sj) <= 0.1:
             return False
         return ((self.eps_b + self.eps_e) < 1.0) and (self.p >= 2.0)
+
+    @property
+    def radiative(self):
+        """ Should radiative evolution be considered? """
+        return self.eps_e > 0.4 and self.lf0 is not None
 
     def spectrum(self, *args, **kwargs):
         """ Placeholder. """

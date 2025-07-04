@@ -18,7 +18,7 @@ scale = "log"
 #----------- TRANSITION ------------
 #--------------- nt ----------------
 [[model]]
-name  = "nt"
+name  = "n0t"
 scale = "log"
 
 [model.prior]
@@ -78,8 +78,8 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.65
-    initial_sigma = 0.25
+    initial_guess = 2.45
+    initial_sigma = 0.1
 
 #-------------- MODEL --------------
 #--------------- k1 ----------------
@@ -89,8 +89,8 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -10.0
-    upper = 3.0
+    lower = -1.0
+    upper = 3.5
     initial_guess = 2.06
     initial_sigma = 0.25
 
@@ -109,15 +109,15 @@ scale = "linear"
 
 #-------------- MODEL --------------
 #----------- TRANSITION ------------
-#--------------- sn ----------------
+#--------------- sni ---------------
 [[model]]
-name  = "sn"
+name  = "sni"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
-    upper = 3.0
+    lower = -0.1
+    upper = -1.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -149,9 +149,9 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 1.0
-    initial_guess = 0.10
-    initial_sigma = 0.05
+    upper = 0.5
+#    initial_guess = 0.10
+#    initial_sigma = 0.05
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -228,14 +228,14 @@ scale = "linear"
 
 #----------- CALIBRATION -----------
 #--------------- H-band ------------
-[[offsets]]
-name  = "H_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.05
+#[[offsets]]
+#name  = "H_offset"
+#scale = "linear"
+#
+#[offsets.prior]
+#    type  = "gaussian"
+#    mu    = 0.0
+#    sigma = 0.05
 
 #----------- CALIBRATION -----------
 #-------------- K-band -------------

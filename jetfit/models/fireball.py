@@ -1,14 +1,10 @@
-import time
-
-import matplotlib.pyplot as plt
 import numpy as np
 
 from jetfit.core.input import Observation
 from jetfit.models.base import BlastWaveModel, ObservedSpectrumModel, \
-    gamma, rad_to_ad_time, DAY2SEC, MassP, RadiationModel, deceleration_time, BlastWaveModel2
-from jetfit.models.base import AbsorptionFrequencyModel, BaseFireballModel
-from jetfit.models.base import SynchrotronFrequencyModel
-from jetfit.models.base import CoolingFrequencyModel, PeakFluxModel
+    DAY2SEC, MassP, RadiationModel, BlastWaveModel2
+from jetfit.models.base import BaseFireballModel
+
 
 # ignore `dust_extinction` user warnings
 import warnings
@@ -73,9 +69,10 @@ class StratifiedFireballModel(BaseFireballModel):
     # noinspection PyPep8Naming
     def __init__(
         self, E52, p, eps_b, eps_e, z, dL28, n0t, rt, hmf,
-        k1=None, k2=None, tj=None, sj=None, sji=None, sn=None, sni=None, k1i=None, k2i=None, use_sa=True
+        k1=None, k2=None, lf0=None, tj=None, sj=None, sji=None,
+        sn=None, sni=None, k1i=None, k2i=None, use_sa=True
     ):
-        super().__init__(E52, p, eps_b, eps_e, z, dL28, hmf, tj, sj, sji, use_sa)
+        super().__init__(E52, p, eps_b, eps_e, z, dL28, hmf, lf0, tj, sj, sji, use_sa)
 
         if sn is None and sni is None:
             raise ValueError("Must specify either sn or sni.")
@@ -112,7 +109,7 @@ class StratifiedFireballModel(BaseFireballModel):
         Parameters
         ----------
         t : np.ndarray
-            The observer times [d].
+            The observer-frame time(s) [d].
 
         Returns
         -------
@@ -160,7 +157,7 @@ class StratifiedFireballModel(BaseFireballModel):
         """
         bwm1 = BlastWaveModel(self.E52, self.n0t, self.k1, ref=self.rt)
         bwm2 = BlastWaveModel(self.E52, self.n0t, self.k2, ref=self.rt)
-        t_decel = bwm1.decel_time() / 86_400
+        t_decel = bwm1.decel_time() / DAY2SEC
 
         r1 = bwm1.shock_radius(self.z, t, t_decel)
         r2 = bwm2.shock_radius(self.z, t, t_decel)
@@ -213,15 +210,113 @@ class StratifiedFireballModel(BaseFireballModel):
         dict
             keys: f_peak, nu_a, nu_m, nu_c, p, k.
         """
+        t = np.atleast_1d(t)
+
         if n is None or k is None:
             n, k = self.smooth(t)
 
+        # Number density normalization [cm(k-3)]
+        n = n * self.ref_radius ** k
+
+        radiation = RadiationModel(
+            n, k, self.p, self.eps_b, self.eps_e, self.dL, self.z, self.hmf
+        )
+
+        # Default to the adiabatic spectrum
+        spec = self.spectrum_adiabatic(radiation, self.E, t)
+
+        # Should we consider radiative evolution?
+        if self.radiative:
+
+            # OK, but is there actually a radiative solution?
+            if not (spec['nu_m'] > spec['nu_c']).any():
+                return spec
+
+            spec_rad = self.spectrum_radiative(radiation, t)
+
+            # Is there still a radiative solution?
+            if not (spec_rad['nu_m'] > spec_rad['nu_c']).any():
+                return spec
+
+            # When does radiative end and adiabatic begin?
+            t_trans = radiation.rad_to_ad_time(
+                self.E / self.lf0, t_obs=t, nu_m=spec_rad['nu_m'], nu_c=spec_rad['nu_c']
+            )
+
+            if t_trans is None:
+                return spec_rad
+
+            # What is the energy after radiative loss?
+            k_t = np.interp(t_trans / DAY2SEC, t, k)
+            n_t = np.interp(t_trans / DAY2SEC, t, n)
+
+            nrg = self.E * BlastWaveModel2(self.E, self.lf0, n_t, k_t).energy_loss(
+                t_trans / (1 + self.z)
+            )
+
+            # Recalculate adiabatic functions using diminished energy
+            spec_ad = self.spectrum_adiabatic(radiation, nrg, t)
+
+            # Smooth the spectral functions
+            return radiation.rad_to_ad_smooth(t, t_trans / DAY2SEC, spec_rad, spec_ad)
+
+        return spec
+
+    def spectrum_adiabatic(self, radiation, E, t):
+        """
+        Returns the characteristics that define the GRB spectrum
+        assuming adiabatic evolution.
+
+        Parameters
+        ----------
+        radiation : RadiationModel
+            The radiation model to use.
+
+        E : float
+            The energy [erg] at the start of the adiabatic evolution.
+
+        t : float or np.ndarray
+            The observer-frame time(s) [d].
+
+        Returns
+        -------
+        dict
+            keys: f_peak, nu_a, nu_m, nu_c, p, k.
+        """
         return {
-            'p': self.p, 'k': k,
-            'f_peak': self.f_peak(t, n, k),
-            'nu_m': (nu_m := self.nu_m(t, k)),
-            'nu_c': (nu_c := self.nu_c(t, n, k)),
-            'nu_a': self.nu_a(t, n, k, nu_m, nu_c) if self.use_sa else None,
+            'p': self.p, 'k': radiation.k,
+            'f_peak': radiation.peak_flux(E, t),
+            'nu_c': radiation.cooling_frequency(E, t),
+            'nu_a': radiation.absorption_frequency(E, t),
+            'nu_m': radiation.synchrotron_frequency(E, t)
+        }
+
+    def spectrum_radiative(self, radiation, t):
+        """
+        Returns the characteristics that define the GRB spectrum
+        assuming radiative evolution.
+
+        Parameters
+        ----------
+        radiation : RadiationModel
+            The radiation model to use.
+
+        t : float or np.ndarray
+            The observer-frame time(s) [d].
+
+        Returns
+        -------
+        dict
+            keys: f_peak, nu_a, nu_m, nu_c, p, k.
+        """
+        nrg = self.E / self.lf0
+
+        return {
+            'p': radiation.p, 'k': radiation.k,
+            'f_peak': radiation.peak_flux(nrg, t, adiabatic=False),
+            'nu_c': radiation.cooling_frequency(nrg, t, adiabatic=False),
+            'nu_a': radiation.absorption_frequency(nrg, t, adiabatic=False),
+            'nu_m': radiation.synchrotron_frequency(nrg, t, adiabatic=False)
         }
 
     def f_peak(self, t, n=None, k=None):
@@ -249,8 +344,7 @@ class StratifiedFireballModel(BaseFireballModel):
         if k is None or n is None:
             n, k = self.smooth(t)
 
-        return PeakFluxModel(
-            self.E52, n, self.eps_b, self.dL28, self.z, k, self.hmf)(t, np.log10(self.rt))
+        return self.spectrum(t, n, k)['f_peak']
 
     def nu_c(self, t, n=None, k=None):
         """
@@ -263,10 +357,10 @@ class StratifiedFireballModel(BaseFireballModel):
         t : float or np.ndarray of float
             The observer time(s) [d].
 
-        n : np.ndarray of float, optional
+        n : np.ndarray, optional
             The smoothed density normalization [cm-3].
 
-        k : np.ndarray of float, optional
+        k : np.ndarray, optional
             The density power-law indices.
 
         Returns
@@ -277,10 +371,9 @@ class StratifiedFireballModel(BaseFireballModel):
         if n is None or k is None:
             n, k = self.smooth(t)
 
-        return CoolingFrequencyModel(
-            self.E52, n, self.eps_b, k, self.z)(t, np.log10(self.rt))
+        return self.spectrum(t, n, k)['nu_c']
 
-    def nu_m(self, t, k=None):
+    def nu_m(self, t, n=None, k=None):
         """
         Calculates the synchrotron frequency in the case of an
         ultra-relativistic shock moving into an external medium
@@ -288,7 +381,10 @@ class StratifiedFireballModel(BaseFireballModel):
 
         Parameters
         ----------
-        k : np.ndarray of float, optional
+        n : np.ndarray, optional
+            The smoothed density normalization [cm-3].
+
+        k : np.ndarray, optional
             The density power-law indices.
 
         t : float or np.ndarray of float
@@ -297,13 +393,12 @@ class StratifiedFireballModel(BaseFireballModel):
         Returns
         -------
         float or np.ndarray of float
-            The synchrotron frequency [Hz] at time `t`.
+            The synchrotron frequency [Hz] at time(s) ``t``.
         """
         if k is None:
-            _, k = self.smooth(t)
+            n, k = self.smooth(t)
 
-        return SynchrotronFrequencyModel(
-            self.E52, self.eps_e, self.eps_b, k, self.z, self.hmf, self.p)(t)
+        return self.spectrum(t, n, k)['nu_m']
 
     def nu_a(self, t, n=None, k=None, nu_m=None, nu_c=None):
         """
@@ -345,28 +440,7 @@ class StratifiedFireballModel(BaseFireballModel):
         if n is None or k is None:
             n, k = self.smooth(t)
 
-        model = AbsorptionFrequencyModel(
-            self.E52, n, self.eps_e, self.eps_b, k, self.z, self.hmf, self.p
-        )
-
-        nu_m = self.nu_m(t, k) if nu_m is None else nu_m
-        nu_c = self.nu_c(t, n, k) if nu_c is None else nu_c
-        fast = nu_c < nu_m
-
-        # Evaluate nu_a for all orderings
-        ref = np.log10(self.rt)
-        nu_amc = model.evaluate_amc(t, ref)
-        nu_mac = model.evaluate_mac(t, ref)
-        nu_cam = model.evaluate_cam(t, ref)
-        nu_acm = model.evaluate_acm(t, ref)
-
-        # Initialize with slow cooling values
-        res = np.where(nu_amc < nu_m, nu_amc, nu_mac)
-
-        if fast.any():  # Overwrite with fast cooling values
-            res[fast] = np.where(nu_acm < nu_c, nu_acm, nu_cam)[fast]
-
-        return res
+        return self.spectrum(t, n, k)['nu_a']
 
 
 class FireballModel(BaseFireballModel):
@@ -423,10 +497,9 @@ class FireballModel(BaseFireballModel):
     """
     # noinspection PyPep8Naming
     def __init__(self, E52, p, eps_b, eps_e, z, dL28, n017, k, hmf, lf0=None, tj=None, sj=None, sji=None, use_sa=True):
-        super().__init__(E52, p, eps_b, eps_e, z, dL28, hmf, tj, sj, sji, use_sa)
+        super().__init__(E52, p, eps_b, eps_e, z, dL28, hmf, lf0, tj, sj, sji, use_sa)
 
         self.n017 = n017
-        self.lf0 = lf0
         self.k = k
 
         # Blast wave model
@@ -544,50 +617,32 @@ class FireballModel(BaseFireballModel):
         spec = self.spectrum_adiabatic(t)
 
         # Radiative evolution
-        if self.eps_e > 0.4 and self.lf0 is not None:
+        if self.radiative:
             rad = np.logical_and(spec['nu_m'] > spec['nu_c'], spec['nu_a'] < spec['nu_m'])
 
-            if rad.any():  # type: ignore
+            # Is there a radiative solution?
+            if not rad.any():
+                return spec
 
-                # Radiative evolution
-                spec_rad = self.spectrum_radiative(t)
+            # Radiative evolution spectrum
+            spec_rad = self.spectrum_radiative(t)
 
-                # Check that the radiative solution is valid. It's possible that
-                # we are in a part of parameter space where neither the adiabatic
-                # nor radiative solutions are valid due to analytic assumptions.
-                # If that's the case, default back to the adiabatic solution.
-                rad = spec['nu_m'] > spec['nu_c']
+            # Is there still a radiative solution?
+            if not (spec_rad['nu_m'] > spec_rad['nu_c']).any():
+                return spec
 
-                if rad.any():  # type: ignore
-                    spec = spec_rad
+            # When does radiative end and adiabatic begin?
+            t_trans = self.radiation.rad_to_ad_time(self.E / self.lf0) / DAY2SEC
 
-                    # Check if there is any part of the evolution that is adiabatic.
-                    # If so, we need to determine where the transition occurs and
-                    # calculate the energy at the time of transition to account for
-                    # the energy loss during the radiative evolution before calculating
-                    # the adiabatic solution.
-                    ad = ~rad
+            # Will the transition affect the light curve?
+            if not ((t.min() / 100.0) < t_trans < (t.max() * 100.0)):
+                return spec_rad
 
-                    if ad.any():  # type: ignore
+            # Recalculate adiabatic functions using diminished energy
+            spec_ad = self.spectrum_adiabatic(t, post_rad=True)
 
-                        # Recalculate adiabatic functions using diminished energy
-                        spec_ad = self.spectrum_adiabatic(t, post_rad=True)
+            return self.radiation.rad_to_ad_smooth(t, t_trans, spec_rad, spec_ad)
 
-                        # When does radiative end and adiabatic begin?
-                        t_trans = self.radiation.rad_to_ad_time(self.E / self.lf0)
-
-                        # Transition smoothing
-                        s = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
-                        eff = 1.0 / (1.0 + (t / (t_trans / DAY2SEC)) ** (s * (self.p/2 + 1/3)))
-
-                        # Smooth the spectral functions
-                        spec = {
-                            'p': self.p, 'k': self.k,
-                            'nu_c': eff * spec_rad['nu_c'] + (1.0 - eff) * spec_ad['nu_c'],
-                            'nu_a': eff * spec_rad['nu_a'] + (1.0 - eff) * spec_ad['nu_a'],
-                            'nu_m': eff * spec_rad['nu_m'] + (1.0 - eff) * spec_ad['nu_m'],
-                            'f_peak': eff * spec_rad['f_peak'] + (1.0 - eff) * spec_ad['f_peak'],
-                        }
         return spec
 
     def spectrum_adiabatic(self, t, post_rad=False):

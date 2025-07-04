@@ -11,8 +11,8 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
-#    initial_guess = 0.47
-#    initial_sigma = 0.25
+    initial_guess = 0.47
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #--------------- lfo ---------------
@@ -35,8 +35,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-#    initial_guess = -1.8
-#    initial_sigma = 0.25
+    initial_guess = -1.8
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -48,8 +48,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-#    initial_guess = -0.09
-#    initial_sigma = 0.1
+    initial_guess = -0.09
+    initial_sigma = 0.1
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -61,8 +61,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-#    initial_guess = -0.75
-#    initial_sigma = 0.100
+    initial_guess = -0.75
+    initial_sigma = 0.100
 
 #-------------- MODEL --------------
 #---------------- p ----------------
@@ -74,8 +74,8 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-#    initial_guess = 2.05
-#    initial_sigma = 0.05
+    initial_guess = 2.05
+    initial_sigma = 0.05
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -87,8 +87,8 @@ scale = "linear"
     type  = "uniform"
     lower = -1.0
     upper = 3.0
-#    initial_guess = 1.8
-#    initial_sigma = 0.2
+    initial_guess = 1.8
+    initial_sigma = 0.2
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -121,8 +121,8 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.5
-#    initial_guess = 0.02
-#    initial_sigma = 0.01
+    initial_guess = 0.02
+    initial_sigma = 0.01
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
