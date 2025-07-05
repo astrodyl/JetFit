@@ -18,10 +18,11 @@ def plot_spectral_indices_ampy(ampy, out_dir=None):
     out_dir : Path, optional
         The output directory.
     """
-    plot_spectral_indices(
-        ampy.mcmc.sampler, ampy.obs, ampy.mcmc.params, ampy.afterglow_model,
-        model_kw=ampy.mcmc.models.afg_kw, out_dir=out_dir
-    )
+    if ampy.afterglow_model.__name__ != 'StratifiedFireballModel':
+        plot_spectral_indices(
+            ampy.mcmc.sampler, ampy.obs, ampy.mcmc.params, ampy.afterglow_model,
+            model_kw=ampy.mcmc.models.afg_kw, out_dir=out_dir
+        )
 
 
 def plot_jet_correction_ampy(ampy, out_dir=None):
@@ -169,7 +170,7 @@ class SpectralIndexPlot(Profiler):
 
             # Model the spectral index
             modeled[i] = SpectralIndexModel(**index_spectrum).evaluate(
-                lower, upper, fts=fts, jet=jet
+                lower, upper, fts=fts, jet=jet.subset(np.where(self.obs.times()==time)[0])
             )
 
         return modeled
@@ -211,7 +212,7 @@ class SpectralIndexPlot(Profiler):
 
         # Model the spectral index
         return SpectralIndexModel(**index_spectrum).evaluate(
-            lower, upper, fts=fts, jet=jet
+            lower, upper, fts=fts, jet=jet.subset(np.where(self.obs.times()==time)[0])
         )
 
     def model(self, indices, out_dir=None):

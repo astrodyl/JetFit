@@ -2676,7 +2676,7 @@ class SpectralFluxModel(BaseFluxModel):
 
     def evaluate_sharp(self, nu, jet=None):
         """
-        Models the spectral flux usign a sharply-broken spectrum.
+        Models the spectral flux using a sharply-broken spectrum.
 
         Parameters
         ----------
@@ -2968,11 +2968,11 @@ class SpectralIndexModel(BaseFluxModel):
         model = SpectralFluxModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a)
 
-        # return the spectral index [dimension less]
+        # return the spectral index
         return (
             np.log10(
-                model(upper, fts, jet) /
-                model(lower, fts, jet)
+                model.evaluate(upper, fts, jet) /
+                model.evaluate(lower, fts, jet)
             ) /
             np.log10(upper / lower)
         )

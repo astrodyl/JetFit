@@ -22,8 +22,8 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.0
-    upper = 3.0
+    lower = 1.69
+    upper = 3.00
 
 #-------------- MODEL --------------
 #---------------- n ----------------

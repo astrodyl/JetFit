@@ -11,8 +11,19 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
-#    initial_guess = 1.32
-#    initial_sigma = 0.40
+    initial_guess = 1.1479422928207594
+    initial_sigma = 0.25
+
+#-------------- MODEL --------------
+#--------------- lfo ---------------
+[[model]]
+name  = "lf0"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 2.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #----------- TRANSITION ------------
@@ -25,8 +36,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-#    initial_guess = 0.20
-#    initial_sigma = 1.00
+    initial_guess = 0.7093638440708347
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #----------- TRANSITION ------------
@@ -39,8 +50,8 @@ scale = "log"
     type  = "uniform"
     lower = 15.0
     upper = 19.0
-#    initial_guess = 18.0
-#    initial_sigma = 0.4
+    initial_guess = 16.263273832761737
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -52,8 +63,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-#    initial_guess = -0.38
-#    initial_sigma = 0.2
+    initial_guess = -0.3027786690747221
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -65,8 +76,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-#    initial_guess = -5.64
-#    initial_sigma = 1.0
+    initial_guess = -1.7081007667053187
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #----------------- p ----------------
@@ -78,19 +89,19 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.25
+    initial_guess = 2.0929098471237917
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #--------------- k1 ----------------
 [[model]]
-name  = "k1"
+name  = "k1i"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -3.0
-    upper = 0.0
+    lower = -0.1
+    upper = -1.0
 
 #-------------- MODEL --------------
 #--------------- k2 ----------------
@@ -149,7 +160,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.5
+    upper = 0.2
 #    initial_guess = 0.01
 #    initial_sigma = 0.01
 
