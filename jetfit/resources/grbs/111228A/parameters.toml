@@ -100,8 +100,8 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -0.1
-    upper = -1.0
+    lower = -1.0
+    upper = -0.1
 
 #-------------- MODEL --------------
 #--------------- k2 ----------------

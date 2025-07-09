@@ -160,7 +160,7 @@ class SpectralIndexPlot(Profiler):
 
             # Is there a jet break?
             if hasattr(model, 'jet_break'):
-                jet = model.jet_break(self.obs.times())
+                jet = model.jet_break(np.where(self.obs.times()==time)[0])
             else:
                 jet = None
 
@@ -170,7 +170,7 @@ class SpectralIndexPlot(Profiler):
 
             # Model the spectral index
             modeled[i] = SpectralIndexModel(**index_spectrum).evaluate(
-                lower, upper, fts=fts, jet=jet.subset(np.where(self.obs.times()==time)[0])
+                lower, upper, fts=fts, jet=jet
             )
 
         return modeled
@@ -202,7 +202,7 @@ class SpectralIndexPlot(Profiler):
 
         # Is there a jet break?
         if hasattr(model, 'jet_break'):
-            jet = model.jet_break(self.obs.times())
+            jet = model.jet_break(np.where(self.obs.times()==time)[0])
         else:
             jet = None
 
@@ -212,7 +212,7 @@ class SpectralIndexPlot(Profiler):
 
         # Model the spectral index
         return SpectralIndexModel(**index_spectrum).evaluate(
-            lower, upper, fts=fts, jet=jet.subset(np.where(self.obs.times()==time)[0])
+            lower, upper, fts=fts, jet=jet
         )
 
     def model(self, indices, out_dir=None):

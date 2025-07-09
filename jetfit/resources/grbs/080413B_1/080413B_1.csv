@@ -247,12 +247,12 @@ Time,TimeLower,TimeUpper,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueT
 0.370833333,,,d,0.065463617,0.002946348,0.002946348,mJy,Spectral Flux,3.43E+14,,,Hz,I,I_offset,,slop
 0.383333333,,,d,0.052480746,0.002362023,0.002362023,mJy,Spectral Flux,3.43E+14,,,Hz,I,I_offset,,slop
 0.3975,,,d,0.049203954,0.002645344,0.002645344,mJy,Spectral Flux,3.43E+14,,,Hz,I,I_offset,,slop
-0.005092593,,,d,0.319153786,0.028082074,0.028082074,mJy,Spectral Flux,5.48E+14,,,Hz,uvot-v,uvot-v_offset,,slop
-0.01369213,,,d,0.127057411,0.023304569,0.023304569,mJy,Spectral Flux,5.48E+14,,,Hz,uvot-v,uvot-v_offset,,slop
-0.008414352,,,d,0.107646521,0.051670761,0.051670761,mJy,Spectral Flux,6.83E+14,,,Hz,uvot-b,uvot-b_offset,,slop
-0.009212963,,,d,0.310455959,0.068353054,0.068353054,mJy,Spectral Flux,8.65E+14,,,Hz,uvot-u,uvot-u_offset,,slop
-0.007893519,,,d,0.390840896,0.086051397,0.086051397,mJy,Spectral Flux,1.15E+15,,,Hz,uvw1,uvw1_offset,,slop
-0.009375,,,d,0.214783047,0.075467367,0.075467367,mJy,Spectral Flux,1.33E+15,,,Hz,uvm2,uvm2_offset,,slop
+0.005092593,,,d,0.313347511,0.028860372,0.028860372,mJy,Spectral Flux,5.48E+14,,,Hz,uvot-v,uvot-v_offset,,slop
+0.01369213,,,d,0.124745891,0.025276947,0.025276947,mJy,Spectral Flux,5.48E+14,,,Hz,uvot-v,uvot-v_offset,,slop
+0.008414352,,,d,0.121346219,0.030176279,0.030176279,mJy,Spectral Flux,6.83E+14,,,Hz,uvot-b,uvot-b_offset,,slop
+0.009212963,,,d,0.12133889,0.03017446,0.03017446,mJy,Spectral Flux,8.65E+14,,,Hz,uvot-u,uvot-u_offset,,slop
+0.007893519,,,d,0.09727472,0.0241902,0.0241902,mJy,Spectral Flux,1.15E+15,,,Hz,uvw1,uvw1_offset,,slop
+0.009375,,,d,0.045292495,0.019606487,0.019606487,mJy,Spectral Flux,1.33E+15,,,Hz,uvm2,uvm2_offset,,slop
 137.799,,,s,2.43E-10,4.92E-11,4.92E-11,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,,,slop
 142.695,,,s,3.69E-10,6.80E-11,6.80E-11,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,,,slop
 146.964,,,s,3.44E-10,6.51E-11,6.51E-11,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,,,slop
