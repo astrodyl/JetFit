@@ -143,12 +143,12 @@ class StratifiedFireballModel(BaseFireballModel):
         Calculates the radius traversed by the blast wave
         during time ``t`` in a stratified medium defined by
         the power-law indices ``k1`` and ``k2``, and the radius
-        and density at the transition, ``nt`` and ``rt``.
+        and density at the transition, ``n0t`` and ``rt``.
 
         Parameters
         ----------
         t : float or np.ndarray
-            The observer times [days].
+            The observer-frame time(s) [d].
 
         Returns
         -------
@@ -196,13 +196,13 @@ class StratifiedFireballModel(BaseFireballModel):
 
         Parameters
         ----------
-        t : np.ndarray of float or float
-            The observer time [d].
+        t : float or np.ndarray of float
+            The observer-frame time(s) [d].
 
-        n : np.ndarray of float or float, optional
+        n : float or np.ndarray of float , optional
             The effective density normalization [cm-3].
 
-        k : np.ndarray of float or float, optional
+        k : float or np.ndarray of float, optional
             The effective power law indices.
 
         Returns

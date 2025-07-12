@@ -1,8 +1,8 @@
 # MCMC Parameter Configuriation File
-name = 'FireballModel'
+name = 'StratifiedFireballModel'
 
 #-------------- MODEL --------------
-#--------------- E52 ---------------
+#---------------- E ----------------
 [[model]]
 name  = "E52"
 scale = "log"
@@ -11,9 +11,11 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
+    initial_guess = 1.1479422928207594
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#--------------- lf0 ---------------
+#--------------- lfo ---------------
 [[model]]
 name  = "lf0"
 scale = "log"
@@ -24,15 +26,32 @@ scale = "log"
     upper = 3.0
 
 #-------------- MODEL --------------
-#--------------- n017 --------------
+#----------- TRANSITION ------------
+#--------------- nt ----------------
 [[model]]
-name  = "n017"
+name  = "n0t"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
     lower = -6.0
     upper = 6.0
+    initial_guess = 0.7093638440708347
+    initial_sigma = 0.25
+
+#-------------- MODEL --------------
+#----------- TRANSITION ------------
+#--------------- rt ----------------
+[[model]]
+name  = "rt"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 15.0
+    upper = 19.0
+    initial_guess = 16.263273832761737
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -44,6 +63,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
+    initial_guess = -0.3027786690747221
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -55,6 +76,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
+    initial_guess = -1.7081007667053187
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #----------------- p ----------------
@@ -66,22 +89,49 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.25
+    initial_guess = 2.0929098471237917
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#---------------- k ----------------
+#--------------- k1 ----------------
 [[model]]
-name  = "k"
+name  = "k1i"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
     lower = -1.0
-    upper = 3.0
+    upper = -0.1
 
 #-------------- MODEL --------------
-#--------------- hmf ---------------
+#--------------- k2 ----------------
+[[model]]
+name  = "k2"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 3.0
+#    initial_guess = 0.89
+#    initial_sigma = 0.20
+
+#-------------- MODEL --------------
+#----------- TRANSITION ------------
+#--------------- sni ---------------
+[[model]]
+name  = "sn"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = 1.0
+    upper = 5.0
+#    initial_guess = 2.00
+#    initial_sigma = 0.05
+
+#-------------- MODEL --------------
+#---------------- X ----------------
 [[model]]
 name  = "hmf"
 scale = "linear"
@@ -110,7 +160,9 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.5
+    upper = 0.2
+#    initial_guess = 0.01
+#    initial_sigma = 0.01
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -215,7 +267,7 @@ scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
-    mu    = 0.0
+    mu = 0.0
     sigma = 0.06
 
 #--------------- SLOP --------------

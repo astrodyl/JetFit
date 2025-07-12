@@ -2,7 +2,7 @@
 name = 'FireballModel'
 
 #-------------- MODEL --------------
-#--------------- E52 ---------------
+#---------------- E ----------------
 [[model]]
 name  = "E52"
 scale = "log"
@@ -11,9 +11,11 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
+    initial_guess = 3.90
+    initial_sigma = 1.00
 
 #-------------- MODEL --------------
-#--------------- lf0 ---------------
+#--------------- lfo ---------------
 [[model]]
 name  = "lf0"
 scale = "log"
@@ -21,10 +23,10 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = 1.69
-    upper = 3.0
+    upper = 3.00
 
 #-------------- MODEL --------------
-#--------------- n017 --------------
+#---------------- n ----------------
 [[model]]
 name  = "n017"
 scale = "log"
@@ -33,6 +35,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 6.0
+    initial_guess = 0.29
+    initial_sigma = 1.00
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -44,6 +48,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
+    initial_guess = -3.074
+    initial_sigma = 0.8
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -57,7 +63,7 @@ scale = "log"
     upper = 0.0
 
 #-------------- MODEL --------------
-#----------------- p ----------------
+#---------------- p ----------------
 [[model]]
 name  = "p"
 scale = "linear"
@@ -66,8 +72,8 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.25
-    initial_sigma = 0.25
+    initial_guess = 2.474
+    initial_sigma = 0.2
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -77,11 +83,13 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
+    lower = -2.0
     upper = 3.0
+    initial_guess = 2.233
+    initial_sigma = 0.4
 
 #-------------- MODEL --------------
-#--------------- hmf ---------------
+#---------------- X ----------------
 [[model]]
 name  = "hmf"
 scale = "linear"
@@ -92,14 +100,14 @@ value = 0.7
 [[model]]
 name  = "z"
 scale = "linear"
-value = 0.714
+value = 0.33
 
 #-------------- MODEL --------------
 #---------------- dL ---------------
 [[model]]
 name  = "dL28"
 scale = "linear"
-value = 1.386
+value = 0.552
 
 #----------- EXTINCTION ------------
 #---------- source_frame -----------
@@ -109,48 +117,17 @@ scale = "linear"
 
 [extinction.prior]
     type  = "uniform"
-    lower = 0.0
-    upper = 0.5
+    lower = 0.00
+    upper = 0.4
+    initial_guess = 0.04
+    initial_sigma = 0.04
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
 [[extinction]]
 name  = "ebv_milky_way"
 scale = "linear"
-value = 0.0279
-
-#----------- CALIBRATION -----------
-#-------------- B-band -------------
-[[offsets]] # USNO B1
-name  = "B_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.3
-
-#----------- CALIBRATION -----------
-#-------------- V-band -------------
-[[offsets]]
-name  = "V_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- CALIBRATION -----------
-#-------------- R-band -------------
-[[offsets]]
-name  = "R_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
+value = 0.13
 
 #----------- CALIBRATION -----------
 #-------------- g-band -------------
@@ -196,27 +173,57 @@ scale = "linear"
     mu    = 0.0
     sigma = 0.04
 
-#----------- CALIBRATION -----------
-#-------------- J-band -------------
-[[offsets]]  # 2MASS
-name  = "J_offset"
-scale = "linear"
+#----------- HOST GALAXY -----------
+#-------------- g-band -------------
+[[host]]
+name  = "g_host"
+scale = "log"
 
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
+[host.prior]
+    type = "uniform"
+    lower = -1.8
+    upper = -1.0
+    initial_guess = -1.66
+    initial_sigma = 0.03
 
-#----------- CALIBRATION -----------
-#-------------- K-band -------------
-[[offsets]]  # 2MASS
-name  = "K_offset"
-scale = "linear"
+#----------- HOST GALAXY -----------
+#-------------- r-band -------------
+[[host]]
+name  = "r_host"
+scale = "log"
 
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.06
+[host.prior]
+    type = "uniform"
+    lower = -1.55
+    upper = -1.0
+    initial_guess = -1.43
+    initial_sigma = 0.02
+
+#----------- HOST GALAXY -----------
+#-------------- i-band -------------
+[[host]]
+name  = "i_host"
+scale = "log"
+
+[host.prior]
+    type = "uniform"
+    lower = -1.50
+    upper = -1.0
+    initial_guess = -1.34
+    initial_sigma = 0.02
+
+#----------- HOST GALAXY -----------
+#-------------- z-band -------------
+[[host]]
+name  = "z_host"
+scale = "log"
+
+[host.prior]
+    type = "uniform"
+    lower = -1.40
+    upper = -0.90
+    initial_guess = -1.24
+    initial_sigma = 0.03
 
 #--------------- SLOP --------------
 #--------------- slop --------------
@@ -228,3 +235,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
+    initial_guess = 0.003
+    initial_sigma = 0.01

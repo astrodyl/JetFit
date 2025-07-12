@@ -1,10 +1,9 @@
 # MCMC Configuration File
-model = "boosted_fireball"
 
 [sampler]
-name = 'ensemble'
+name = 'parallel_tempered'
 num_walkers = 100
-burn_length = 500
-run_length  = 500
-#ntemps      = 10
-#workers = 8
+burn_length = 5_000
+run_length  = 5_000
+ntemps      = 10
+#workers     = 4

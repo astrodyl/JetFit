@@ -2,18 +2,20 @@
 name = 'FireballModel'
 
 #-------------- MODEL --------------
-#--------------- E52 ---------------
+#---------------- E ----------------
 [[model]]
 name  = "E52"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
-    upper = 4.0
+    lower = 0.6
+    upper = 2.4
+    initial_guess = 1.69
+    initial_sigma = 0.10
 
 #-------------- MODEL --------------
-#--------------- lf0 ---------------
+#--------------- lfo ---------------
 [[model]]
 name  = "lf0"
 scale = "log"
@@ -21,18 +23,20 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = 1.69
-    upper = 3.0
+    upper = 3.00
 
 #-------------- MODEL --------------
-#--------------- n017 --------------
+#---------------- n ----------------
 [[model]]
 name  = "n017"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
-    upper = 6.0
+    lower = -1.0
+    upper = 2.0
+    initial_guess = 0.07
+    initial_sigma = 0.15
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -42,8 +46,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
-    upper = 0.0
+    lower = -2.4
+    upper = -0.7
+    initial_guess = -1.74
+    initial_sigma = 0.1
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -53,21 +59,23 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -2.4
     upper = 0.0
+    initial_guess = -0.25
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#----------------- p ----------------
+#---------------- p ----------------
 [[model]]
 name  = "p"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.0
-    upper = 3.0
-    initial_guess = 2.25
-    initial_sigma = 0.25
+    lower = 2.15
+    upper = 2.4
+    initial_guess = 2.29
+    initial_sigma = 0.02
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -77,11 +85,13 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
-    upper = 3.0
+    lower = 1.2
+    upper = 2.2
+    initial_guess = 1.828
+    initial_sigma = 0.08
 
 #-------------- MODEL --------------
-#--------------- hmf ---------------
+#---------------- X ----------------
 [[model]]
 name  = "hmf"
 scale = "linear"
@@ -92,14 +102,14 @@ value = 0.7
 [[model]]
 name  = "z"
 scale = "linear"
-value = 0.714
+value = 2.198
 
 #-------------- MODEL --------------
 #---------------- dL ---------------
 [[model]]
 name  = "dL28"
 scale = "linear"
-value = 1.386
+value = 5.52
 
 #----------- EXTINCTION ------------
 #---------- source_frame -----------
@@ -110,41 +120,32 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.5
+    upper = 0.16
+    initial_guess = 0.12
+    initial_sigma = 0.01
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
 [[extinction]]
 name  = "ebv_milky_way"
 scale = "linear"
-value = 0.0279
+value = 0.1205
 
 #----------- CALIBRATION -----------
 #-------------- B-band -------------
-[[offsets]] # USNO B1
+[[offsets]]
 name  = "B_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
-    sigma = 0.3
-
-#----------- CALIBRATION -----------
-#-------------- V-band -------------
-[[offsets]]
-name  = "V_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
+    sigma = 0.04
 
 #----------- CALIBRATION -----------
 #-------------- R-band -------------
 [[offsets]]
-name  = "R_offset"
+name  = "Rc_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -153,70 +154,15 @@ scale = "linear"
     sigma = 0.03
 
 #----------- CALIBRATION -----------
-#-------------- g-band -------------
+#-------------- I-band -------------
 [[offsets]]
-name  = "g_offset"
+name  = "Ic_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
     sigma = 0.03
-
-#----------- CALIBRATION -----------
-#-------------- r-band -------------
-[[offsets]]
-name  = "r_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- CALIBRATION -----------
-#-------------- i-band -------------
-[[offsets]]
-name  = "i_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- CALIBRATION -----------
-#-------------- z-band -------------
-[[offsets]]
-name  = "z_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#-------------- J-band -------------
-[[offsets]]  # 2MASS
-name  = "J_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#-------------- K-band -------------
-[[offsets]]  # 2MASS
-name  = "K_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.06
 
 #--------------- SLOP --------------
 #--------------- slop --------------
@@ -227,4 +173,6 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.2
+    upper = 0.08
+    initial_guess = 0.037
+    initial_sigma = 0.01

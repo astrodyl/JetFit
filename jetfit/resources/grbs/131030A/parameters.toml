@@ -11,7 +11,7 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
-    initial_guess = 2.73209399
+    initial_guess = 1.46845276
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -22,7 +22,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.0
+    lower = 1.69
     upper = 3.0
 
 #-------------- MODEL --------------
@@ -35,7 +35,7 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-    initial_guess = -0.91670499
+    initial_guess = 0.16156396
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -48,7 +48,7 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-    initial_guess = -1.49355303
+    initial_guess = -0.77176278
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -61,7 +61,7 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-    initial_guess = -4.82544551
+    initial_guess = -1.94798736
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -74,7 +74,7 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.4145203515334224
+    initial_guess = 2.0372483307341684
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -85,10 +85,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
+    lower = -1.0
     upper = 3.0
-    initial_guess = -0.351175285688088
-    initial_sigma = 0.1
+    initial_guess = 1.8475128681551616
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -120,7 +120,7 @@ scale = "linear"
 [extinction.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.2
+    upper = 0.5
 #    initial_guess = 0.00465
 #    initial_sigma = 0.004
 

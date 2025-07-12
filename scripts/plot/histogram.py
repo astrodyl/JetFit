@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 
 from jetfit.core.utils import save_plot_unique
 from jetfit.models.base import SpectralIndexModel, has_fts_transition, OpeningAngleModel
+from jetfit.models.jetsim import JetSimpy
 from scripts.plot.base import Profiler
 
 
@@ -18,11 +19,10 @@ def plot_spectral_indices_ampy(ampy, out_dir=None):
     out_dir : Path, optional
         The output directory.
     """
-    if ampy.afterglow_model.__name__ != 'StratifiedFireballModel':
-        plot_spectral_indices(
-            ampy.mcmc.sampler, ampy.obs, ampy.mcmc.params, ampy.afterglow_model,
-            model_kw=ampy.mcmc.models.afg_kw, out_dir=out_dir
-        )
+    plot_spectral_indices(
+        ampy.mcmc.sampler, ampy.obs, ampy.mcmc.params, ampy.afterglow_model,
+        model_kw=ampy.mcmc.models.afg_kw, out_dir=out_dir
+    )
 
 
 def plot_jet_correction_ampy(ampy, out_dir=None):
@@ -65,10 +65,9 @@ def plot_spectral_indices(sampler, obs, params, model, model_kw=None, out_dir=No
     out_dir : Path
         The output directory.
     """
-    if model.__name__ in ('FireballModel', 'JetSimpy'):
-        plotter = SpectralIndexPlot(sampler, params, obs, model, model_kw)
-        plotter.model(obs.data[obs.sindex_loc], out_dir=out_dir)
-        plt.close()
+    plotter = SpectralIndexPlot(sampler, params, obs, model, model_kw)
+    plotter.model(obs.data[obs.sindex_loc], out_dir=out_dir)
+    plt.close()
 
 
 def plot_jet_correction(sampler, params, out_dir=None):
@@ -165,8 +164,11 @@ class SpectralIndexPlot(Profiler):
                 jet = None
 
             # Is there a fast-to-slow transition?
-            full_spectrum = model.spectrum(self.obs.times())
-            fts = has_fts_transition(full_spectrum['nu_m'], full_spectrum['nu_c'])
+            fts = False
+
+            if not isinstance(model, JetSimpy):
+                full_spectrum = model.spectrum(self.obs.times())
+                fts = has_fts_transition(full_spectrum['nu_m'], full_spectrum['nu_c'])
 
             # Model the spectral index
             modeled[i] = SpectralIndexModel(**index_spectrum).evaluate(
@@ -207,8 +209,11 @@ class SpectralIndexPlot(Profiler):
             jet = None
 
         # Is there a fast-to-slow transition?
-        full_spectrum = model.spectrum(self.obs.times())
-        fts = has_fts_transition(full_spectrum['nu_m'], full_spectrum['nu_c'])
+        fts = False
+
+        if not isinstance(model, JetSimpy):
+            full_spectrum = model.spectrum(self.obs.times())
+            fts = has_fts_transition(full_spectrum['nu_m'], full_spectrum['nu_c'])
 
         # Model the spectral index
         return SpectralIndexModel(**index_spectrum).evaluate(

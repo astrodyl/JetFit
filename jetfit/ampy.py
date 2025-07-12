@@ -131,6 +131,7 @@ class Ampy:
         self.mcmc.run(
             nwalkers, iterations, burn, sampler,
             workers, ntemps, sampler_kw, run_kw,
+            resume
         )
         return self.mcmc
 
