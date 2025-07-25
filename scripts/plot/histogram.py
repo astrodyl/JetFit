@@ -20,7 +20,9 @@ def plot_spectral_indices_ampy(ampy, out_dir=None):
         The output directory.
     """
     plot_spectral_indices(
-        ampy.mcmc.sampler, ampy.obs, ampy.mcmc.params, ampy.afterglow_model,
+        ampy.mcmc.sampler.get_chain(flat=True),
+        ampy.mcmc.sampler.get_log_prob(flat=True),
+        ampy.obs, ampy.mcmc.params, ampy.afterglow_model,
         model_kw=ampy.mcmc.models.afg_kw, out_dir=out_dir
     )
 
@@ -38,17 +40,22 @@ def plot_jet_correction_ampy(ampy, out_dir=None):
         The output directory.
     """
     if ampy.afterglow_model.__name__ == 'FireballModel':
-        plot_jet_correction(ampy.mcmc.sampler, ampy.mcmc.params, out_dir=out_dir)
+        plot_jet_correction(
+            ampy.mcmc.sampler.get_chain(flat=True),
+            ampy.mcmc.sampler.get_log_prob(flat=True),
+            ampy.mcmc.params, out_dir=out_dir
+        )
 
 
-def plot_spectral_indices(sampler, obs, params, model, model_kw=None, out_dir=None):
+def plot_spectral_indices(chain, log_prob, obs, params, model, model_kw=None, out_dir=None, best=None):
     """
     Plot the spectral indices from a completed MCMC sampler object.
 
     Parameters
     ----------
-    sampler :
-        The MCMC sampler.
+    chain :
+
+    log_prob :
 
     obs : Observation
         The observational data.
@@ -62,22 +69,25 @@ def plot_spectral_indices(sampler, obs, params, model, model_kw=None, out_dir=No
     model_kw : dict
         Any kwargs used in ``model`` constructor.
 
-    out_dir : Path
+    out_dir : Path, optional
         The output directory.
+
+    best : dict, optional
     """
-    plotter = SpectralIndexPlot(sampler, params, obs, model, model_kw)
-    plotter.model(obs.data[obs.sindex_loc], out_dir=out_dir)
+    plotter = SpectralIndexPlot(chain, log_prob, params, obs, model, model_kw)
+    plotter.model(obs.data[obs.sindex_loc], out_dir=out_dir, best_params=best)
     plt.close()
 
 
-def plot_jet_correction(sampler, params, out_dir=None):
+def plot_jet_correction(chain, log_prob, params, out_dir=None):
     """
     Plot the beam-corrected quantities.
 
     Parameters
     ----------
-    sampler :
-        The MCMC sampler.
+    chain :
+
+    log_prob :
 
     params : Parameters
         The model parameters.
@@ -86,7 +96,7 @@ def plot_jet_correction(sampler, params, out_dir=None):
         The output directory.
     """
     if params.has('tj'):
-        plotter = Beaming(sampler, params)
+        plotter = Beaming(chain, log_prob, params)
         plotter.beaming(out_dir=out_dir)
         plt.close()
 
@@ -99,9 +109,6 @@ class SpectralIndexPlot(Profiler):
 
     Parameters
     ----------
-    sampler :
-        The MCMC sampler.
-
     params : Parameters
         The model parameters.
 
@@ -111,16 +118,19 @@ class SpectralIndexPlot(Profiler):
     model :
         The afterglow model class.
 
+    chain : , optional
+        The chain.
+
     model_kw : dict
         Any kwargs used in ``model`` constructor.
     """
-    def __init__(self, sampler, params, obs, model, model_kw=None):
-        super().__init__(sampler, params)
+    def __init__(self, chain, log_prob, params, obs, model, model_kw=None):
+        super().__init__(chain, log_prob, params)
         self.afterglow_model = model
         self.model_kw = model_kw or {}
         self.obs = obs
 
-    def evaluate(self, time, lower, upper, thin=10, nsamps=100):
+    def evaluate(self, time, lower, upper, nsamps=100):
         """
         Evaluates the spectral index model for each
         randomly drawn set of parameters from the
@@ -137,9 +147,6 @@ class SpectralIndexPlot(Profiler):
         upper : float
             The upper integration bound [Hz].
 
-        thin : int, optional, default=10
-            Take only every `thin` steps from the chain.
-
         nsamps : int, optional, default=200
             Number of samples to draw.
 
@@ -148,7 +155,7 @@ class SpectralIndexPlot(Profiler):
         np.ndarray
             The evaluated spectral index values.
         """
-        samples = self.draw(thin, nsamps)
+        samples = self.draw(nsamps)
         modeled = np.full(len(samples), np.nan)
 
         for i, s in enumerate(samples):
@@ -177,7 +184,7 @@ class SpectralIndexPlot(Profiler):
 
         return modeled
 
-    def evaluate_best(self, time, lower, upper):
+    def evaluate_best(self, time, lower, upper, best=None):
         """
         Evaluates the spectral index model using the
         maximum likelihood values.
@@ -193,20 +200,25 @@ class SpectralIndexPlot(Profiler):
         upper : float
             The upper integration bound [Hz].
 
+        best : dict, optional
+
         Returns
         -------
         float
             The most likely spectral index value.
         """
-        best  = self.best(cat='model')
-        model = self.afterglow_model(**best.get('model'))
+        if best is None:
+            best = self.best(cat='model').get('model')
+
+        model = self.afterglow_model(**best)
         index_spectrum = model.spectrum(time)
 
         # Is there a jet break?
+        jet = None
+
         if hasattr(model, 'jet_break'):
             jet = model.jet_break(np.where(self.obs.times()==time)[0])
-        else:
-            jet = None
+
 
         # Is there a fast-to-slow transition?
         fts = False
@@ -220,7 +232,7 @@ class SpectralIndexPlot(Profiler):
             lower, upper, fts=fts, jet=jet
         )
 
-    def model(self, indices, out_dir=None):
+    def model(self, indices, out_dir=None, best_params=None):
         """
         Calculates and plots the spectral index distribution
         for each provided spectral index.
@@ -233,6 +245,8 @@ class SpectralIndexPlot(Profiler):
 
         out_dir : Path, optional
             The output directory to save the figures.
+
+        best_params : dict, optional
         """
         for index in indices:
 
@@ -242,13 +256,13 @@ class SpectralIndexPlot(Profiler):
             upper = index.int_range.upper.to_value('Hz')
 
             # Get a distribution of values and the best value
-            best = self.evaluate_best(time, lower, upper)
+            best = self.evaluate_best(time, lower, upper, best_params)
             distribution = self.evaluate(time, lower, upper)
 
             # Create the various AMAZING plots
-            self.plot_hist(distribution, best, index, out_dir=out_dir)
+            self.plot_hist(distribution, best, index, time, out_dir=out_dir)
 
-    def plot_hist(self, dist, best, truth, title=None, out_dir=None):
+    def plot_hist(self, dist, best, truth, time, out_dir=None):
         """
         Plots the distribution of spectral index values.
         Over-plots with the best fit value and truth value.
@@ -264,8 +278,8 @@ class SpectralIndexPlot(Profiler):
         truth : SpectralIndex
             The accepted spectral index.
 
-        title : str, optional
-            The title of the plot.
+        time : float
+            The time of the measurement.
 
         out_dir : Path, optional
             The directory to save the figures.
@@ -280,14 +294,14 @@ class SpectralIndexPlot(Profiler):
         )
 
         # Configure the plot
-        plt.title(title if title else 'Spectral Index Distribution')
+        plt.title(f't = {round(time, 2)} days post trigger')
         plt.xlabel('Spectral Index')
         plt.ylabel('Count')
-        plt.legend(loc='best')
+        plt.legend()
         plt.grid(alpha=0.3)
 
         if out_dir is not None:
-            save_plot_unique('index_dist', 'png', str(out_dir), dpi=1200)
+            save_plot_unique('index_dist', 'pdf', str(out_dir), dpi=400)
         plt.close()
 
     @staticmethod
@@ -316,9 +330,7 @@ class SpectralIndexPlot(Profiler):
             'linestyle': '--',
         } | kwargs
 
-        plt.axvline(
-            val, label=f'True Value: {val} (+{up}, -{l})', **options
-        )
+        plt.axvline(val, label='XRT', **options)
 
         # Plot the uncertainty as a shaded region
         plt.axvspan(val - l, val + up, color=options.get('color'), alpha=0.2)
@@ -345,7 +357,7 @@ class SpectralIndexPlot(Profiler):
 
         val = round(val, 4)
 
-        plt.axvline(val, label=f'Best-fit Value: {val}', **options)
+        plt.axvline(val, label='Minimized', **options)
 
     @staticmethod
     def plot_distribution(dist, **kwargs):
@@ -380,14 +392,12 @@ class Beaming(Profiler):
 
     Parameters
     ----------
-    sampler :
-        The MCMC sampler.
 
     params : Parameters
         The model parameters.
     """
-    def __init__(self, sampler, params):
-        super().__init__(sampler, params)
+    def __init__(self, chain, log_prob, params):
+        super().__init__(chain, log_prob, params)
 
     def beaming(self, out_dir=None):
         """
@@ -399,7 +409,7 @@ class Beaming(Profiler):
         out_dir : Path, optional
             The output directory to save the figures.
         """
-        samples = self.draw(thin=10, nsamps=100)
+        samples = self.draw(nsamps=100)
 
         angles = np.full(len(samples), np.nan)
         energies = np.full(len(samples), np.nan)
@@ -427,15 +437,17 @@ class Beaming(Profiler):
         best_en = (1 - np.cos(best_ang)) * best_samp['E52']
 
         # Plot the jet opening angle distribution
-        title = f"Jet Opening Angle Distribution"
+        title = None
+        # title = f"Jet Opening Angle Distribution"
 
         self.plot_histogram(
             angles, round(best_ang, 3), title,
-            'Jet Opening Angle', 'angle_dist', out_dir
+            'Jet Opening Angle [rad]', 'angle_dist', out_dir
         )
+        plt.close()
 
         # Plot the beaming-corrected energy distribution
-        title = f"Beaming-Corrected Energy Distribution"
+        # title = f"Beaming-Corrected Energy Distribution"
 
         self.plot_histogram(
             np.log10(energies), round(np.log10(best_en), 3), title,
@@ -475,21 +487,21 @@ class Beaming(Profiler):
 
         plt.axvline(  # Plot the best fit value
             best, color='red', linestyle='--',
-            linewidth=2, label=f'Best-fit Value: {best}'
+            linewidth=2, label='Minimized'
         )
 
         # Plot the count above each bar
-        for ct, l, r in zip(cts, bins[:-1], bins[1:]):
-            if int(ct) != 0:
-                plt.text((l + r) / 2, ct + 0.1, str(int(ct)), ha='center', va='bottom')
+        # for ct, l, r in zip(cts, bins[:-1], bins[1:]):
+        #     if int(ct) != 0:
+        #         plt.text((l + r) / 2, ct + 0.1, str(int(ct)), ha='center', va='bottom')
 
         # Configure the plot
-        plt.title(title if title else 'Distribution')
+        plt.title(title)
         plt.xlabel(x_label)
         plt.ylabel('Count')
         plt.legend(loc='best')
         plt.grid(alpha=0.3)
 
         if out_dir is not None:
-            save_plot_unique(fn, 'png', str(out_dir), dpi=1200)
+            save_plot_unique(fn, 'pdf', str(out_dir), dpi=800)
 # </editor-fold>

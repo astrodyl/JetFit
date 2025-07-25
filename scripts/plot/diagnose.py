@@ -82,9 +82,10 @@ def plot_corner(chain, params, out_dir=None):
     out_dir : Path, optional
         The directory to save the results.
     """
-    ranges, bins, labels, pos = [], [], [], []
-    h_ranges, h_bins, h_labels, h_pos = [], [], [], []
-    np_ranges, np_bins, np_labels, np_pos = [], [], [], []
+    bins = 50
+    ranges, labels, pos = [], [], []
+    h_ranges, h_labels, h_pos = [], [], []
+    np_ranges, np_labels, np_pos = [], [], []
     param_pos = {}
 
     for i, p in enumerate(params):
@@ -95,49 +96,41 @@ def plot_corner(chain, params, out_dir=None):
     for p in params:
         name = p.name if p.group is None else f'{p.name} ({p.group})'
 
+        if name == 'lf0':
+            continue
+
         if '_offset' in name or 'slop' in name:
             np_ranges.append((p.prior.lower, p.prior.upper))
             np_labels.append(latex(name))
             np_pos.append(param_pos[name])
-            np_bins.append(50)
 
         elif '_host' in name:
             h_ranges.append((p.prior.lower, p.prior.upper))
             h_labels.append(latex(name))
             h_pos.append(param_pos[name])
-            h_bins.append(50)
 
         else:
             ranges.append((p.prior.lower, p.prior.upper))
             labels.append(latex(name))
             pos.append(param_pos[name])
-            bins.append(50)
 
     # Physical parameters
     if ranges:
-        fig = corner.corner(
-            chain[:, pos], bins=bins,
-            labels=labels, range=ranges, **OPTIONS,
-        )
-        if out_dir:
-            fig.savefig(out_dir / 'corner.png')
+        fig = corner.corner(chain[:, pos], bins=bins, labels=labels, **OPTIONS,)
+        if out_dir: fig.savefig(out_dir / 'corner.pdf', dpi=300)
 
     # Non-physical parameters
     if np_ranges:
         np_fig = corner.corner(
-            chain[:, np_pos], bins=np_bins,
+            chain[:, np_pos], bins=bins,
             labels=np_labels, range=np_ranges, **OPTIONS
         )
         if out_dir:
-            np_fig.savefig(out_dir / 'corner_np.png')
+            np_fig.savefig(out_dir / 'corner_np.pdf', dpi=300)
 
     # Host galaxy parameters
     if h_ranges:
-        h_fig = corner.corner(
-            chain[:, h_pos], bins=h_bins,
-            labels=h_labels, range=h_ranges, **OPTIONS
-        )
-        if out_dir:
-            h_fig.savefig(out_dir / 'corner_host.png')
+        h_fig = corner.corner(chain[:, h_pos], bins=bins, labels=h_labels, **OPTIONS)
+        if out_dir: h_fig.savefig(out_dir / 'corner_host.pdf', dpi=300)
 
     plt.close()

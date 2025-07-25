@@ -173,6 +173,6 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.08
+    upper = 0.2
     initial_guess = 0.037
     initial_sigma = 0.01

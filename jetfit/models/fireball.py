@@ -157,7 +157,7 @@ class StratifiedFireballModel(BaseFireballModel):
         """
         bwm1 = BlastWaveModel(self.E52, self.n0t, self.k1, ref=self.rt)
         bwm2 = BlastWaveModel(self.E52, self.n0t, self.k2, ref=self.rt)
-        t_decel = bwm1.decel_time() / DAY2SEC
+        t_decel = bwm1.decel_time(self.lf0 or 300.0) / DAY2SEC
 
         r1 = bwm1.shock_radius(self.z, t, t_decel)
         r2 = bwm2.shock_radius(self.z, t, t_decel)
@@ -199,7 +199,7 @@ class StratifiedFireballModel(BaseFireballModel):
         t : float or np.ndarray of float
             The observer-frame time(s) [d].
 
-        n : float or np.ndarray of float , optional
+        n : float or np.ndarray of float, optional
             The effective density normalization [cm-3].
 
         k : float or np.ndarray of float, optional
@@ -595,7 +595,7 @@ class FireballModel(BaseFireballModel):
             The radii traversed by the blast wave [cm].
         """
         bwm = BlastWaveModel(self.E52, self.n017, self.k)
-        return bwm.shock_radius(self.z, t, bwm.decel_time() / DAY2SEC)
+        return bwm.shock_radius(self.z, t, bwm.decel_time(self.lf0 or 300.0) / DAY2SEC)
 
     def spectrum(self, t):
         """

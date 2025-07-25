@@ -62,11 +62,12 @@ class Ampy:
         # Pre-compute Milky Way extinction (temporary implementation)
         ext_mw_pc = None
         for p in params.fixed:
-            if p.name == 'ebv_milky_way':
-                ext_mw_pc = CCM89(Rv=3.1).extinguish(
-                    obs.as_arrays.wave_numbers[obs.extinguishable],
-                    Ebv=p.value
-                )
+            if not params.has('rv_milky_way'):
+                if p.name == 'ebv_milky_way':
+                    ext_mw_pc = CCM89(Rv=3.1).extinguish(
+                        obs.as_arrays.wave_numbers[obs.extinguishable],
+                        Ebv=p.value
+                    )
 
         # MCMC model wrapper
         model = model_factory(params.model)

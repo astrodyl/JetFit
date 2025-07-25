@@ -14,11 +14,11 @@ OPTION_MAP = {
     'K': {'color': '#FE2712', 'marker': '.'},
 
     # SDSS Optical (squares)
-    'u': {'color': 'tab:purple', 'marker': 's'},
-    'g': {'color': 'tab:blue',   'marker': 's'},
-    'r': {'color': 'tab:orange', 'marker': 's'},
-    'i': {'color': 'tab:red',    'marker': 's'},
-    'z': {'color': 'tab:pink',   'marker': 's'},
+    'u': {'color': 'tab:purple', 'marker': '.'},
+    'g': {'color': 'tab:blue',   'marker': '.'},
+    'r': {'color': 'tab:orange', 'marker': '.'},
+    'i': {'color': 'tab:red',    'marker': '.'},
+    'z': {'color': 'tab:pink',   'marker': '.'},
 
     # Swift Optical/UV/XRAY (diamonds, hexagons)
     'uvot-u': {'color': 'cyan',       'marker': '.'},
@@ -41,10 +41,13 @@ OPTION_MAP = {
     'Kc': {'color': 'palevioletred', 'marker': '.'},
     'Kd': {'color': 'lightcoral', 'marker': '.'},
     'W': {'color': 'teal', 'marker': '.'},
-    'S': {'color': 'teal', 'marker': '.'},
+    'S': {'color': 'teal', 'marker': 'v'},
 }
 
 # Aliases
+OPTION_MAP['r2'] = OPTION_MAP['r']
+OPTION_MAP['i2'] = OPTION_MAP['i']
+OPTION_MAP['z2'] = OPTION_MAP['z']
 OPTION_MAP['Rc'] = OPTION_MAP['R']
 OPTION_MAP['Ic'] = OPTION_MAP['I']
 OPTION_MAP['Ks'] = OPTION_MAP['K']
@@ -69,24 +72,25 @@ def latex(key: str) -> str:
     str
         The LaTeX formatted ``key`` or just ``key``
     """
+    if '_host' in key:
+        return r'$log_{10}$(' + f'{key.split('_')[0]}' + r'$_{host}$)'
+
     if '_offset' in key:
         return r'$\delta_{' + f'{key.split('_')[0]}' r'}$'
 
-    if 'rho0' in key:
-        return key.replace('rho0', r'$log_{10}n_{17}$')
-
     try:
         return {
+            'slop': r'$\sigma$',
+            'slop_uvot': r'$\sigma_{uvot}$',
+            'slop_other': r'$\sigma_{other}$',
+
             # Jetsimpy
             'Eiso': r'$log_{10}E_{iso}$',
-            'lf': r'$\Gamma$',
+            'lf': r'$log_{10}\Gamma$',
             'theta_c': r'$\theta_c$',
             'theta_v': r'$\theta_v$',
-
-            # Boosted Fireball Model
-            'eta': r'$\eta_0$',
-            'gamma_b': r'$\gamma_B$',
-            'obs_angle': r'$\theta_{obs}$',
+            'A': r'$log_{10}A$',
+            'n0': r'$log_{10}n_0$',
 
             # Stratified Fireball Model
             'n0t': r'$log_{10}n_{0, t}$',
@@ -94,11 +98,13 @@ def latex(key: str) -> str:
             'k1': r'$k_{pre}$',
             'k2': r'$k_{post}$',
             'sn': r'$s_n$',
+            'sni': r'$s_n^{-1}$',
             'sj': r'$s_j$',
+            'sji': r'$s_j^{-1}$',
             'tj': r'$log_{10}t_j$',
 
             # Generic Fireball Model
-            'lf0': r'$\Gamma_0$',
+            'lf0': r'$log_{10}\Gamma_0$',
             'E52': r'$log_{10}E_{52}$',
             'eps_e': r'$log_{10}\epsilon_e$',
             'eps_b': r'$log_{10}\epsilon_B$',
@@ -116,8 +122,7 @@ class Profiler:
 
     Parameters
     ----------
-    sampler : emcee.EnsembleSampler
-        The emcee sampler to draw samples from.
+
 
     params : Parameters
         The `Parameter` object used when running the
@@ -130,23 +135,21 @@ class Profiler:
 
     best_options = {
         'linewidth': 2, 'linestyle': '-',
-        'color': 'tab:orange', 'label': 'Best Profile'
+        'color': 'tab:orange', 'label': 'Minimized'
     }
 
-    def __init__(self, sampler, params):
-        self.sampler = sampler
-        self.params  = params
+    def __init__(self, chain, log_prob, params):
+        self.chain = chain
+        self.log_prob = log_prob
+        self.params = params
 
-    def draw(self, thin=1, nsamps=100):
+    def draw(self, nsamps=100):
         """
         Randomly draws `nsamps` sets of samples from
         the `sampler`.
 
         Parameters
         ----------
-        thin : int, optional, default=1
-            Take only every `thin` steps from the chain.
-
         nsamps : int, optional, default=100
             Number of samples to draw.
 
@@ -155,9 +158,7 @@ class Profiler:
         np.ndarray
             The randomly drawn sets of sampled values.
         """
-        flat_chain = self.sampler.get_chain(flat=True, thin=thin)
-        indices = np.random.randint(len(flat_chain), size=nsamps)
-        return flat_chain[indices]
+        return self.chain[np.random.randint(len(self.chain), size=nsamps)]
 
     def best(self, **kwargs):
         """
@@ -173,8 +174,7 @@ class Profiler:
         np.ndarray or dict
             The highest likelihood set of parameters.
         """
-        max_index = np.nanargmax(self.sampler.get_log_prob(flat=True))
-        params = self.sampler.get_chain(flat=True)[max_index]
+        params = self.chain[np.nanargmax(self.log_prob)]
         return self.params.samples_to_dict(params, **kwargs)
 
     def plot(

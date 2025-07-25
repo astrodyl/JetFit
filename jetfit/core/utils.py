@@ -100,9 +100,12 @@ class CSVReader:
         'ValueLower', 'ValueUpper', 'ValueUnits'
     )
 
-    def __init__(self, path: str | Path):
+    def __init__(self, path: str | Path, sort=True):
         df = pd.read_csv(path)
-        self.df = self._sort(df)
+        if sort:
+            self.df = self._sort(df)
+        else:
+            self.df = df
 
     @staticmethod
     def _sort(df):

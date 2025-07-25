@@ -27,7 +27,7 @@ def parse_args():
 def log(ampy, out_dir):
     """
     Write the best parameters and sampler metadata
-    to a json file.
+    to a JSON file.
 
     Parameters
     ----------
@@ -57,7 +57,7 @@ def plot_results(ampy, results_dir, event):
     """
     Plot the results of the MCMC run.
 
-    This includes; trace plots, corner plot, characteristic
+    This includes trace plots, corner plot, characteristic
     frequencies, light curve, jet-corrected parameters,
     spectral indices, and density profiles.
 
@@ -84,7 +84,7 @@ def plot_results(ampy, results_dir, event):
     histogram.plot_jet_correction_ampy(ampy, out_dir=results_dir)
 
     # Plot the MCMC diagnostics!
-    diagnose.plot_corner(ampy.mcmc.sampler.get_chain(flat=True), params.fitting, results_dir)
+    diagnose.plot_corner(ampy.mcmc.sampler.get_chain(flat=True), params.fitting, out_dir=results_dir)
 
     if ampy.mcmc.burn_chain is not None:
         diagnose.plot_trace(params, out_dir=results_dir, chain=ampy.mcmc.burn_chain)
@@ -176,7 +176,7 @@ if __name__ == "__main__":
 
     # Specify the event to run
     if args.event is None:
-        event_name = '090618'
+        event_name = '080319B'
     else:
         event_name = args.event
 

@@ -141,7 +141,7 @@ value = 1.3021
 #----------- CALIBRATION -----------
 #------------- g1-band -------------
 [[offsets]]
-name  = "g1_offset"
+name  = "g_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -152,7 +152,7 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #------------- r1-band -------------
 [[offsets]]
-name  = "r1_offset"
+name  = "r_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -163,7 +163,7 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #------------- i1-band -------------
 [[offsets]]
-name  = "i1_offset"
+name  = "i_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -174,7 +174,7 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #------------- z1-band -------------
 [[offsets]]
-name  = "z1_offset"
+name  = "z_offset"
 scale = "linear"
 
 [offsets.prior]

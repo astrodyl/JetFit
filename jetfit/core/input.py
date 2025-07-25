@@ -157,6 +157,15 @@ class ObsArray:
         )
 
 
+def filter_dict(d, mask):
+    """"""
+    if d is not None:
+        return {
+            key: np.array(vals)[mask]
+            for key, vals in d.items()
+        }
+
+
 class Observation:
     """
     Time series of flux measurements.
@@ -164,27 +173,66 @@ class Observation:
     Parameters
     ----------
     data : np.ndarray
-        The  SpectralFlux, IntegratedFlux, SpectralIndex values.
+        The SpectralFlux, IntegratedFlux, SpectralIndex values.
 
     offsets : dict, optional
-        <offset names> : <np.ndarray of where to apply offset>.
+        <offset names>: <np.ndarray of where to apply offset>.
 
     hosts : dict, optional
-        <host names> : <np.ndarray of where to apply host correction>.
+        <host names>: <np.ndarray of where to apply host correction>.
 
     slops : dict, optional
-        <slop names> : <np.ndarray of where the slop is applies>.
+        <slop names>: <np.ndarray of where the slop is applies>.
+
+    include : np.ndarray, optional
+        Should the data be included when modeling?
     """
-    def __init__(self, data, offsets=None, hosts=None, slops=None):
-        self._as_arrays = ObsArray.from_data(data)
-        self._data = data
+    def __init__(self, data, offsets=None, hosts=None, slops=None, include=None):
+        self._all_data = data
+        self._all_offsets = offsets
 
-        # Groups
-        self.offsets = offsets
-        self.slops = slops
-        self.hosts = hosts
+        self.include = include
+        self._included_data = data[include == 1]
 
-        self.length = len(data)
+        # Create convenient, fast arrays
+        self._as_arrays = ObsArray.from_data(self._included_data)
+
+        # Excluded stuff
+        self._excluded_data = data[self.include == 0]
+        self._excluded_offsets = filter_dict(offsets, include == 0)
+
+        # Included Groups
+        self.offsets = filter_dict(offsets, include == 1)
+        self.slops = filter_dict(slops, include == 1)
+        self.hosts = filter_dict(hosts, include == 1)
+
+        self.length = len(self._included_data)
+
+    def get_data(self, subset='all'):
+        """ Returns the data. """
+        if subset not in (valid := ('included', 'excluded', 'all')):
+            raise ValueError(f'subset must be one of: {valid}')
+
+        if subset == 'included':
+            return self._included_data
+
+        if subset == 'excluded':
+            return self._excluded_data
+
+        return self._all_data
+
+    def get_offsets(self, subset='all'):
+        """ Returns the offsets. """
+        if subset not in (valid := ('included', 'excluded', 'all')):
+            raise ValueError(f'subset must be one of: {valid}')
+
+        if subset == 'included':
+            return self.offsets
+
+        if subset == 'excluded':
+            return self._excluded_offsets
+
+        return self._all_offsets
 
     @classmethod
     def from_csv(cls, path: str | Path):
@@ -206,12 +254,15 @@ class Observation:
         def init_dict(group: str) -> dict:
             """ Initialize group dictionary. """
             return {
-                cg : [False for _ in range(len(csv.df))]
+                cg : np.zeros(len(csv.df), dtype=bool)
                 for cg in csv.df[group].unique() if isinstance(cg, str)
             }
 
         # Handle optional columns
         slops, offsets, hosts = None, None, None
+
+        # Default to modeling all data
+        include = np.ones(len(csv.df))
 
         if 'CalGroup' in csv.df.columns.values:
             offsets = init_dict('CalGroup')
@@ -224,6 +275,9 @@ class Observation:
 
         data = []
         for row in csv.rows():
+
+            if hasattr(row, 'Include') and isinstance(row.Include, int):
+                include[row.Index] = row.Include
 
             # Parse data
             data_type = row.ValueType.lower()
@@ -253,7 +307,7 @@ class Observation:
             if slops and isinstance(row.SlopGroup, str):
                 slops[row.SlopGroup][row.Index] = True
 
-        return cls(np.asarray(data, dtype=object), offsets, hosts, slops)
+        return cls(np.asarray(data, dtype=object), offsets, hosts, slops, include)
 
     @property
     def data(self) -> np.ndarray:
@@ -267,7 +321,7 @@ class Observation:
         -------
         np.ndarray
         """
-        return self._data
+        return self._included_data
 
     @property
     def as_arrays(self) -> ObsArray:
@@ -351,6 +405,47 @@ class Observation:
         if quant:
             return np.asarray([d.int_range.upper for d in self.data])
         return self.as_arrays.int_upper
+
+    def epoch(self, mask=None):
+        """
+
+        Parameters
+        ----------
+        mask : np.ndarray of bool, optional
+
+        Returns
+        -------
+        np.ndarray
+        """
+        times = self.as_arrays.times
+
+        if mask is not None:
+            times = times[mask]
+
+        return np.array([times.min(), times.max()])
+
+    def bands(self, unique=False, mask=None):
+        """
+
+        Parameters
+        ----------
+        unique : bool, optional, default=False
+
+        mask : np.ndarray, optional, default=None
+
+        Returns
+        -------
+        np.ndarray
+        """
+        bands = self.as_arrays.bands
+
+        if mask is not None:
+            bands = bands[mask]
+
+        return (
+            bands if not unique else
+            np.unique(bands, return_index=True)
+        )
 
     @property
     def flux_loc(self) -> np.array:

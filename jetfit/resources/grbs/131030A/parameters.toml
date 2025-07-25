@@ -218,5 +218,3 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
-#    initial_guess = 0.044
-#    initial_sigma = 0.02

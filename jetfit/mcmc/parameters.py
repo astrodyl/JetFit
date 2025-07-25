@@ -194,11 +194,11 @@ class MCMCParameter:
         The data group of the parameter.
     """
     def __init__(
-            self,
-            name: str,
-            scale: ScaleType,
-            category: str,
-            group: str = None
+        self,
+        name: str,
+        scale: ScaleType,
+        category: str,
+        group: str = None
     ):
         self.name = name
         self.scale = scale
@@ -291,12 +291,12 @@ class MCMCFittingParameter(MCMCParameter):
         The prior probability distribution.
     """
     def __init__(
-            self,
-            name: str,
-            scale: ScaleType,
-            prior,
-            category: str,
-            group: str = None
+        self,
+        name: str,
+        scale: ScaleType,
+        prior,
+        category: str,
+        group: str = None
     ):
         MCMCParameter.__init__(self, name, scale, category, group)
         self.prior = prior

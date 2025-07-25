@@ -1,11 +1,86 @@
 import numpy as np
 from astropy import units as u
 from matplotlib import pyplot as plt
+from synphot import SpectralElement
 
 from jetfit.core.structs import DataType
 from jetfit.core.utils import save_plot_unique, days_to_sec, sec_to_days
 from jetfit.models.base import has_fts_transition
 from scripts.plot.base import OPTION_MAP, Profiler
+
+EFF_WL = {
+    'U': SpectralElement.from_filter('johnson_u').pivot(),
+    'B': SpectralElement.from_filter('johnson_b').pivot(),
+    'V': SpectralElement.from_filter('johnson_v').pivot(),
+    'R': SpectralElement.from_filter('johnson_r').pivot(),  # 6899 AA
+    'I': SpectralElement.from_filter('johnson_i').pivot(),
+    'J': SpectralElement.from_filter('bessel_j').pivot(),
+    'H': SpectralElement.from_filter('bessel_h').pivot(),
+    'K': SpectralElement.from_filter('bessel_k').pivot(),
+    'Rc': SpectralElement.from_filter('cousins_r').pivot(),
+    'Ic': SpectralElement.from_filter('cousins_i').pivot(),
+
+    # SDSS
+    'u' : u.Quantity(3540.0, unit='AA'),
+    'g' : u.Quantity(4770.0, unit='AA'),
+    'r' : u.Quantity(6231.0, unit='AA'),
+    'i' : u.Quantity(7625.0, unit='AA'),
+    'z' : u.Quantity(9134.0, unit='AA'),
+
+    # Swift-UVOT wavelengths
+    'uvw2': u.Quantity(1928.0, unit='AA'),
+    'uvm2': u.Quantity(2246.0, unit='AA'),
+    'uvw1': u.Quantity(2600.0, unit='AA'),
+    'uvot-u': u.Quantity(3465.0, unit='AA'),
+    'uvot-b': u.Quantity(4392.0, unit='AA'),
+    'uvot-v': u.Quantity(5468.0, unit='AA'),
+
+    # RADIO/MM
+    'S': u.Quantity(8.6896e6, unit='AA'),
+    'Ka': u.Quantity(2.29e11, unit='Hz').to('AA', equivalencies=u.spectral()),
+    'Kb': u.Quantity(2.72e11, unit='Hz').to('AA', equivalencies=u.spectral()),
+    'Kc': u.Quantity(2.90e11, unit='Hz').to('AA', equivalencies=u.spectral()),
+    'Kd': u.Quantity(3.41e11, unit='Hz').to('AA', equivalencies=u.spectral()),
+    'W': u.Quantity(9.70E+10, unit='Hz').to('AA', equivalencies=u.spectral()),
+
+    # HST
+    'F125W': u.Quantity(2.4e14 , unit='Hz').to('AA', equivalencies=u.spectral()),
+    'F775W': u.Quantity(3.9e14 , unit='Hz').to('AA', equivalencies=u.spectral()),
+}
+
+# aliases
+EFF_WL['r2'] = EFF_WL['r']
+EFF_WL['i2'] = EFF_WL['i']
+EFF_WL['z2'] = EFF_WL['z']
+EFF_WL['Ks'] = EFF_WL['K']
+EFF_WL['uprime'] = EFF_WL['u']
+EFF_WL['gprime'] = EFF_WL['g']
+EFF_WL['rprime'] = EFF_WL['r']
+EFF_WL['iprime'] = EFF_WL['i']
+EFF_WL['zprime'] = EFF_WL['z']
+EFF_WL['uvot-uvw2'] = EFF_WL['uvw2']
+EFF_WL['uvot-uvm2'] = EFF_WL['uvm2']
+EFF_WL['uvot-uvw1'] = EFF_WL['uvw1']
+EFF_WL['xray'] = (1e17 * u.Hz).to('AA', equivalencies=u.spectral())
+
+
+LABELS = {
+    # OPTICAL
+    'Ic': 'I', 'Rc': 'R',
+
+    # RADIO
+    'Ka': r'$K_a$', 'Kb': r'$K_b$',
+    'Kc': r'$K_c$', 'Kd': r'$K_d$',
+    'S': '345 GHz',
+
+    # UVOT
+    'uvot-u': 'UVOT-u', 'uvot-b': 'UVOT-b',
+    'uvot-v': 'UVOT-v', 'uvw1': 'UVOT-uvw1',
+    'uvm2': 'UVOT-uvm2', 'uvw2': 'UVOT-uvw2',
+
+    # XRT
+    'xray': 'XRT'
+}
 
 
 def plot_frequencies_ampy(ampy, out_dir=None):
@@ -22,7 +97,9 @@ def plot_frequencies_ampy(ampy, out_dir=None):
         The output directory.
     """
     return plot_frequencies(
-        ampy.mcmc.sampler, ampy.obs, ampy.mcmc.params, ampy.afterglow_model,
+        ampy.mcmc.sampler.get_chain(flat=True),
+        ampy.mcmc.sampler.get_log_prob(flat=True),
+        ampy.obs, ampy.mcmc.params, ampy.afterglow_model,
         model_kw=ampy.mcmc.models.afg_kw, out_dir=out_dir
     )
 
@@ -67,20 +144,23 @@ def plot_density_profile_ampy(ampy, out_dir=None):
         The output directory.
     """
     plot_density_profile(
-        ampy.mcmc.sampler, ampy.mcmc.params, ampy.obs, ampy.afterglow_model,
+        ampy.mcmc.sampler.get_chain(flat=True),
+        ampy.mcmc.sampler.get_log_prob(flat=True),
+        ampy.mcmc.params, ampy.obs, ampy.afterglow_model,
         model_kw=ampy.mcmc.models.afg_kw, out_dir=out_dir
     )
 
 
-def plot_frequencies(sampler, obs, params, model, model_kw=None, out_dir=None):
+def plot_frequencies(chain, log_prob, obs, params, model, model_kw=None, best=None, out_dir=None):
     """
     Plot a distribution of characteristic frequencies using
     randomly indexed MCMC samples.
 
     Parameters
     ----------
-    sampler :
-        The MCMC sampler.
+    chain :
+
+    log_prob :
 
     obs : Observation
         The observational data.
@@ -94,15 +174,17 @@ def plot_frequencies(sampler, obs, params, model, model_kw=None, out_dir=None):
     model_kw : dict
         Any kwargs used in ``model`` constructor.
 
+    best : dict, optional
+
     out_dir : Path
         The output directory.
     """
-    fp = FrequencyPlotter(sampler, params, model, model_kw)
-    fp.plot_all(obs, out_dir=out_dir)
+    fp = FrequencyPlotter(chain, log_prob, params, model, model_kw)
+    fp.plot_all(obs, best=best, out_dir=out_dir)
     plt.close()
 
 
-def plot_light_curve(model, params, obs, model_kw=None, title='Light Curve', out_dir=None, ext_model=None):
+def plot_light_curve(model, params, obs, model_kw=None, title=None, out_dir=None, ext_model=None, mask=None):
     """
     Plot the best fitting light curve over the data.
 
@@ -120,7 +202,7 @@ def plot_light_curve(model, params, obs, model_kw=None, title='Light Curve', out
     model_kw : dict, optional
         Any kwargs used in ``model`` constructor.
 
-    title : str, optional, default='Light Curve'
+    title : str, optional
         The title of the plot.
 
     out_dir : Path
@@ -128,20 +210,23 @@ def plot_light_curve(model, params, obs, model_kw=None, title='Light Curve', out
 
     ext_model : , optional
         The dust extinction model object.
+
+    mask : bool, optional
     """
     lc = LightCurvePlot(model, params, obs, model_kw, title)
     lc.plot(out_dir=out_dir, ext_model=ext_model)
     plt.close()
 
 
-def plot_density_profile(sampler, params, obs, model, model_kw=None, out_dir=None):
+def plot_density_profile(chain, log_prob, params, obs, model, model_kw=None, best=None, out_dir=None):
     """
     Plot the density profile of the external medium.
 
     Parameters
     ----------
-    sampler :
-        The MCMC sampler.
+    chain :
+
+    log_prob :
 
     params : Parameters
         The model parameters.
@@ -155,20 +240,83 @@ def plot_density_profile(sampler, params, obs, model, model_kw=None, out_dir=Non
     model_kw : dict
         Any kwargs used in ``model`` constructor.
 
+    best : dict, optional
+
     out_dir : Path
         The output directory.
     """
     if model.__name__ in ('FireballModel', 'StratifiedFireballModel'):
-        profiler = DensityProfiler(sampler, params, model, model_kw)
-        profiler.profile(obs.times().min(), obs.times().max(),)
+        profiler = DensityProfiler(chain, log_prob, params, model, model_kw)
+        profiler.profile(obs.times().min(), obs.times().max(), best_params=best)
+        # profiler.profile(obs.times().min(), 1.3739110279688314, best_params=best)
         profiler.plot_profile(out_dir)
         plt.close()
 
 
 # <editor-fold desc="Light Curve">
+def model_extinction(flux, model, sdata, params):
+    """ Model contamination. """
+    wn = [1.0 / d.wavelength.to_value('um') for d in sdata]
+
+    # Multiplicative source-frame extinction
+    if ebv_sf := params.get('extinction').get('ebv_source_frame'):
+        z = params.get('model').get('z')
+        flux *= model_source_extinction((1.0 + z) * np.array(wn), model, ebv_sf)
+
+    # Additive host galaxy contamination
+    if params.get('host') is not None:
+        bands = [d.band for d in sdata]
+        flux += model_host_contamination(np.array(bands), params.get('host'))
+
+    # Multiplicative source-frame extinction
+    if ebv_mw := params.get('extinction').get('ebv_milky_way'):
+        rv = params.get('extinction').get('rv_milky_way')
+        flux *= model_galactic_extinction(np.array(wn), model, ebv_mw, rv)
+
+    return flux
+
+
+def model_source_extinction(wn, model, ebv_sf) :
+    """ Multiplicative source dust extinction. """
+    if ((model.x_range[0] < wn) & (wn < model.x_range[1])).all():
+        return model.extinguish(wn, Ebv=ebv_sf)
+    return 1.0
+
+
+def model_host_contamination(bands, hosts):
+    """ Additive host galaxy contamination. """
+    if hosts is None:
+        return 1.0
+    return np.array([hosts.get(b + '_host') or 0.0 for b in bands])
+
+
+def model_galactic_extinction(wn, model, ebv_mw, rv=None):
+    """ Multiplicative Galactic dust extinction. """
+    if ((model.x_range[0] < wn) & (wn < model.x_range[1])).all():
+        if rv is None:
+            model = model.__class__(Rv=rv)
+        return model.extinguish(wn, Ebv=ebv_mw)
+    return 1.0
+
+
+def spread_data(flux, band, spread):
+    """ Multiplicative offset. """
+    for key, val in spread.items():
+        flux[band == key] *= val
+    return flux
+
+
+def get_offset(d, data, offsets, positions):
+    """"""
+    for key, vals in positions.items():
+        if d in data[vals]:
+            return 10.0 ** (0.4 * offsets.get(key))
+    return 1.0
+
+
 class LightCurvePlot:
     """ Plots the modeled light curve. """
-    def __init__(self, model, params, observation, meta=None, title='Light Curve'):
+    def __init__(self, model, params, observation, meta=None, title='LC'):
         self.model = model
         self.params = params
         self.observation = observation
@@ -179,18 +327,21 @@ class LightCurvePlot:
 
     def _set_axes(self, title: str):
         """ Sets the plotting axes. """
-        _, ax = plt.subplots(figsize=(8, 8))
+        _, ax = plt.subplots(figsize=(8, 9))
 
-        ax.set_title('Light Curve')
-        ax.set_ylabel('Flux (mJy)')
-        ax.set_xlabel(f'Time Since Trigger (s)')
+        # ax.set_title(title)
+        ax.set_ylabel('Flux [mJy]')
+        ax.set_xlabel('Time Since Trigger [days]')
         ax.set_yscale('log')
         ax.set_xscale('log')
-        ax.set_title(title)
 
         # Add secondary x-axis
-        ax2 = ax.secondary_xaxis('top', functions=(sec_to_days, days_to_sec))
-        ax2.set_xlabel("Time Since Trigger (days)")
+        ax.xaxis.set_ticks_position('none')
+        ax.tick_params(axis='x', top=False, bottom=True)
+        ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
+        ax2.set_xlabel("Time Since Trigger [seconds]", labelpad=10)
+        ax2.xaxis.set_ticks_position('none')
+        ax2.tick_params(axis='x', top=True, bottom=False)
 
         self.ax = ax
 
@@ -207,186 +358,355 @@ class LightCurvePlot:
         kwargs : dict
             Optional args for `plot_model(show, **kwargs)`.
         """
-        self.plot_model(spread, **kwargs)
-        self.plot_observation(spread)
+        self.plot_model(self.params, ext_model=kwargs['ext_model'])
+        self.plot_observation(self.params, spread)
 
         if out_dir is not None:
-            save_plot_unique('light_curve', 'png', str(out_dir), dpi=1200)
+            save_plot_unique('light_curve', 'pdf', str(out_dir), dpi=400)
 
-    def plot_model(
-            self, spread=None, ext_model=None, ndata: int = 200
-    ) -> None:
+    def get_spectral_data(self):
+        """ Returns single spectral flux for each filter. """
+        return self.get_flux(DataType.SPECTRAL_FLUX)
+
+    def get_integrated_data(self):
+        """ Returns single integrated flux for each filter. """
+        return self.get_flux(DataType.INTEGRATED_FLUX)
+
+    def get_flux(self, flux_type):
+        """ Returns single ``flux_type`` flux for each filter. """
+        flux_mask = self.observation.flux_loc
+        type_mask = self.observation.as_arrays.types[flux_mask]
+
+        # Get all the filtered flux data
+        _, filter_loc = self.observation.bands(unique=True, mask=flux_mask)
+        data = self.observation.data[flux_mask][filter_loc]
+
+        # return the filtered flux data
+        return data[type_mask[filter_loc] == flux_type]
+
+    def model_spectral_flux(self, sdata, params, t, ext_model=None):
+        """ Model the spectral fluxes. """
+        nu = np.array([d.frequency.to_value('Hz') for d in sdata])
+
+        # Unextinguished spectral flux
+        sflux = self.model_flux(params.get('model'), t, dict(nu=nu))
+
+        return (
+            sflux if ext_model is None else
+            model_extinction(sflux, ext_model, sdata, params)
+        )
+
+    def model_integrated_flux(self, idata, params, t):
+        """ Model the integrated fluxes. """
+        lower = np.array([d.int_range.lower.to_value('Hz') for d in idata])
+        upper = np.array([d.int_range.upper.to_value('Hz') for d in idata])
+        return self.model_flux(params.get('model'), t, dict(lower=lower, upper=upper))
+
+    def model_flux(self, params, t, args):
+        """ Model the fluxes. Duh! """
+        ag_model = self.model(**params, **self.meta)
+
+        # What type of flux are we modeling?
+        method = 'spectral_flux' if 'nu' in args else 'integrated_flux'
+
+        # Is there a fast-to-slow transition?
+        fts = has_fts_transition(ag_model.nu_m(t), ag_model.nu_c(t))
+
+        return getattr(ag_model, method)(t, **args, fts=fts)
+
+    def model_fluxes(self, params, times, ext_model=None):
+        """ Return the modeled fluxes sorted by band. """
+        fluxes = {}
+
+        # Generate the spectral flux
+        for ds in self.get_spectral_data():
+            fluxes[ds.band] = self.model_spectral_flux(np.atleast_1d(ds), params, times, ext_model)
+
+        # Generate the integrated flux
+        for di in self.get_integrated_data():
+            iflux = self.model_integrated_flux(np.atleast_1d(di), params, times)
+
+            # Temporary: Force conversion to mJy
+            iflux_q = u.Quantity(iflux, unit=self.observation.as_arrays.if_units)
+            fluxes[di.band] = (iflux_q / di.int_range.width).to_value('mJy')
+
+        return fluxes
+
+    def default_times(self, ndata):
+        """ Default time range to plot. """
+        ranges = self.observation.epoch(self.observation.flux_loc)
+        return np.geomspace(ranges[0], ranges[1] * 2, num=ndata)
+
+    def plot_model(self, params, times=None, spread=None, ext_model=None, ndata=200):
         """
-        Plots the model as a light curve. Converts all flux to
-        flux density. Flux is plotted in `mJy` and the time is
-        displayed in both days and seconds since trigger.
+        Plots the light curve.
 
         Parameters
         ----------
+        params : dict
+
+        times : array-like, optional
+
         spread : dict, optional
 
         ext_model : dust_extinction model, optional
             Extinction model to use.
 
-        ndata : int, optional
-            The number of data points to plot.
+        ndata : int, optional, default=200
+            The number of time points to generate if ``times`` is None.
         """
+        if times is None:
+            times = self.default_times(ndata)
 
-        def model_spectral_fluxes(p: dict, freq):
-            """ Model the spectral fluxes. """
-            afterglow_model = self.model(**p.get('model'), **self.meta)
+        # Generate the flux for each band
+        fluxes = self.model_fluxes(params, times, ext_model)
 
-            # fts check
-            fts = has_fts_transition(
-                afterglow_model.nu_m(times),
-                afterglow_model.nu_c(times)
-            )
-            return afterglow_model.spectral_flux(times, freq, fts=fts)
+        for band, flux in fluxes.items():
 
-        def model_integrated_fluxes(p: dict, low, upp):
-            """ Model the integrated fluxes. """
-            afterglow_model = self.model(**p.get('model'), **self.meta)
+            # Optional: Spread the data for legibility
+            if spread is not None and band in spread:
+                flux *= spread[band]
 
-            # fts check
-            fts = has_fts_transition(
-                afterglow_model.nu_m(times),
-                afterglow_model.nu_c(times)
-            )
+            # Configure the plotting options as desired
+            color = OPTION_MAP[band]['color']
 
-            return afterglow_model.integrated_flux(times, low, upp, fts=fts)
+            self.ax.loglog(times, flux, '--', linewidth=1.0, color=color)
 
-        # Only plot flux values
-        flux_mask = self.observation.flux_loc
+        self.ax.set_xlim(times[0] / 3.0, times[-1] * 1.5)
 
-        # Get the flux times in seconds
-        flux_times = self.observation.as_arrays.times[flux_mask]
+    def plot_observation(self, params, spreads=None, offset=False, excluded=False):
+        """"""
+        formatted_data = self._format_observation(params, spreads, offset)
 
-        # Get the first data point for each band
-        filters, filter_loc = np.unique(
-            self.observation.as_arrays.bands[flux_mask], return_index=True
-        )
-        data = self.observation.data[flux_mask][filter_loc]
-        spectral_data = data[self.observation.as_arrays.types[flux_mask][filter_loc] == DataType.SPECTRAL_FLUX]
-        integrated_data = data[self.observation.as_arrays.types[flux_mask][filter_loc] == DataType.INTEGRATED_FLUX]
-
-        # Modeling time [days]
-        times = np.logspace(np.log10(flux_times.min()), np.log10(flux_times.max() * 2), num=ndata)
-
-        # Plot the spectral flux for each t in `time`
-        for sdata in spectral_data:
-            # Define values in appropriate units
-            frequency = sdata.frequency.to_value('Hz')
-            wavelength = sdata.wavelength.to_value('um')
-
-            # Model the spectral flux
-            sflux = model_spectral_fluxes(self.params, frequency)
-
-            z = self.params.get('model').get('z')
-            host_corr = self.params.get('host')
-            ebv_sf = self.params.get('extinction').get('ebv_source_frame')
-            ebv_mw = self.params.get('extinction').get('ebv_milky_way')
-            rv_milky_way = self.params.get('extinction').get('rv_milky_way')
-
-            # Apply source dust extinction before host galaxy correction
-            if 9e13 <= frequency <= 2.99e15:
-                if ext_model is not None and ebv_sf is not None:
-                    sflux *= ext_model.extinguish((1 + z) / wavelength, Ebv=ebv_sf)
-
-            # Add host galaxy contribution before Milky Way dust correction
-            filter_host = sdata.band + '_host'
-            if host_corr is not None and filter_host in host_corr:
-                sflux += host_corr[filter_host]
-
-            # Apply Milky Way dust extinction
-            if 9e13 <= frequency <= 2.99e15:
-                if ext_model is not None:
-                    model = ext_model
-
-                    if rv_milky_way is not None:
-                        model = ext_model.__class__(Rv=rv_milky_way)
-
-                    sflux *= model.extinguish(1 / wavelength, Ebv=ebv_mw)
-
-            if spread is not None:
-                if sdata.band + '_offset' in spread:
-                    sflux *= spread[sdata.band + '_offset']
-
-            # Plot the modeled spectral flux
-            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.0, color=OPTION_MAP[sdata.band]['color'])
-
-        # Plot the integrated flux for each t in `time`
-        for idata in integrated_data:
-            # Define values in appropriate units
-            lower = idata.int_range.lower.to_value('Hz')
-            upper = idata.int_range.upper.to_value('Hz')
-
-            # Model the integrated flux
-            iflux = model_integrated_fluxes(self.params, lower, upper)
-
-            # Convert to flux density [mJy]
-            iflux_quant = u.Quantity(iflux, unit=self.observation.as_arrays.if_units)
-            sflux = (iflux_quant / idata.int_range.width).to_value('mJy')
-
-            # Plot the modeled integrated flux as a spectral flux
-            self.ax.loglog(days_to_sec(times), sflux, '--', linewidth=1.0, color=OPTION_MAP[idata.band]['color'])
-
-        self.ax.set_xlim(days_to_sec(times[0]/3), days_to_sec(times[-1]*1.5))
-
-    def plot_observation(self, spread=None, offsets=False):
-        """
-        Plots the observational data including error bars.
-
-        Parameters
-        ----------
-        spread : dict, optional
-
-        offsets : bool, optional, default=False
-        """
-        flux_mask = self.observation.flux_loc
-        arrays = self.observation.as_arrays
-
-        # Plot each band
-        filters = np.unique(arrays.bands[flux_mask])
-
-        for dfilter in filters:
-
-            flux, times, errors = [], [], []
-            data = self.observation.data[flux_mask][arrays.bands[flux_mask] == dfilter]
-
-            for d in data:
-                if d.type == DataType.INTEGRATED_FLUX:
-                    d = d.to_spectral('mJy')
-
-                times.append(d.time.to_value('s'))
-
-                if offsets:
-                    offset = self.params.get('offsets').get(f'{dfilter}_offset')
-                    if offset is not None:
-                        d.value *= 10.0 ** (0.4 * offset)
-
-                if spread is not None:
-                    spread_val = spread.get(f'{dfilter}_offset')
-                    if spread_val is not None:
-                        d.value *= spread_val
-
-                if d.value.to_value('mJy') != 0.0:
-                    flux.append(d.value.to_value('mJy'))
-                    errors.append(d.uncertainty.center.to_value('mJy'))
-
-                # Upper limits
-                else:
-                    # Assumes error is 3-sigma limit
-                    flux.append(d.uncertainty.center.to_value('mJy') * 3)
-                    errors.append(0.0)
-
-            # Handle options
-            ms = 0.6 if OPTION_MAP[dfilter]['marker'] != '.' else 3.0
-
-            # Plot the band
-            self.ax.errorbar(times, flux, yerr=errors, fmt='.', label=dfilter, **OPTION_MAP[dfilter], markersize=ms, elinewidth=0.5)
-
+        self._plot_observation(formatted_data, spreads, excluded)
         self.ax.legend(loc='best')
-        self.ax.grid(alpha=0.5)
+        self.ax.grid(alpha=0.3)
+
+    def _format_observation(self, params, spreads=None, offset=False):
+        """ Formats the observation. Intended for internal use only. """
+        plot_data = {}
+
+        # Get all the data (included + excluded)
+        data = self.observation.get_data()
+
+        for i, d in enumerate(data):
+            corr = 1.0
+
+            # We only care about flux for light curves
+            if d.type == DataType.SPECTRAL_INDEX:
+                continue
+
+            if d.band not in plot_data:
+                plot_data[d.band] = {
+                    'time': [], 'flux': [], 'error': [], 'include': []
+                }
+
+            # Temporary: Force conversion to mJy
+            if d.type == DataType.INTEGRATED_FLUX:
+                d = d.to_spectral('mJy')
+
+            # Force time conversion to days
+            plot_data[d.band]['time'].append(d.time.to_value('d'))
+            plot_data[d.band]['include'].append(self.observation.include[i])
+
+            # Optional: Apply calibration offsets
+            if offset and params.get('offsets') is not None:
+                corr *= get_offset(d, data, params['offsets'], self.observation.get_offsets())
+
+            # Optional: Spread the data for legibility
+            if spreads is not None and d.band in spreads:
+                corr *= spreads[d.band]
+
+            # Finalize the values for detected photometry
+            if d.value.to_value('mJy') != 0.0:
+                plot_data[d.band]['flux'].append(d.value.to_value('mJy') * corr)
+                plot_data[d.band]['error'].append(d.uncertainty.center.to_value('mJy') * corr)
+
+            # Finalize the values for upper limits
+            else:
+                # Assumes error is 3-sigma limit
+                limit = d.uncertainty.center.to_value('mJy') * 3.0
+                plot_data[d.band]['flux'].append(limit * corr)
+                plot_data[d.band]['error'].append(0.0)
+
+        return plot_data
+
+    def _plot_observation(self, plot_data, spreads=None, excluded=False):
+        """ Plots the observation. Intended for internal use only. """
+        # Sort by wavelength for a pretty legend
+        sorted_bands = sorted(list(plot_data.keys()), key=lambda b: EFF_WL[b], reverse=True)
+
+        # The data has been gathered and sorted, now plot it!
+        for sb in sorted_bands:
+            label = LABELS.get(sb) or sb
+
+            # Include the spread in the legend label
+            if spreads is not None:
+                if spreads.get(sb) is not None and spreads.get(sb) != 1:
+                    label = f"{LABELS.get(sb) or sb} x {int(spreads.get(sb))}"
+
+            mask = np.where(np.atleast_1d(plot_data[sb]['include']) == 1, True, False)
+
+            # Plot unmodeled data as grey, open circles
+            if (~mask).any() and excluded:
+                e = np.atleast_1d(plot_data[sb]['error'])[~mask]
+                x = np.atleast_1d(plot_data[sb]['time'])[~mask]
+                y = np.atleast_1d(plot_data[sb]['flux'])[~mask]
+                color = 'grey' if sb == 'xray' else OPTION_MAP[sb]['color']
+
+                self.ax.errorbar(
+                    x, y, yerr=e, marker='o', markerfacecolor='none', mew=0.5,
+                    fmt='.', markersize=3.0, elinewidth=0.5, color=color, alpha=0.5
+                )
+
+            # Plot modeled data as usual
+            if mask.any():
+                e = np.atleast_1d(plot_data[sb]['error'])[mask]
+                x = np.atleast_1d(plot_data[sb]['time'])[mask]
+                y = np.atleast_1d(plot_data[sb]['flux'])[mask]
+
+                self.ax.errorbar(
+                    x, y, yerr=e, fmt='.', markersize=3.0,
+                    elinewidth=0.5, label=label, **OPTION_MAP[sb]
+                )
+
+    # def plot_observation(self, spread=None, offsets=False, mask=None):
+    #     """
+    #     Plots the observational data including error bars.
+    #
+    #     Parameters
+    #     ----------
+    #     spread : dict, optional
+    #
+    #     offsets : bool, optional, default=False
+    #
+    #     mask : dict, optional, default=None
+    #     """
+    #     flux_mask = self.observation.flux_loc
+    #     arrays = self.observation.as_arrays
+    #
+    #     # Plot each band
+    #     filters = np.unique(arrays.bands[flux_mask])
+    #
+    #     plot_data = {}
+    #
+    #     for dfilter in filters:
+    #
+    #         flux, times, errors = [], [], []
+    #         data = self.observation.data[flux_mask][arrays.bands[flux_mask] == dfilter]
+    #
+    #         for d in data:
+    #             if d.type == DataType.INTEGRATED_FLUX:
+    #                 d = d.to_spectral('mJy')
+    #
+    #             times.append(d.time.to_value('d'))
+    #
+    #             if offsets:
+    #                 offset = None
+    #
+    #                 # Find the offset name
+    #                 for key, vals in self.observation.offsets.items():
+    #                     if d in self.observation.data[vals]:
+    #                         offset = self.params.get('offsets').get(key)
+    #                         break
+    #
+    #                 # Apply the offset
+    #                 if offset is not None:
+    #                     d.value *= 10.0 ** (0.4 * offset)
+    #
+    #             if spread is not None:
+    #                 if spread.get(dfilter) is not None:
+    #                     d.value *= spread.get(dfilter)
+    #
+    #             if d.value.to_value('mJy') != 0.0:
+    #                 flux.append(d.value.to_value('mJy'))
+    #                 errors.append(d.uncertainty.center.to_value('mJy'))
+    #
+    #             # Upper limits
+    #             else:
+    #                 limit = d.uncertainty.center.to_value('mJy') * 3
+    #
+    #                 # Assumes error is 3-sigma limit
+    #                 if spread is not None:
+    #                     if spread.get(dfilter) is not None:
+    #                         limit *= spread.get(dfilter)
+    #
+    #                 flux.append(limit)
+    #                 errors.append(0.0)
+    #
+    #         plot_data[dfilter] = {
+    #             'times': np.array(times),
+    #             'flux': np.array(flux),
+    #             'errors': np.array(errors)
+    #         }
+    #
+    #     # Sort by wavelength
+    #     bands_to_plot = list(plot_data.keys())
+    #     sorted_bands = sorted(bands_to_plot, key=lambda b: EFF_WL[b], reverse=True)
+    #
+    #     if mask is None:
+    #         mask = {}
+    #
+    #     for sb in sorted_bands:
+    #         ms = 3.0 if OPTION_MAP[sb]['marker'] != '.' else 3.0
+    #
+    #         band = sb
+    #         if band == 'Ic': band = 'I'
+    #         if band == 'Rc': band = 'R'
+    #         if band == 'Ka': band = r'$K_a$'
+    #         if band == 'Kb': band = r'$K_b$'
+    #         if band == 'Kc': band = r'$K_c$'
+    #         if band == 'Kd': band = r'$K_d$'
+    #         if band == 'uvot-u': band = 'UVOT-u'
+    #         if band == 'uvot-b': band = 'UVOT-b'
+    #         if band == 'uvot-v': band = 'UVOT-v'
+    #         if band == 'uvw1':   band = 'UVOT-uvw1'
+    #         if band == 'uvm2':   band = 'UVOT-uvm2'
+    #         if band == 'uvw2':   band = 'UVOT-uvw2'
+    #         if band == 'xray':   band = 'XRT'
+    #         if band == 'S': band = '345 GHz'
+    #
+    #         if sb not in mask:
+    #             mask[sb] = np.full(len(plot_data[sb]['flux']), True)
+    #
+    #             # if sb != 'xray':
+    #             #     mask[sb][plot_data[sb]['times'] > 10] = False
+    #             # else:
+    #             #     mask[sb][plot_data[sb]['times'] < (408. / 86400)] = False
+    #
+    #         # Plot unused data as open circles
+    #         if (~mask[sb]).any():
+    #             e = plot_data[sb]['errors'][~mask[sb]]
+    #             x = plot_data[sb]['times'][~mask[sb]]
+    #             y = plot_data[sb]['flux'][~mask[sb]]
+    #
+    #             color = OPTION_MAP[sb]['color'] if sb != 'xray' else 'grey'
+    #
+    #             self.ax.errorbar(
+    #                 x, y, yerr=e, marker='o', markerfacecolor='none', mew=0.5,
+    #                 fmt='.', markersize=3.0, elinewidth=0.5,
+    #                 color=color
+    #             )
+    #
+    #         # Plot used data as usual
+    #         if (mask[sb]).any():
+    #             label = band
+    #
+    #             if spread is not None:
+    #                 if spread.get(sb) is not None and spread.get(sb) != 1:
+    #                     label = f"{band} x {int(spread.get(sb))}"
+    #
+    #             e = plot_data[sb]['errors'][mask[sb]]
+    #             x = plot_data[sb]['times'][mask[sb]]
+    #             y = plot_data[sb]['flux'][mask[sb]]
+    #
+    #             self.ax.errorbar(
+    #                 x, y, yerr=e, fmt='.', markersize=ms,
+    #                 elinewidth=0.5, label=label, **OPTION_MAP[sb]
+    #             )
+    #
+    #     self.ax.legend(loc='best')
+    #     self.ax.grid(alpha=0.3)
 # </editor-fold>
 
 
@@ -411,11 +731,17 @@ def model_freqs(model, t, params, **kwargs):
     """
     afterglow_model = model(**params.get('model'), **kwargs)
 
-    return (
-        nu_m := afterglow_model.nu_m(t),
-        nu_c := afterglow_model.nu_c(t),
-        model_nu_a(afterglow_model, t, nu_m, nu_c)
-    )
+    # Freeze the spectrum at the jet-break time
+    tj = params.get('model').get('tj')
+
+    if tj is not None:
+        t = np.where(t > tj, tj, t)
+
+    nu_m = afterglow_model.nu_m(t)
+    nu_c = afterglow_model.nu_c(t)
+    nu_a = model_nu_a(afterglow_model, t, nu_m, nu_c)
+
+    return nu_m, nu_c, nu_a
 
 
 def model_nu_a(model, t, nu_m, nu_c):
@@ -453,8 +779,6 @@ class FrequencyPlotter(Profiler):
 
     Parameters
     ----------
-    sampler :
-        The MCMC sampler.
 
     params : Parameters
         The model parameters.
@@ -465,8 +789,8 @@ class FrequencyPlotter(Profiler):
     model_kw : dict
         Any kwargs used in ``model`` constructor.
     """
-    def __init__(self, sampler, params, model, model_kw=None):
-        super().__init__(sampler, params)
+    def __init__(self, chain, log_prob, params, model, model_kw=None):
+        super().__init__(chain, log_prob, params)
         self.model = model
         self.model_kw = model_kw
 
@@ -477,16 +801,16 @@ class FrequencyPlotter(Profiler):
         """ Set plot axes. """
         _, ax = plt.subplots(figsize=(8, 8))
 
-        ax.set_title('Critical Frequencies')
-        ax.set_xlabel('Time Since Trigger [d]')
+        # ax.set_title('Critical Frequencies')
+        ax.set_xlabel('Time Since Trigger [days]')
         ax.set_ylabel('Frequency [Hz]')
 
         # Define secondary axis
         ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
-        ax2.set_xlabel("Time Since Trigger [s]")
+        ax2.set_xlabel("Time Since Trigger [seconds]", labelpad=10)
         self.ax = ax
 
-    def plot_all(self, obs, out_dir=None, show=False):
+    def plot_all(self, obs, best=None, out_dir=None):
         """
         Plots everything!
 
@@ -495,11 +819,10 @@ class FrequencyPlotter(Profiler):
         obs : Observation
             The observational data.
 
+        best : dict, optional
+
         out_dir : Path
             The output directory.
-
-        show : bool
-            Show the plot via ``plt.show()``?
         """
         times = np.geomspace(
             obs.times()[obs.flux_loc].min(),
@@ -508,16 +831,13 @@ class FrequencyPlotter(Profiler):
         )
 
         # Plot the frequencies
-        self.plot_dist(times)
+        self.plot_dist(times, best)
         self.plot_data(obs)
 
-        if show:
-            plt.show()
-
         if out_dir is not None:
-            save_plot_unique('frequencies', 'png', str(out_dir), dpi=1200)
+            save_plot_unique('frequencies', 'pdf', str(out_dir), dpi=400)
 
-    def plot_dist(self, times):
+    def plot_dist(self, times, best=None):
         """
         Plot the distribution of frequencies.
 
@@ -527,7 +847,7 @@ class FrequencyPlotter(Profiler):
             The observer-frame times [d].
         """
         # Model the frequencies for each randomly sampled set
-        for sample in self.draw(thin=10, nsamps=100):
+        for sample in self.draw(nsamps=100):
             params = self.params.samples_to_dict(sample, cat='model')
 
             nu_m, nu_c, nu_a = model_freqs(
@@ -541,9 +861,9 @@ class FrequencyPlotter(Profiler):
             if nu_a is not None:
                 self.ax.loglog(times, nu_a, color='green', alpha=0.1)
 
-        self.plot_best(times)
+        self.plot_best(times, best)
 
-    def plot_best(self, times):
+    def plot_best(self, times, best=None):
         """
         Plot the best frequencies.
 
@@ -552,17 +872,20 @@ class FrequencyPlotter(Profiler):
         times : np.ndarray
             The observer-frame times [d].
         """
+        if best is None:
+            best = self.best(cat='model')
+
         # Model the most likely frequencies
         best_nu_ms, best_nu_cs, best_nu_as = model_freqs(
-            self.model, times, self.best(cat='model'), **(self.model_kw or {})
+            self.model, times, best, **(self.model_kw or {})
         )
 
         # Over-plot with the most likely frequencies
-        self.ax.loglog(times, best_nu_ms, color='purple', linewidth=2)
-        self.ax.loglog(times, best_nu_cs, color='red', linewidth=2)
+        self.ax.loglog(times, best_nu_ms, color='blue', linewidth=2, label=r'$\nu_m$')
+        self.ax.loglog(times, best_nu_cs, color='orange', linewidth=2, label=r'$\nu_c$')
 
         if best_nu_as is not None:
-            self.ax.loglog(times, best_nu_as, color='green', linewidth=2)
+            self.ax.loglog(times, best_nu_as, color='green', linewidth=2, label=r'$\nu_a$')
 
     def plot_data(self, obs):
         """
@@ -573,19 +896,50 @@ class FrequencyPlotter(Profiler):
         obs : Observation
             The observational data.
         """
-        for f in np.unique(obs.as_arrays.bands[obs.flux_loc]):
-            t, nu = [], []
+        plot_data = {}
 
-            for d in obs.data[obs.flux_loc]:
-                if d.band == f:
-                    t.append(d.time.to_value('d'))
-                    nu.append(d.frequency.to_value('Hz'))
+        # Get the unique band names
+        bands = np.unique(obs.as_arrays.bands[obs.flux_loc])
 
-            # Plot the band
-            self.ax.scatter(t, nu, label=f, **OPTION_MAP[f])
+        # Organize the data by band
+        for band in bands:
+            plot_data[band] = {'t': [], 'nu': []}
 
-        self.ax.legend(loc='best')
-        self.ax.grid(alpha=0.5)
+            # Get all the data for this band
+            data = obs.data[obs.as_arrays.bands == band]
+
+            for datum in data:
+                plot_data[band]['t'].append(datum.time.to_value('d'))
+                plot_data[band]['nu'].append(datum.frequency.to_value('Hz'))
+
+        # Sort by wavelength
+        bands_to_plot = list(plot_data.keys())
+        sorted_bands = sorted(bands_to_plot, key=lambda b: EFF_WL[b], reverse=True)
+
+        # Plot the sorted data
+        for x in sorted_bands:
+            OPTION_MAP[x]['marker'] = '.'
+
+            if x == 'Ic': band = 'I'
+            elif x == 'Rc': band = 'R'
+            elif x == 'Ka': band = r'$K_a$'
+            elif x == 'Kb': band = r'$K_b$'
+            elif x == 'Kc': band = r'$K_c$'
+            elif x == 'Kd': band = r'$K_d$'
+            elif x == 'uvot-u': band = 'UVOT-u'
+            elif x == 'uvot-b': band = 'UVOT-b'
+            elif x == 'uvot-v': band = 'UVOT-v'
+            elif x == 'uvw1': band = 'UVOT-uvw1'
+            elif x == 'uvm2': band = 'UVOT-uvm2'
+            elif x == 'uvw2': band = 'UVOT-uvw2'
+            elif x == 'xray': band = 'XRT'
+            elif x == 'S': band = '345 GHz'
+            else: band = x
+
+            self.ax.scatter(plot_data[x]['t'], plot_data[x]['nu'], label=band, **OPTION_MAP[x])
+
+        self.ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), frameon=True, edgecolor='black', facecolor='white')
+        self.ax.grid(alpha=0.3)
 # </editor-fold>
 
 
@@ -596,8 +950,6 @@ class DensityProfiler(Profiler):
 
     Parameters
     ----------
-    sampler : emcee.sampler
-        The sampler used when running MCMC.
 
     params : `Parameters`
         The parameters object.
@@ -621,8 +973,8 @@ class DensityProfiler(Profiler):
         'color': 'black', 'label': r'$R_{t}$',
     }
 
-    def __init__(self, sampler, params, model, model_kw=None):
-        super().__init__(sampler, params)
+    def __init__(self, chain, log_prob, params, model, model_kw=None):
+        super().__init__(chain, log_prob, params)
 
         self.afterglow_model = model
         self.afterglow_model_kw = model_kw or {}
@@ -632,7 +984,7 @@ class DensityProfiler(Profiler):
         self.r = {'best': [], 'dist': []}
         self.r_ref = {'best': [], 'dist': []}
 
-    def profile(self, start, stop, thin=10, nsamps=200):
+    def profile(self, start, stop, nsamps=100, best_params=None):
         """
         Generates a profile for a random distribution of
         samples drawn from ``sampler``. Over plots with the
@@ -643,22 +995,28 @@ class DensityProfiler(Profiler):
         start, stop : float
             The start, stop time [days].
 
-        thin : int, optional, default=1
-            Take only every `thin` steps from the chain.
-
         nsamps : int, optional, default=100
             Number of samples to draw.
+
+        best_params : dict, optional
         """
-        times = np.geomspace(start, stop, 500)
-        samples = self.draw(thin, nsamps)
+        samples = self.draw(nsamps)
 
         for s in samples:
-            # Model and store using random distribution of params
             params = self.params.samples_to_dict(s).get('model')
+
+            # If jet-break, use as end time
+            times = np.geomspace(start, params.get('tj') or stop, 500)
+
+            # Model and store using random distribution of params
             self.model(times, params, 'dist')
 
         # Model and store using the best fitting params
-        best_params = self.best().get('model')
+        if best_params is None:
+            best_params = self.best().get('model')
+
+        times = np.geomspace(start, best_params.get('tj') or stop, 500)
+
         self.model(times, best_params, 'best')
 
     def model(self, times, params, loc):
@@ -729,13 +1087,13 @@ class DensityProfiler(Profiler):
             self.r['best'][0], best
         )
 
-        ax.axvline(self.r_ref['best'][0], **self.r_ref_options)
-        ax.set_title(r'Number Density Profile')
+        # ax.axvline(self.r_ref['best'][0], **self.r_ref_options)
+        # ax.set_title(r'Number Density Profile')
         ax.set_ylabel(r'$n [cm^{-3}]$')
         ax.set_xlabel(r'Radius [cm]')
 
         if out_dir:
-            save_plot_unique('n_profile', 'png', str(out_dir), dpi=1200)
+            save_plot_unique('n_profile', 'pdf', str(out_dir), dpi=800)
         plt.close()
 
     def plot_n0(self, out_dir=None):
@@ -758,7 +1116,7 @@ class DensityProfiler(Profiler):
         ax.set_xlabel(r'Radius [cm]')
 
         if out_dir:
-            save_plot_unique('n0_profile', 'png', str(out_dir), dpi=1200)
+            save_plot_unique('n0_profile', 'pdf', str(out_dir), dpi=1200)
         plt.close()
 
     def plot_k(self, out_dir=None):
@@ -783,7 +1141,7 @@ class DensityProfiler(Profiler):
         ax.set_xscale('log')
 
         if out_dir:
-            save_plot_unique('k_profile', 'png', str(out_dir), dpi=1200)
+            save_plot_unique('k_profile', 'pdf', str(out_dir), dpi=1200)
         plt.close()
 # </editor-fold>
 

@@ -3,7 +3,7 @@ import numpy as np
 from jetfit.core.utils import days_to_sec
 
 try:
-    from jetsimpy import Jet, Gaussian
+    from jetsimpy import Jet, Gaussian, PowerLaw
 except ImportError:
     pass
 
@@ -92,7 +92,7 @@ class JetSimpy:
         self.d = d
         self.lf = lf
 
-        self.jet = Jet(Gaussian(theta_c, Eiso, lf), A, n0, tmax=1e12)
+        self.jet = Jet(PowerLaw(theta_c, Eiso, lf), A, n0, tmax=1e12)
 
     @property
     def is_valid(self) -> bool:
