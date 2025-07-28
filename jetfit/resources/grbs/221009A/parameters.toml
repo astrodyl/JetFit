@@ -9,10 +9,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = 1.25
+    lower = -2.0
     upper = 4.0
-    initial_guess = 2.54
-    initial_sigma = 0.50
+#    initial_guess = 2.54
+#    initial_sigma = 0.50
 
 #-------------- MODEL --------------
 #--------------- lfo ---------------
@@ -33,10 +33,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
-    upper = 2.0
-    initial_guess = -0.05
-    initial_sigma = 0.70
+    lower = -6.0
+    upper = 6.0
+#    initial_guess = -0.05
+#    initial_sigma = 0.70
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -46,10 +46,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.65
+    lower = -6.0
     upper = 0.0
-    initial_guess = -0.68
-    initial_sigma = 0.5
+#    initial_guess = -0.68
+#    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -59,7 +59,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -5.0
+    lower = -6.0
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -70,10 +70,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.24
-    upper = 2.5
-    initial_guess = 2.36
-    initial_sigma = 0.01
+    lower = 2.0
+    upper = 3.0
+#    initial_guess = 2.36
+#    initial_sigma = 0.01
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -83,10 +83,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.1
-    upper = 2.4
-    initial_guess = 2.19
-    initial_sigma = 0.02
+    lower = -1.0
+    upper = 3.0
+#    initial_guess = 2.19
+#    initial_sigma = 0.02
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -126,10 +126,10 @@ scale = "linear"
 
 [extinction.prior]
     type  = "uniform"
-    lower = 0.06
-    upper = 0.30
-    initial_guess = 0.18
-    initial_sigma = 0.02
+    lower = 0.0
+    upper = 0.5
+#    initial_guess = 0.18
+#    initial_sigma = 0.02
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -257,4 +257,4 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.1
+    upper = 0.2

@@ -117,8 +117,8 @@ scale = "linear"
 
 [extinction.prior]
     type  = "uniform"
-    lower = 0.00
-    upper = 0.4
+    lower = 0.0
+    upper = 0.5
     initial_guess = 0.04
     initial_sigma = 0.04
 

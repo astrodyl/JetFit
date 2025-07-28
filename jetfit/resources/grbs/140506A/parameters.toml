@@ -9,10 +9,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = 0.0
+    lower = -2.0
     upper = 4.0
-    initial_guess = 2.67
-    initial_sigma = 1.00
+#    initial_guess = 2.67
+#    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #--------------- lfo ---------------
@@ -33,8 +33,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -6.0
+    lower = -10.0
     upper = 6.0
+    initial_guess = -5.0
+    initial_sigma = 5.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -44,7 +46,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -4.5
+    lower = -6.0
     upper = 0.0
 
 #-------------- MODEL --------------
@@ -56,7 +58,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -6.0
-    upper = -1.5
+    upper = 0.0
 
 #-------------- MODEL --------------
 #---------------- p ----------------
@@ -66,10 +68,10 @@ scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.00
-    upper = 2.55
-    initial_guess = 2.30
-    initial_sigma = 0.05
+    lower = 2.0
+    upper = 3.0
+#    initial_guess = 2.30
+#    initial_sigma = 0.10
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -80,9 +82,9 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = -5.0
-    upper = 0.0
-    initial_guess = -2.41
-    initial_sigma = 0.05
+    upper = 2.0
+#    initial_guess = -2.41
+#    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -113,10 +115,10 @@ scale = "linear"
 
 [extinction.prior]
     type  = "uniform"
-    lower = 0.15
-    upper = 0.40
-    initial_guess = 0.25
-    initial_sigma = 0.02
+    lower = 0.0
+    upper = 0.5
+#    initial_guess = 0.25
+#    initial_sigma = 0.05
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -133,7 +135,7 @@ scale = "linear"
 
 [offsets.prior]
     type  = "uniform"
-    lower = 0.0
+    lower = -1.0
     upper = 1.0
 
 #----------- CALIBRATION -----------
@@ -288,4 +290,6 @@ scale = "linear"
 [slop.prior]
     type  = "uniform"
     lower = 0.0
-    upper = 0.1
+    upper = 0.2
+#    initial_guess = 0.05
+#    initial_sigma = 0.05

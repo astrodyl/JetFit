@@ -11,8 +11,8 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
-#    initial_sigma = 2.12
-#    initial_guess = 0.25
+    initial_sigma = 2.46
+    initial_guess = 0.25
 
 #-------------- MODEL --------------
 #--------------- lfo ---------------
@@ -36,8 +36,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-#    initial_sigma = -1.48
-#    initial_guess = 0.25
+    initial_sigma = -4.64
+    initial_guess = 0.25
 
 #-------------- MODEL --------------
 #----------- TRANSITION ------------
@@ -50,8 +50,8 @@ scale = "log"
     type  = "uniform"
     lower = 15.0
     upper = 22.0
-#    initial_sigma = 18.0
-#    initial_guess = 0.50
+    initial_sigma = 19.0
+    initial_guess = 0.50
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -63,8 +63,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-#    initial_sigma = -0.47
-#    initial_guess = 0.250
+    initial_sigma = -0.82
+    initial_guess = 0.250
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -76,8 +76,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-#    initial_sigma = -4.97
-#    initial_guess = 0.250
+    initial_sigma = -3.07
+    initial_guess = 0.250
 
 #-------------- MODEL --------------
 #---------------- p ----------------
@@ -89,8 +89,8 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.25
-    initial_sigma = 0.25
+    initial_guess = 2.47
+    initial_sigma = 0.10
 
 #-------------- MODEL --------------
 #--------------- k1 ----------------
@@ -102,8 +102,8 @@ scale = "linear"
     type  = "uniform"
     lower = -1.0
     upper = 3.0
-#    initial_guess = 2.06
-#    initial_sigma = 0.25
+    initial_guess = 2.31
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #--------------- k2 ----------------
@@ -115,8 +115,8 @@ scale = "linear"
     type  = "uniform"
     lower = -3.0
     upper = 3.0
-#    initial_guess = -1.29
-#    initial_sigma = 0.250
+    initial_guess = 1.16
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #----------- TRANSITION ------------
@@ -161,8 +161,8 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.5
-#    initial_guess = 0.10
-#    initial_sigma = 0.05
+    initial_guess = 0.05
+    initial_sigma = 0.05
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -421,3 +421,6 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
+    initial_guess = 0.05
+    initial_sigma = 0.05
+

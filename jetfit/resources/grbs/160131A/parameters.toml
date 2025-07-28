@@ -199,18 +199,18 @@ scale = "linear"
 #------------ uvm2-band ------------
 [[offsets]]
 name  = "uvm2_offset"
-scale = "log"
+scale = "linear"
 
 [offsets.prior]
     type  = "uniform"
-    lower = -2.0
+    lower = -1.0
     upper = 1.0
 
 #----------- CALIBRATION -----------
 #------------ uvw1-band ------------
 [[offsets]]
 name  = "uvw1_offset"
-scale = "log"
+scale = "linear"
 
 [offsets.prior]
     type  = "uniform"
@@ -225,7 +225,7 @@ scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
-    mu = 0.0
+    mu    = 0.0
     sigma = 0.03
 
 #----------- CALIBRATION -----------
@@ -236,7 +236,7 @@ scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
-    mu = 0.0
+    mu    = 0.0
     sigma = 0.02
 
 #----------- CALIBRATION -----------
@@ -247,7 +247,7 @@ scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
-    mu = 0.0
+    mu    = 0.0
     sigma = 0.02
 
 #--------------- SLOP --------------

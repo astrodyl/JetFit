@@ -65,9 +65,9 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 2.0
-    upper = 2.20
-    initial_guess = 2.02
-    initial_sigma = 0.02
+    upper = 23.0
+    initial_guess = 2.05
+    initial_sigma = 0.05
 
 #-------------- MODEL --------------
 #---------------- k ----------------

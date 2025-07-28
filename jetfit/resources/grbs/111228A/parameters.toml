@@ -11,6 +11,8 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
+    initial_guess = 0.5
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #--------------- lf0 ---------------
@@ -33,6 +35,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 6.0
+    initial_guess = 0.08
+    initial_sigma = 0.50
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -44,6 +48,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
+    initial_guess = -0.14
+    initial_sigma = 0.250
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -55,6 +61,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
+    initial_guess = -2.0
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #----------------- p ----------------
@@ -66,8 +74,8 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.25
-    initial_sigma = 0.25
+    initial_guess = 2.08
+    initial_sigma = 0.10
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -79,6 +87,30 @@ scale = "linear"
     type  = "uniform"
     lower = -1.0
     upper = 3.0
+    initial_guess = 1.36
+    initial_sigma = 0.15
+
+#-------------- MODEL --------------
+#------------ tj (days) ------------
+[[model]]
+name  = "tj"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -0.5
+    upper = 1.0
+
+#-------------- MODEL --------------
+#---------------- sj ---------------
+[[model]]
+name  = "sj"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = 1.0
+    upper = 10.0
 
 #-------------- MODEL --------------
 #--------------- hmf ---------------
@@ -111,6 +143,8 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.5
+    initial_guess = 0.10
+    initial_sigma = 0.05
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -359,3 +393,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
+    initial_guess = 0.05
+    initial_sigma = 0.05
