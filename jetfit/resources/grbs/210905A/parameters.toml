@@ -9,7 +9,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = 2.0
+    lower = -2.0
     upper = 4.0
 #    initial_guess = 3.57
 #    initial_sigma = 0.25
@@ -91,6 +91,28 @@ scale = "linear"
     initial_sigma = 5.0
 
 #-------------- MODEL --------------
+#------------ tj (days) ------------
+[[model]]
+name  = "tj"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = -1.0
+    upper = 1.0
+
+#-------------- MODEL --------------
+#---------------- sj ---------------
+[[model]]
+name  = "sj"
+scale = "linear"
+
+[model.prior]
+    type  = "uniform"
+    lower = 0.1
+    upper = 3.0
+
+#-------------- MODEL --------------
 #---------------- X ----------------
 [[model]]
 name  = "hmf"
@@ -121,6 +143,8 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.5
+    initial_guess = 0.05
+    initial_sigma = 0.05
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -205,3 +229,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
+    initial_guess = 0.05
+    initial_sigma = 0.05

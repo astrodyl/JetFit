@@ -112,7 +112,7 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 0.1
-    upper = 1.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -249,25 +249,25 @@ scale = "linear"
 
 #----------- CALIBRATION -----------
 #------------- HST-band ------------
-[[offsets]]
-name  = "F775W_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
+# [[offsets]]
+# name  = "F775W_offset"
+# scale = "linear"
+#
+# [offsets.prior]
+#     type  = "gaussian"
+#     mu    = 0.0
+#     sigma = 0.03
 
 #----------- CALIBRATION -----------
 #------------- HST-band ------------
-[[offsets]]
-name  = "F125W_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
+# [[offsets]]
+# name  = "F125W_offset"
+# scale = "linear"
+#
+# [offsets.prior]
+#     type  = "gaussian"
+#     mu    = 0.0
+#     sigma = 0.04
 
 #--------------- SLOP --------------
 #--------------- slop --------------
@@ -279,5 +279,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
-#    initial_guess = 0.057
-#    initial_sigma = 0.01
+    initial_guess = 0.05
+    initial_sigma = 0.05

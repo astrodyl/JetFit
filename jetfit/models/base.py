@@ -1951,7 +1951,7 @@ class OpeningAngleModel:
         """ Returns the hydrodynamic coefficient. """
         return 4 - self.k
 
-    def evaluate(self, t):
+    def evaluate(self, t, ref=1e17):
         """
         Evaluates the jet opening angle at the jet break
         time ``t``.
@@ -1961,22 +1961,24 @@ class OpeningAngleModel:
         t : float or np.ndarray of float
             The jet break time [d].
 
+        ref : float, optional, default=1e17
+
         Returns
         -------
         float or np.ndarray of float
             The jet opening angle [rad].
         """
-        rho_norm = 1.67e-24 * (1e17 ** self.k)
+        rho_norm = MassP * (ref ** self.k)
 
         # return the jet opening angle
         return (
             np.pi * self.alpha *
             (self.beta ** (3 - self.k)) *
             ((1 + self.z) ** -(3 - self.k)) *
-            (2.99e10 ** (5 - self.k)) *
+            (SoL ** (5 - self.k)) *
             (rho_norm * self.rho0) *
             ((1e52 * self.E) **-1) *
-            ((86_400 * t) ** (3 - self.k))
+            ((DAY2SEC * t) ** (3 - self.k))
         ) ** (0.5 / (4 - self.k))
 
 

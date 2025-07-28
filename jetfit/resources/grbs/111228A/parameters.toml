@@ -98,7 +98,7 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -0.5
+    lower = -1.0
     upper = 1.0
 
 #-------------- MODEL --------------
@@ -144,7 +144,7 @@ scale = "linear"
     lower = 0.0
     upper = 0.5
     initial_guess = 0.10
-    initial_sigma = 0.05
+    initial_sigma = 0.10
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------

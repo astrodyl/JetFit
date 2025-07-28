@@ -43,7 +43,8 @@ def plot_jet_correction_ampy(ampy, out_dir=None):
         plot_jet_correction(
             ampy.mcmc.sampler.get_chain(flat=True),
             ampy.mcmc.sampler.get_log_prob(flat=True),
-            ampy.mcmc.params, out_dir=out_dir
+            ampy.mcmc.params, out_dir=out_dir,
+            ref=ampy.mcmc.models.afg_model.ref_radius
         )
 
 
@@ -79,7 +80,7 @@ def plot_spectral_indices(chain, log_prob, obs, params, model, model_kw=None, ou
     plt.close()
 
 
-def plot_jet_correction(chain, log_prob, params, out_dir=None):
+def plot_jet_correction(chain, log_prob, params, ref, out_dir=None):
     """
     Plot the beam-corrected quantities.
 
@@ -97,7 +98,7 @@ def plot_jet_correction(chain, log_prob, params, out_dir=None):
     """
     if params.has('tj'):
         plotter = Beaming(chain, log_prob, params)
-        plotter.beaming(out_dir=out_dir)
+        plotter.beaming(out_dir=out_dir, ref=ref)
         plt.close()
 
 
@@ -218,7 +219,6 @@ class SpectralIndexPlot(Profiler):
 
         if hasattr(model, 'jet_break'):
             jet = model.jet_break(np.where(self.obs.times()==time)[0])
-
 
         # Is there a fast-to-slow transition?
         fts = False
@@ -380,7 +380,7 @@ class SpectralIndexPlot(Profiler):
             'linewidth': 0.5,
             'alpha': 0.5,
         } | kwargs
-
+        # plt.figure(figsize=(10, 6))
         cts, bins, _ = plt.hist(dist, **options)
 # </editor-fold>
 
@@ -399,7 +399,7 @@ class Beaming(Profiler):
     def __init__(self, chain, log_prob, params):
         super().__init__(chain, log_prob, params)
 
-    def beaming(self, out_dir=None):
+    def beaming(self, out_dir=None, ref=1e17):
         """
         Calculates and plots the corrected energy and
         opening angle distributions.
@@ -421,7 +421,7 @@ class Beaming(Profiler):
             # Model the jet opening angle
             angles[i] = OpeningAngleModel(
                 samp['E52'], samp['n017'], samp['k'], samp['z']
-            )(samp['tj'])
+            )(samp['tj'], ref=ref)
 
             # Calculate the beaming-corrected energy
             energies[i] = (1 - np.cos(angles[i])) * samp['E52']
@@ -431,7 +431,7 @@ class Beaming(Profiler):
 
         best_ang = OpeningAngleModel(
             best_samp['E52'], best_samp['n017'], best_samp['k'], best_samp['z']
-        )(best_samp['tj'])
+        )(best_samp['tj'], ref=ref)
 
         # Calculate the most likely energy
         best_en = (1 - np.cos(best_ang)) * best_samp['E52']

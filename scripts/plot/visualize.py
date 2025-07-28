@@ -69,8 +69,8 @@ LABELS = {
     'Ic': 'I', 'Rc': 'R',
 
     # RADIO
-    'Ka': r'$K_a$', 'Kb': r'$K_b$',
-    'Kc': r'$K_c$', 'Kd': r'$K_d$',
+    'Ka': '229 GHz', 'Kb': '272 GHz',
+    'Kc': '290 GHz', 'Kd': '341 GHz',
     'S': '345 GHz',
 
     # UVOT
@@ -327,7 +327,7 @@ class LightCurvePlot:
 
     def _set_axes(self, title: str):
         """ Sets the plotting axes. """
-        _, ax = plt.subplots(figsize=(8, 9))
+        _, ax = plt.subplots(figsize=(8, 9.5))
 
         # ax.set_title(title)
         ax.set_ylabel('Flux [mJy]')
@@ -479,7 +479,7 @@ class LightCurvePlot:
         formatted_data = self._format_observation(params, spreads, offset)
 
         self._plot_observation(formatted_data, spreads, excluded)
-        self.ax.legend(loc='best')
+        self.ax.legend(loc='lower left', ncols=2)
         self.ax.grid(alpha=0.3)
 
     def _format_observation(self, params, spreads=None, offset=False):
@@ -552,11 +552,10 @@ class LightCurvePlot:
                 e = np.atleast_1d(plot_data[sb]['error'])[~mask]
                 x = np.atleast_1d(plot_data[sb]['time'])[~mask]
                 y = np.atleast_1d(plot_data[sb]['flux'])[~mask]
-                color = 'grey' if sb == 'xray' else OPTION_MAP[sb]['color']
 
                 self.ax.errorbar(
                     x, y, yerr=e, marker='o', markerfacecolor='none', mew=0.5,
-                    fmt='.', markersize=3.0, elinewidth=0.5, color=color, alpha=0.5
+                    fmt='.', markersize=3.0, elinewidth=0.5, color='grey', alpha=0.5
                 )
 
             # Plot modeled data as usual
@@ -569,144 +568,6 @@ class LightCurvePlot:
                     x, y, yerr=e, fmt='.', markersize=3.0,
                     elinewidth=0.5, label=label, **OPTION_MAP[sb]
                 )
-
-    # def plot_observation(self, spread=None, offsets=False, mask=None):
-    #     """
-    #     Plots the observational data including error bars.
-    #
-    #     Parameters
-    #     ----------
-    #     spread : dict, optional
-    #
-    #     offsets : bool, optional, default=False
-    #
-    #     mask : dict, optional, default=None
-    #     """
-    #     flux_mask = self.observation.flux_loc
-    #     arrays = self.observation.as_arrays
-    #
-    #     # Plot each band
-    #     filters = np.unique(arrays.bands[flux_mask])
-    #
-    #     plot_data = {}
-    #
-    #     for dfilter in filters:
-    #
-    #         flux, times, errors = [], [], []
-    #         data = self.observation.data[flux_mask][arrays.bands[flux_mask] == dfilter]
-    #
-    #         for d in data:
-    #             if d.type == DataType.INTEGRATED_FLUX:
-    #                 d = d.to_spectral('mJy')
-    #
-    #             times.append(d.time.to_value('d'))
-    #
-    #             if offsets:
-    #                 offset = None
-    #
-    #                 # Find the offset name
-    #                 for key, vals in self.observation.offsets.items():
-    #                     if d in self.observation.data[vals]:
-    #                         offset = self.params.get('offsets').get(key)
-    #                         break
-    #
-    #                 # Apply the offset
-    #                 if offset is not None:
-    #                     d.value *= 10.0 ** (0.4 * offset)
-    #
-    #             if spread is not None:
-    #                 if spread.get(dfilter) is not None:
-    #                     d.value *= spread.get(dfilter)
-    #
-    #             if d.value.to_value('mJy') != 0.0:
-    #                 flux.append(d.value.to_value('mJy'))
-    #                 errors.append(d.uncertainty.center.to_value('mJy'))
-    #
-    #             # Upper limits
-    #             else:
-    #                 limit = d.uncertainty.center.to_value('mJy') * 3
-    #
-    #                 # Assumes error is 3-sigma limit
-    #                 if spread is not None:
-    #                     if spread.get(dfilter) is not None:
-    #                         limit *= spread.get(dfilter)
-    #
-    #                 flux.append(limit)
-    #                 errors.append(0.0)
-    #
-    #         plot_data[dfilter] = {
-    #             'times': np.array(times),
-    #             'flux': np.array(flux),
-    #             'errors': np.array(errors)
-    #         }
-    #
-    #     # Sort by wavelength
-    #     bands_to_plot = list(plot_data.keys())
-    #     sorted_bands = sorted(bands_to_plot, key=lambda b: EFF_WL[b], reverse=True)
-    #
-    #     if mask is None:
-    #         mask = {}
-    #
-    #     for sb in sorted_bands:
-    #         ms = 3.0 if OPTION_MAP[sb]['marker'] != '.' else 3.0
-    #
-    #         band = sb
-    #         if band == 'Ic': band = 'I'
-    #         if band == 'Rc': band = 'R'
-    #         if band == 'Ka': band = r'$K_a$'
-    #         if band == 'Kb': band = r'$K_b$'
-    #         if band == 'Kc': band = r'$K_c$'
-    #         if band == 'Kd': band = r'$K_d$'
-    #         if band == 'uvot-u': band = 'UVOT-u'
-    #         if band == 'uvot-b': band = 'UVOT-b'
-    #         if band == 'uvot-v': band = 'UVOT-v'
-    #         if band == 'uvw1':   band = 'UVOT-uvw1'
-    #         if band == 'uvm2':   band = 'UVOT-uvm2'
-    #         if band == 'uvw2':   band = 'UVOT-uvw2'
-    #         if band == 'xray':   band = 'XRT'
-    #         if band == 'S': band = '345 GHz'
-    #
-    #         if sb not in mask:
-    #             mask[sb] = np.full(len(plot_data[sb]['flux']), True)
-    #
-    #             # if sb != 'xray':
-    #             #     mask[sb][plot_data[sb]['times'] > 10] = False
-    #             # else:
-    #             #     mask[sb][plot_data[sb]['times'] < (408. / 86400)] = False
-    #
-    #         # Plot unused data as open circles
-    #         if (~mask[sb]).any():
-    #             e = plot_data[sb]['errors'][~mask[sb]]
-    #             x = plot_data[sb]['times'][~mask[sb]]
-    #             y = plot_data[sb]['flux'][~mask[sb]]
-    #
-    #             color = OPTION_MAP[sb]['color'] if sb != 'xray' else 'grey'
-    #
-    #             self.ax.errorbar(
-    #                 x, y, yerr=e, marker='o', markerfacecolor='none', mew=0.5,
-    #                 fmt='.', markersize=3.0, elinewidth=0.5,
-    #                 color=color
-    #             )
-    #
-    #         # Plot used data as usual
-    #         if (mask[sb]).any():
-    #             label = band
-    #
-    #             if spread is not None:
-    #                 if spread.get(sb) is not None and spread.get(sb) != 1:
-    #                     label = f"{band} x {int(spread.get(sb))}"
-    #
-    #             e = plot_data[sb]['errors'][mask[sb]]
-    #             x = plot_data[sb]['times'][mask[sb]]
-    #             y = plot_data[sb]['flux'][mask[sb]]
-    #
-    #             self.ax.errorbar(
-    #                 x, y, yerr=e, fmt='.', markersize=ms,
-    #                 elinewidth=0.5, label=label, **OPTION_MAP[sb]
-    #             )
-    #
-    #     self.ax.legend(loc='best')
-    #     self.ax.grid(alpha=0.3)
 # </editor-fold>
 
 

@@ -96,10 +96,10 @@ scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = 0.0
-    upper = 0.5
-    initial_guess = 0.13
-    initial_sigma = 0.02
+    lower = -1.0
+    upper = 1.0
+    initial_guess = 0.1
+    initial_sigma = 0.2
 
 #-------------- MODEL --------------
 #--------------- sji ---------------
@@ -260,3 +260,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
+    initial_guess = 0.05
+    initial_sigma = 0.05

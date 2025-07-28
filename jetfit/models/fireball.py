@@ -495,6 +495,8 @@ class FireballModel(BaseFireballModel):
     use_sa : bool, optional, default=True
         Should self-absorption be modeled?
     """
+    ref_radius = 1.0e17
+
     # noinspection PyPep8Naming
     def __init__(self, E52, p, eps_b, eps_e, z, dL28, n017, k, hmf, lf0=None, tj=None, sj=None, sji=None, use_sa=True):
         super().__init__(E52, p, eps_b, eps_e, z, dL28, hmf, lf0, tj, sj, sji, use_sa)
@@ -528,11 +530,6 @@ class FireballModel(BaseFireballModel):
     def rho(self):
         """ Returns the mass density [g cm-3]. """
         return MassP * self.n017 * self.ref_radius ** self.k
-
-    @property
-    def ref_radius(self):
-        """ Returns the reference radius [cm]. """
-        return 1.0e17
 
     def model(self, obs: Observation, subset: np.ndarray = None):
         """
@@ -594,7 +591,7 @@ class FireballModel(BaseFireballModel):
         float or np.ndarray
             The radii traversed by the blast wave [cm].
         """
-        bwm = BlastWaveModel(self.E52, self.n017, self.k)
+        bwm = BlastWaveModel(self.E52, self.n017, self.k, ref=self.ref_radius)
         return bwm.shock_radius(self.z, t, bwm.decel_time(self.lf0 or 300.0) / DAY2SEC)
 
     def spectrum(self, t):

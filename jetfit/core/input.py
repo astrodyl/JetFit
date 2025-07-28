@@ -276,7 +276,7 @@ class Observation:
         data = []
         for row in csv.rows():
 
-            if hasattr(row, 'Include') and isinstance(row.Include, int):
+            if hasattr(row, 'Include') and isinstance(row.Include, (int, float)):
                 include[row.Index] = row.Include
 
             # Parse data

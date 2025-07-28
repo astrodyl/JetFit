@@ -51,15 +51,15 @@ def pretty_plot(model, best_path, params_path, obs_path, out_dir, event):
     with open(best_path, 'r') as f:
         best = json.load(f)
 
-    chain = flatten(np.load(rf"C:\Server\07_25_2025\analytic\160131A\chain.npz")['chain'])
+    chain = flatten(np.load(rf"C:\Server\FINAL\analytic\221009A\chain.npz")['chain'])
     # chain = chain[chain[:, 6] > 1.0]
 
     lcg = LightCurvePlot(model, best, ampy.obs)
 
     # Get the times to plot
     ranges = ampy.obs.epoch(ampy.obs.flux_loc)
-    # times = np.geomspace(ranges[0], ranges[1] * 2, num=200)
-    times = np.geomspace(10**-3, ranges[1] * 2, num=200)
+    times = np.geomspace(ranges[0] / 2, ranges[1] * 2, num=200)
+    # times = np.geomspace(9e-4, 10, num=200)
 
     samples = chain[np.random.randint(len(chain), size=100)]
     modeled = sample_light_curve(samples, ampy, lcg, times)
@@ -68,9 +68,15 @@ def pretty_plot(model, best_path, params_path, obs_path, out_dir, event):
         "130612A" : dict(xray=50, V=1, R=3, I=6),
         "090618"  : dict(xray=1, B=1, V=2, R=4, i=6),
         "131030A" : dict(xray=1, B=1, r=2, R=6, i=20, z=40, J=80, H=180, S=100),
-        "140506A" : {"xray":1, "uvw2":3, "uvm2":6, "uvw1":12, "uvot-u":24, "uvot-b":40, 'g': 80, "uvot-v":180, 'r':360, 'R':600, 'i':1000, 'z':2000, 'J':3000, 'H':4000, 'K':6000},
-        "160131A" : {"xray":10, "uvw2":1, "uvm2":1, "uvw1":2, "uvot-u":3, "uvot-b":5, 'g': 8, "uvot-v":12, 'r':20, 'i':40, 'z':60},
-        "111228A" : {"xray":1, "uvw2":1, "uvm2":2, "uvw1":3, "uvot-u":5, 'B':7, "uvot-b":10, 'g': 12, "uvot-v":15, 'V':18, 'r':20, 'R':30, 'i':40, 'z':60, 'J':80, 'H':100, 'K':200},
+        "140506A" : {"xray":1, "uvw2":3, "uvm2":6, "uvw1":12, "uvot-u":24, "uvot-b":60, 'g': 80, "uvot-v":180, 'r':360, 'R':800, 'i':2000, 'z':4000, 'J':6000, 'H':10_000, 'K':20_000},
+        "050525A" : {"xray":1, "uvw2":1, "uvm2":6, "uvw1":18, "uvot-u":60, "uvot-b":200, "uvot-v":600, 'V':2000, 'R':4000, 'I':10_000, 'J':40_000, 'H':80_000},
+        "160131A" : {"xray":10, "uvw2":1, "uvm2":1, "uvw1":2, "uvot-u":3, "uvot-b":5, 'g': 8, "uvot-v":16, 'r':40, 'i':80, 'z':200},
+        "171010A" : {"xray":1, 'g':1, 'r':2, 'i':4, 'z':8},
+        "111228A" : {"xray":1, "uvw2":1, "uvm2":3, "uvw1":8, "uvot-u":20, 'B':40, "uvot-b":100, 'g': 200, "uvot-v":400, 'V':1_000, 'r':2_000, 'R':4000, 'i':8000, 'z':15_000, 'J':20_000, 'H':30_000, 'K':40_000},
+        "080413B" : {"xray":1, "uvm2":1, "uvw1":5, "uvot-u":10, "uvot-b":40, 'g': 100, "uvot-v":300, 'r':1_000, 'R':3000, 'i':6000, 'I':12000, 'z':3e4, 'J':1e5, 'H':5e5, 'K':1e6},
+        "210905A" : {"xray":1, 'i':1, 'Ic':3, 'z':6, 'J':12, 'H':24, 'K':60},
+        "220101A" : {"xray":1, 'r': 10, 'R':20, 'i':40, 'F775W': 80, 'I': 160, 'z':400, 'J':800, 'F125W': 2000, 'H':4000, 'K':10_000},
+        "221009A" : {"xray":1, "uvot-u":10, "uvot-b":40, 'g': 100, "uvot-v":300, 'r': 10, 'i':40,  'z':400, 'Ka': 1, 'Kb': 1, 'Kc': 1, 'Kd': 1},
     }
     scales = options[event]
 
@@ -79,6 +85,7 @@ def pretty_plot(model, best_path, params_path, obs_path, out_dir, event):
 
     for band, fluxes in best_modeled.items():
         lcg.ax.loglog(times, fluxes * scales[band], color=OPTION_MAP[band]['color'])
+
 
     # DISTRIBUTION PLOTTING
     for band, fluxes in modeled.items():
@@ -92,20 +99,13 @@ def pretty_plot(model, best_path, params_path, obs_path, out_dir, event):
         )
 
     lcg.plot_observation(best, spreads=scales, offset=True, excluded=True)
-
-    save_plot_unique('light_curve', 'pdf', str(out_dir))
+    lcg.ax.set_xlim(times.min(), times.max())
+    save_plot_unique('light_curve_cal', 'pdf', str(out_dir))
 
 
 def main(model, best_path, obs_path, params_path, out_dir, event):
     """"""
     pretty_plot(model, best_path, params_path, obs_path, out_dir, event)
-
-    # obs = Observation.from_csv(obs_path)
-    #
-    # with open(best_path, 'r') as f:
-    #     params = json.load(f)
-    #
-    # plot_light_curve(model, params, obs, out_dir=out_dir, ext_model=CCM89(Rv=3.1))
 
 
 if __name__ == '__main__':
@@ -113,8 +113,8 @@ if __name__ == '__main__':
     import astropy.units as u
     import numpy as np
 
-    s_event = '160131A'
-    p_best = rf"C:\Server\07_25_2025\analytic\160131A\best_fit.json"
+    s_event = '221009A'
+    p_best = rf"C:\Server\FINAL\analytic\{s_event}\minimized\minimized.json"
     p_obs = rf"C:\Projects\repos\JetFit\jetfit\resources\grbs\{s_event}\{s_event}.csv"
     p_params = rf"C:\Projects\repos\JetFit\jetfit\resources\grbs\{s_event}\parameters.toml"
 
@@ -125,7 +125,7 @@ if __name__ == '__main__':
 
         'obs_path': p_obs,
 
-        'out_dir': rf"C:\Server\07_25_2025\analytic\160131A",
+        'out_dir': rf"C:\Server\FINAL\analytic\{s_event}\paper",
 
         'params_path': p_params,
 

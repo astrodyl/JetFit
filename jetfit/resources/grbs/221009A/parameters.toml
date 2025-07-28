@@ -128,8 +128,8 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.5
-#    initial_guess = 0.18
-#    initial_sigma = 0.02
+    initial_guess = 0.05
+    initial_sigma = 0.05
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -258,3 +258,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
+    initial_guess = 0.05
+    initial_sigma = 0.05
