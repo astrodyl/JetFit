@@ -205,6 +205,7 @@ class Profiler:
         matplotlib.axes.Axes
             The figure object.
         """
+        # _, ax = plt.subplots(figsize=(10, 6))
         _, ax = plt.subplots()
 
         dist_options = self.dist_options | dist_kw if dist_kw else self.dist_options
@@ -221,6 +222,6 @@ class Profiler:
             ax.set_yscale('log')
 
         ax.legend(loc='best')
-        ax.grid(alpha=0.5)
+        ax.grid(alpha=0.3)
 
         return ax

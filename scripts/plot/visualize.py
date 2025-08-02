@@ -184,7 +184,7 @@ def plot_frequencies(chain, log_prob, obs, params, model, model_kw=None, best=No
     plt.close()
 
 
-def plot_light_curve(model, params, obs, model_kw=None, title=None, out_dir=None, ext_model=None, mask=None):
+def plot_light_curve(model, params, obs, model_kw=None, title=None, out_dir=None, ext_model=None, dual=False):
     """
     Plot the best fitting light curve over the data.
 
@@ -210,12 +210,11 @@ def plot_light_curve(model, params, obs, model_kw=None, title=None, out_dir=None
 
     ext_model : , optional
         The dust extinction model object.
-
-    mask : bool, optional
     """
-    lc = LightCurvePlot(model, params, obs, model_kw, title)
+    lc = LightCurvePlot(model, params, obs, model_kw, title, dual=dual)
     lc.plot(out_dir=out_dir, ext_model=ext_model)
-    plt.close()
+    # plt.close()
+    return lc
 
 
 def plot_density_profile(chain, log_prob, params, obs, model, model_kw=None, best=None, out_dir=None):
@@ -293,7 +292,7 @@ def model_host_contamination(bands, hosts):
 def model_galactic_extinction(wn, model, ebv_mw, rv=None):
     """ Multiplicative Galactic dust extinction. """
     if ((model.x_range[0] < wn) & (wn < model.x_range[1])).all():
-        if rv is None:
+        if rv is not None:
             model = model.__class__(Rv=rv)
         return model.extinguish(wn, Ebv=ebv_mw)
     return 1.0
@@ -316,34 +315,43 @@ def get_offset(d, data, offsets, positions):
 
 class LightCurvePlot:
     """ Plots the modeled light curve. """
-    def __init__(self, model, params, observation, meta=None, title='LC'):
+    def __init__(self, model, params, observation, meta=None, title='LC', dual=False):
         self.model = model
         self.params = params
         self.observation = observation
         self.meta = meta if meta is not None else {}
 
         self.ax = None
-        self._set_axes(title)
+        self._set_axes(title, dual=dual)
 
-    def _set_axes(self, title: str):
+    def _set_axes(self, title: str, dual=False):
         """ Sets the plotting axes. """
-        _, ax = plt.subplots(figsize=(8, 9.5))
+        ax1 = None
+
+        if dual:
+            fig, (ax, ax1) = plt.subplots(2, 1, sharex=True, figsize=(8, 10))
+            ax1.set_xlabel('Time Since Trigger [days]')
+            ax1.set_ylabel('Scaled Flux Density [mJy]')
+            fig.subplots_adjust(hspace=0)
+        else:
+            fig, ax = plt.subplots(figsize=(8, 10))
 
         # ax.set_title(title)
-        ax.set_ylabel('Flux [mJy]')
-        ax.set_xlabel('Time Since Trigger [days]')
+        ax.set_ylabel('Flux Density [mJy]')
         ax.set_yscale('log')
         ax.set_xscale('log')
+        ax.tick_params(axis='x', top=False, bottom=True)
 
         # Add secondary x-axis
-        ax.xaxis.set_ticks_position('none')
-        ax.tick_params(axis='x', top=False, bottom=True)
+        # ax.xaxis.set_ticks_position('none')
+        # ax.tick_params(axis='x', top=False, bottom=True)
         ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
         ax2.set_xlabel("Time Since Trigger [seconds]", labelpad=10)
         ax2.xaxis.set_ticks_position('none')
         ax2.tick_params(axis='x', top=True, bottom=False)
 
         self.ax = ax
+        self.ax1 = ax1
 
     def plot(self, out_dir=None, spread=None, **kwargs) -> None:
         """
@@ -435,7 +443,7 @@ class LightCurvePlot:
     def default_times(self, ndata):
         """ Default time range to plot. """
         ranges = self.observation.epoch(self.observation.flux_loc)
-        return np.geomspace(ranges[0], ranges[1] * 2, num=ndata)
+        return np.geomspace(ranges[0] / 2, ranges[1] * 2, num=ndata)
 
     def plot_model(self, params, times=None, spread=None, ext_model=None, ndata=200):
         """
@@ -472,15 +480,18 @@ class LightCurvePlot:
 
             self.ax.loglog(times, flux, '--', linewidth=1.0, color=color)
 
-        self.ax.set_xlim(times[0] / 3.0, times[-1] * 1.5)
+        # self.ax.set_xlim(times.min(), times.max())
 
-    def plot_observation(self, params, spreads=None, offset=False, excluded=False):
+    def plot_observation(self, params, spreads=None, offset=False, excluded=False, axes='upper'):
         """"""
         formatted_data = self._format_observation(params, spreads, offset)
 
-        self._plot_observation(formatted_data, spreads, excluded)
-        self.ax.legend(loc='lower left', ncols=2)
-        self.ax.grid(alpha=0.3)
+        ax = self.ax if axes == 'upper' else self.ax1
+        self._plot_observation(formatted_data, spreads, excluded, axes)
+        # if axes == 'upper':
+        ax.legend(loc='lower left', ncols=3, columnspacing=0.25, handletextpad=0.25, fontsize=8)
+        ax.grid(alpha=0.3)
+        # self.ax.set_ylim(bottom=1e-7)
 
     def _format_observation(self, params, spreads=None, offset=False):
         """ Formats the observation. Intended for internal use only. """
@@ -531,10 +542,12 @@ class LightCurvePlot:
 
         return plot_data
 
-    def _plot_observation(self, plot_data, spreads=None, excluded=False):
+    def _plot_observation(self, plot_data, spreads=None, excluded=False, axes='upper'):
         """ Plots the observation. Intended for internal use only. """
         # Sort by wavelength for a pretty legend
         sorted_bands = sorted(list(plot_data.keys()), key=lambda b: EFF_WL[b], reverse=True)
+
+        ax = self.ax if axes == 'upper' else self.ax1
 
         # The data has been gathered and sorted, now plot it!
         for sb in sorted_bands:
@@ -553,7 +566,7 @@ class LightCurvePlot:
                 x = np.atleast_1d(plot_data[sb]['time'])[~mask]
                 y = np.atleast_1d(plot_data[sb]['flux'])[~mask]
 
-                self.ax.errorbar(
+                ax.errorbar(
                     x, y, yerr=e, marker='o', markerfacecolor='none', mew=0.5,
                     fmt='.', markersize=3.0, elinewidth=0.5, color='grey', alpha=0.5
                 )
@@ -564,7 +577,7 @@ class LightCurvePlot:
                 x = np.atleast_1d(plot_data[sb]['time'])[mask]
                 y = np.atleast_1d(plot_data[sb]['flux'])[mask]
 
-                self.ax.errorbar(
+                ax.errorbar(
                     x, y, yerr=e, fmt='.', markersize=3.0,
                     elinewidth=0.5, label=label, **OPTION_MAP[sb]
                 )
@@ -593,10 +606,10 @@ def model_freqs(model, t, params, **kwargs):
     afterglow_model = model(**params.get('model'), **kwargs)
 
     # Freeze the spectrum at the jet-break time
-    tj = params.get('model').get('tj')
-
-    if tj is not None:
-        t = np.where(t > tj, tj, t)
+    # tj = params.get('model').get('tj')
+    #
+    # if tj is not None:
+    #     t = np.where(t > tj, tj, t)
 
     nu_m = afterglow_model.nu_m(t)
     nu_c = afterglow_model.nu_c(t)
@@ -669,6 +682,9 @@ class FrequencyPlotter(Profiler):
         # Define secondary axis
         ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
         ax2.set_xlabel("Time Since Trigger [seconds]", labelpad=10)
+        ax2.xaxis.set_ticks_position('none')
+        ax2.tick_params(axis='x', top=True, bottom=False)
+        ax.tick_params(axis='x', top=False, bottom=True)
         self.ax = ax
 
     def plot_all(self, obs, best=None, out_dir=None):
@@ -685,15 +701,17 @@ class FrequencyPlotter(Profiler):
         out_dir : Path
             The output directory.
         """
+        epoch = obs.epoch(mask=obs.flux_loc)
+
         times = np.geomspace(
-            obs.times()[obs.flux_loc].min(),
-            obs.times()[obs.flux_loc].max(),
-            num=200
+            epoch.min() / 2, epoch.max() * 2, num=200
         )
 
         # Plot the frequencies
         self.plot_dist(times, best)
         self.plot_data(obs)
+
+        self.ax.set_xlim(times.min(), times.max())
 
         if out_dir is not None:
             save_plot_unique('frequencies', 'pdf', str(out_dir), dpi=400)
@@ -950,8 +968,8 @@ class DensityProfiler(Profiler):
 
         # ax.axvline(self.r_ref['best'][0], **self.r_ref_options)
         # ax.set_title(r'Number Density Profile')
-        ax.set_ylabel(r'$n [cm^{-3}]$')
-        ax.set_xlabel(r'Radius [cm]')
+        ax.set_ylabel(r'n [cm$^{-3}$]')
+        ax.set_xlabel('Radius [cm]')
 
         if out_dir:
             save_plot_unique('n_profile', 'pdf', str(out_dir), dpi=800)

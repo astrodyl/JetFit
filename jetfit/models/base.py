@@ -458,31 +458,31 @@ class RadiationModel:
         self.z = z
         self.hmf = hmf
 
-    def peak_flux(self, E, t_obs, adiabatic=True):
+    def peak_flux(self, E, t_obs, adiabatic=True, tj=-1.0, sj=1.0):
         """ Observer-frame peak flux [mJy]. """
         return peak_flux(
-            E, self.n0, self.k, self.eps_b,
-            self.dL, self.z, self.hmf, t_obs, adiabatic
+            E, self.n0, self.k, self.eps_b, self.dL,
+            self.z, self.hmf, t_obs, adiabatic, tj, sj
         )
 
-    def cooling_frequency(self, E, t_obs, adiabatic=True):
+    def cooling_frequency(self, E, t_obs, adiabatic=True, tj=-1.0, sj=1.0):
         """ Observer-frame cooling frequency [Hz]. """
         return cooling_frequency(
-            E, self.n0, self.k, self.eps_b, self.z, t_obs, adiabatic
+            E, self.n0, self.k, self.eps_b, self.z, t_obs, adiabatic, tj, sj
         )
 
-    def synchrotron_frequency(self, E, t_obs, adiabatic=True):
+    def synchrotron_frequency(self, E, t_obs, adiabatic=True, tj=-1.0, sj=1.0):
         """ Observer-frame synchrotron frequency [Hz]. """
         return synchrotron_frequency(
-            E, self.n0, self.k, self.p, self.eps_b,
-            self.eps_e, self.z, self.hmf, t_obs, adiabatic
+            E, self.n0, self.k, self.p, self.eps_b, self.eps_e,
+            self.z, self.hmf, t_obs, adiabatic, tj, sj
         )
 
-    def absorption_frequency(self, E, t_obs, adiabatic=True):
+    def absorption_frequency(self, E, t_obs, adiabatic=True, tj=-1.0, sj=1.0):
         """ Observer-frame self-absorption frequency [Hz]. """
         return absorption_frequency(
-            E, self.n0, self.k, self.p, self.eps_b,
-            self.eps_e, self.z, self.hmf, t_obs, adiabatic
+            E, self.n0, self.k, self.p, self.eps_b, self.eps_e,
+            self.z, self.hmf, t_obs, adiabatic, tj, sj
         )
 
     def rad_to_ad_smooth(self, t, t_trans, rad, ad):
@@ -533,7 +533,7 @@ class RadiationModel:
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def peak_flux(E, n0, k, eps_b, dL, z, hmf, t_obs, adiabatic=True):
+def peak_flux(E, n0, k, eps_b, dL, z, hmf, t_obs, adiabatic=True, tj=-1.0, sj=1.0):
     """
     Calculates the observer-frame peak fluxes [mJy] for
     an ultra-relativistic shock moving through an external
@@ -574,19 +574,27 @@ def peak_flux(E, n0, k, eps_b, dL, z, hmf, t_obs, adiabatic=True):
         How is the blast wave evolving? Must be True
         for 'adiabatic' or False for 'radiative'.
 
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time in days [s]. Only used
+        if ``adiabatic`` is True.
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None and ``adiabatic`` is True.
+
     Returns
     -------
     float or np.ndarray of float
         The observer-frame peak fluxes [mJy].
     """
     if adiabatic:
-        return f_peak_ad(E, n0, k, eps_b, dL, z, hmf, t_obs)
+        return f_peak_ad(E, n0, k, eps_b, dL, z, hmf, t_obs, tj, sj)
     return f_peak_rad(E, n0, k, eps_b, dL, z, hmf, t_obs)
 
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic=True):
+def cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic=True, tj=-1.0, sj=1.0):
     """
     Calculates the observer-frame cooling frequencies [Hz] for
     an ultra-relativistic shock moving through an external
@@ -619,19 +627,27 @@ def cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic=True):
         How is the blast wave evolving? Must be True
         for 'adiabatic' or False for 'radiative'.
 
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time in days [s]. Only used
+        if ``adiabatic`` is True.
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None and ``adiabatic`` is True.
+
     Returns
     -------
     float or np.ndarray of float
         The observer-frame cooling frequency [Hz].
     """
     if adiabatic:
-        return nu_c_ad(E, n0, k, eps_b, z, t_obs)
+        return nu_c_ad(E, n0, k, eps_b, z, t_obs, tj, sj)
     return nu_c_rad(E, n0, k, eps_b, z, t_obs)
 
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True):
+def synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True, tj=-1.0, sj=1.0):
     """
     Calculates the observer-frame synchrotron frequencies [Hz]
     for an ultra-relativistic shock moving through an external
@@ -674,18 +690,26 @@ def synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=Tr
         How is the blast wave evolving? Must be True
         for 'adiabatic' or False for 'radiative'.
 
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time in days [s]. Only used
+        if ``adiabatic`` is True.
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None and ``adiabatic`` is True.
+
     Returns
     -------
     float or np.ndarray of float
         The observer-frame synchrotron frequencies [Hz].
     """
     if adiabatic:
-        return nu_m_ad(E, k, p, eps_b, eps_e, z, hmf, t_obs)
+        return nu_m_ad(E, k, p, eps_b, eps_e, z, hmf, t_obs, tj=tj, sj=sj)
     return nu_m_rad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
 
 
 # noinspection PyPep8Naming
-def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True):
+def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=True, tj=-1.0, sj=1.0):
     """
     Calculates the observer-frame self-absorption frequencies [Hz]
     for an ultra-relativistic shock moving through an external
@@ -734,6 +758,14 @@ def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=Tru
         How is the blast wave evolving? Must be True
         for 'adiabatic' or False for 'radiative'.
 
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time in days [s]. Only used
+        if ``adiabatic`` is True.
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None and ``adiabatic`` is True.
+
     Returns
     -------
     float or np.ndarray of float
@@ -741,15 +773,15 @@ def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=Tru
     """
     t_obs = np.atleast_1d(t_obs)
 
-    nu_m = synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic)
-    nu_c = cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic)
+    nu_m = synchrotron_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic, tj, sj)
+    nu_c = cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic, tj, sj)
 
     if adiabatic:
         fast = nu_c < nu_m
 
         # Determine slow-cooling absorption frequencies
-        nu_amc = nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
-        nu_mac = nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs)
+        nu_amc = nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, tj, sj)
+        nu_mac = nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, tj, sj)
 
         # Initialize with smoothed slow cooling values
         slow_weight = 1.0 / (1.0 + (nu_amc / nu_m) ** 3.0)
@@ -759,8 +791,8 @@ def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=Tru
 
 
             # Determine fast-cooling absorption frequencies
-            nu_acm = nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs)
-            nu_cam = nu_a_cam_ad(E, n0, k, z, hmf, t_obs)
+            nu_acm = nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs, tj, sj)
+            nu_cam = nu_a_cam_ad(E, n0, k, z, hmf, t_obs, tj, sj)
 
             # Smooth across the cooling break
             fast_weight = 1.0 / (1.0 + (nu_acm / nu_c) ** 3.0)
@@ -781,7 +813,7 @@ def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=Tru
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def f_peak_ad(E, n0, k, eps_b, dL, z, hmf, t_obs):
+def f_peak_ad(E, n0, k, eps_b, dL, z, hmf, t_obs, tj=-1.0, sj=1.0):
     """
     Calculates the observer-frame peak fluxes [mJy] for
     an ultra-relativistic shock moving adiabatically through
@@ -814,7 +846,14 @@ def f_peak_ad(E, n0, k, eps_b, dL, z, hmf, t_obs):
         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
     t_obs : float or np.ndarray
-        The observer-frame times [d].
+        The observer-frame times [days].
+
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time [days].
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None.
 
     Returns
     -------
@@ -847,11 +886,19 @@ def f_peak_ad(E, n0, k, eps_b, dL, z, hmf, t_obs):
         np.log10(t_obs_s) * -(k / 2.0)
     ) / x
 
-    # return observer-frame peak flux [mJy]
-    return CGS2MJY * (
+    f_pk = CGS2MJY * (  # observer-frame peak flux [mJy]
         (1.0 + hmf) / dL ** 2.0 * eps_b ** 0.5 * lin_fac * 10.0 ** log_fac
     )
 
+    if tj != -1.0:
+        # alpha_pre - alpha_post
+        aj = -k / x / 2.0 + 1.0
+
+        # return jet-broken peak flux [Hz]
+        return f_pk * (1.0 + (t_obs / tj) ** sj) ** -(aj / sj)
+
+    # return observer-frame peak flux [mJy]
+    return f_pk
 
 # noinspection PyPep8Naming
 @njit(cache=True)
@@ -889,7 +936,7 @@ def f_peak_rad(E, n0, k, eps_b, dL, z, hmf, t_obs):
         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
     t_obs : float or np.ndarray
-        The observer-frame times [d].
+        The observer-frame times [days].
 
     Returns
     -------
@@ -927,7 +974,7 @@ def f_peak_rad(E, n0, k, eps_b, dL, z, hmf, t_obs):
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def nu_c_ad(E, n0, k, eps_b, z, t_obs):
+def nu_c_ad(E, n0, k, eps_b, z, t_obs, tj=-1.0, sj=1.0):
     """
     Calculates the observer-frame cooling frequencies [Hz] for
     an ultra-relativistic shock moving adiabatically through
@@ -954,6 +1001,13 @@ def nu_c_ad(E, n0, k, eps_b, z, t_obs):
 
     t_obs : float or np.ndarray
         The observer-frame times [d].
+
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time in days [s].
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None.
 
     Returns
     -------
@@ -986,8 +1040,14 @@ def nu_c_ad(E, n0, k, eps_b, z, t_obs):
         np.log10(t_obs_s) * exp_nrg
     ) / x
 
+    nu_c = eps_b ** -1.5 * lin_fac * 10 ** log_fac
+
+    if tj != -1.0:
+        # return jet-broken cooling frequency [Hz]
+        return nu_c * (1.0 + (t_obs / tj) ** sj) ** -(exp_nrg / x / sj)
+
     # return observer-frame cooling frequency [Hz]
-    return eps_b ** -1.5 * lin_fac * 10 ** log_fac
+    return nu_c
 
 
 # noinspection PyPep8Naming
@@ -1054,7 +1114,7 @@ def nu_c_rad(E, n0, k, eps_b, z, t_obs):
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def nu_m_ad(E, k, p, eps_b, eps_e, z, hmf, t_obs):
+def nu_m_ad(E, k, p, eps_b, eps_e, z, hmf, t_obs, tj=1.0, sj=1.0):
     """
     Calculates the observer-frame synchrotron frequencies [Hz]
     for an ultra-relativistic shock moving adiabatically through
@@ -1090,6 +1150,13 @@ def nu_m_ad(E, k, p, eps_b, eps_e, z, hmf, t_obs):
     t_obs : float or np.ndarray
         The observer-frame time(s) [d].
 
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time [days].
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None.
+
     Returns
     -------
     float or np.ndarray of float
@@ -1101,12 +1168,18 @@ def nu_m_ad(E, k, p, eps_b, eps_e, z, hmf, t_obs):
     hdc_a = 16.0 / (17.0 - 4.0 * k)
     hdc_b = 4.0 - k
 
-    # return synchrotron frequency [Hz]
-    return (hdc_a ** -0.5) * (hdc_b ** -1.5) * 0.041139 * (
+    nu_m = (hdc_a ** -0.5) * (hdc_b ** -1.5) * 0.041139 * (
         # 0.04 ~= 8 * sqrt(2) / pi * ECharge / MassE**3 * MassP**2 / SoL**-2.5
         (1.0 + hmf) ** -2.0 * (1.0 + z) ** 0.5 * eps_e ** 2.0 * eps_b ** 0.5 *
         E ** 0.5 * ((p - 2.0) / (p - 1.0)) ** 2.0 * t_obs_s ** -1.5
     )
+
+    if tj != -1.0:
+        # return jet-broken synchrotron frequency [Hz]
+        return nu_m * (1.0 + (t_obs / tj) ** sj) ** -(0.5 / sj)
+
+    # return synchrotron frequency [Hz]
+    return nu_m
 
 
 # noinspection PyPep8Naming
@@ -1185,7 +1258,7 @@ def nu_m_rad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
+def nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, tj=1.0, sj=1.0):
     """
     Calculates the self-absorption frequency [Hz] in the
     weak self-absorption regime (nu_a < nu_m < nu_c) for
@@ -1225,6 +1298,13 @@ def nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
     t_obs : float or np.ndarray of float64
         The observer-frame times [d].
 
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time [days].
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None.
+
     Returns
     -------
     float or np.ndarray of float
@@ -1256,15 +1336,25 @@ def nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
         np.log10(t_obs_s) * -(3.0 * k)
     ) / x
 
-    # return observer-frame self-absorption frequency [Hz]
-    return (1.0 + hmf) ** 1.6 * eei * (
+    # Observer-frame self-absorption frequency [Hz]
+    nu_a = (1.0 + hmf) ** 1.6 * eei * (
         eps_b ** 0.2 / eps_e * lin_fac * 10.0 ** log_fac
     )
+
+    if tj != -1.0:
+        # alpha_pre - alpha_post
+        aj = -(3.0 * k) / x + 0.2
+
+        # return jet-broken self-absorption frequencies [Hz]
+        return nu_a * (1.0 + (t_obs / tj) ** sj) ** -(aj / sj)
+
+    # return observer-frame self-absorption frequencies [Hz]
+    return nu_a
 
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs):
+def nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs, tj=-1.0, sj=1.0):
     """
     Calculates the self-absorption frequency [Hz] in the
     weak self-absorption regime (nu_a < nu_c < nu_m) for
@@ -1297,6 +1387,13 @@ def nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs):
     t_obs : float or np.ndarray of float64
         The observer-frame times [d].
 
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time [days].
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None.
+
     Returns
     -------
     float or np.ndarray of float
@@ -1327,15 +1424,25 @@ def nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs):
         np.log10(t_obs_s) * -(10.0 + 3.0 * k)
     ) / x
 
-    # return observer-frame self-absorption frequencies [Hz]
-    return (1.0 + hmf) ** 0.6 * (
+    # Observer-frame self-absorption frequencies [Hz]
+    nu_a = (1.0 + hmf) ** 0.6 * (
         eps_b ** 1.2 * lin_fac * 10.0 ** log_fac
     )
+
+    if tj != -1.0:
+        # alpha_pre - alpha_post
+        aj = -(10.0 + 3.0 * k) / x + 1.2
+
+        # return jet-broken self-absorption frequencies [Hz]
+        return nu_a * (1.0 + (t_obs / tj) ** sj) ** -(aj / sj)
+
+    # return observer-frame self-absorption frequencies [Hz]
+    return nu_a
 
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
+def nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, tj=-1.0, sj=1.0):
     """
     Calculates the self-absorption frequency [Hz] in the
     weak self-absorption regime (nu_m < nu_a < nu_c) for
@@ -1374,6 +1481,13 @@ def nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
 
     t_obs : float or np.ndarray of float64
         The observer-frame times [d].
+
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time [days].
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None.
 
     Returns
     -------
@@ -1429,13 +1543,26 @@ def nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
 
     ) / y
 
-    # return observer-frame self-absorption frequency [Hz]
-    return eei * lin_fac * 10.0 ** log_fac
+    # Observer-frame self-absorption frequency [Hz]
+    nu_a = eei * lin_fac * 10.0 ** log_fac
+
+    if tj != -1.0:
+        # alpha_pre - alpha_post
+        aj = (
+            -((4.0 * (3.0 * p + 2.0) - k * (3.0 * p - 2.0)) / 2.0 / x) / y +
+            (2.0 * (p + 1.0) / (p + 4.0))
+        )
+
+        # return jet-broken self-absorption frequencies [Hz]
+        return nu_a * (1.0 + (t_obs / tj) ** sj) ** -(aj / sj)
+
+    # return observer-frame self-absorption frequencies [Hz]
+    return nu_a
 
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def nu_a_cam_ad(E, n0, k, z, hmf, t_obs):
+def nu_a_cam_ad(E, n0, k, z, hmf, t_obs, tj=-1.0, sj=1.0):
     """
     Calculates the self-absorption frequency [Hz] in the
     strong self-absorption regime (nu_c < nu_a < nu_m) for
@@ -1462,7 +1589,14 @@ def nu_a_cam_ad(E, n0, k, z, hmf, t_obs):
         0 indicates hydrogen depleted. 1 indicates hydrogen rich.
 
     t_obs : float or np.ndarray of float64
-        The observer-frame times [d].
+        The observer-frame times [days].
+
+    tj : float, optional, default=-1.0
+        The observer-frame jet-break time [days].
+
+    sj : float, optional, default=1.0
+        The jet-break smoothing factor. Only used if ``tj`` is
+        not None.
 
     Returns
     -------
@@ -1493,9 +1627,18 @@ def nu_a_cam_ad(E, n0, k, z, hmf, t_obs):
         np.log10(t_obs_s) * (k - 6.0)
     ) / x
 
-    # return observer-frame self-absorption frequency [Hz]
-    return np.cbrt((1.0 + hmf) * lin_fac * 10.0 ** log_fac)
+    # Observer-frame self-absorption frequency [Hz]
+    nu_a = np.cbrt((1.0 + hmf) * lin_fac * 10.0 ** log_fac)
 
+    if tj != -1.0:
+        # alpha_pre - alpha_post
+        aj = (k - 6.0) / 3.0 / x + (2.0 / 3.0)
+
+        # return jet-broken self-absorption frequency [Hz]
+        return nu_a * (1.0 + (t_obs / tj) ** sj) ** -(aj / sj)
+
+    # return observer-frame self-absorption frequency [Hz]
+    return nu_a
 
 # noinspection PyPep8Naming
 @njit(cache=True)
@@ -2329,7 +2472,7 @@ class BaseFireballModel:
             The modeled spectral flux [mJy].
         """
         return SpectralFluxModel(**self.spectrum(t)).evaluate(
-            nu, fts, self.jet_break(t)
+            nu, fts, None  # self.jet_break(t)
         )
 
     def integrated_flux(self, t, lower, upper, fts=False):
@@ -2354,7 +2497,7 @@ class BaseFireballModel:
             The modeled spectral flux [erg cm-2 s-1].
         """
         return IntegratedFluxModel(**self.spectrum(t)).evaluate(
-            lower, upper, fts, self.jet_break(t)
+            lower, upper, fts, None  # self.jet_break(t)
         )
 
     def spectral_index(self, t, lower, upper, fts=False):
@@ -2379,7 +2522,7 @@ class BaseFireballModel:
             The modeled spectral index.
         """
         return SpectralIndexModel(**self.spectrum(t)).evaluate(
-            lower, upper, fts, self.jet_break(t)
+            lower, upper, fts, None  # self.jet_break(t)
         )
 
 
@@ -2753,7 +2896,7 @@ class SpectralFluxModel(BaseFluxModel):
         fts : bool, optional, default=False
             Is there a fast-to-slow cooling transition?
 
-        jet : JetBreakModel, optional
+        jet : JetBreakModel, optional, default=None
             Smooths the flux across the jet break.
 
         Returns

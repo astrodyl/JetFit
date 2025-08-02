@@ -166,10 +166,10 @@ class SpectralIndexPlot(Profiler):
             index_spectrum = model.spectrum(time)
 
             # Is there a jet break?
-            if hasattr(model, 'jet_break'):
-                jet = model.jet_break(np.where(self.obs.times()==time)[0])
-            else:
-                jet = None
+            # if hasattr(model, 'jet_break'):
+            #     jet = model.jet_break(self.obs.times()[self.obs.times() == time])
+            # else:
+            #     jet = None
 
             # Is there a fast-to-slow transition?
             fts = False
@@ -180,7 +180,7 @@ class SpectralIndexPlot(Profiler):
 
             # Model the spectral index
             modeled[i] = SpectralIndexModel(**index_spectrum).evaluate(
-                lower, upper, fts=fts, jet=jet
+                lower, upper, fts=fts, jet=None
             )
 
         return modeled
@@ -215,10 +215,10 @@ class SpectralIndexPlot(Profiler):
         index_spectrum = model.spectrum(time)
 
         # Is there a jet break?
-        jet = None
+        # jet = None
 
-        if hasattr(model, 'jet_break'):
-            jet = model.jet_break(np.where(self.obs.times()==time)[0])
+        # if hasattr(model, 'jet_break'):
+        #     jet = model.jet_break(self.obs.times()[self.obs.times() == time])
 
         # Is there a fast-to-slow transition?
         fts = False
@@ -229,7 +229,7 @@ class SpectralIndexPlot(Profiler):
 
         # Model the spectral index
         return SpectralIndexModel(**index_spectrum).evaluate(
-            lower, upper, fts=fts, jet=jet
+            lower, upper, fts=fts, jet=None
         )
 
     def model(self, indices, out_dir=None, best_params=None):

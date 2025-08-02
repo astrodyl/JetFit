@@ -187,7 +187,7 @@ class StratifiedFireballModel(BaseFireballModel):
 
         # return the modeled smoothed, unextinguished flux
         return ObservedSpectrumModel(**self.spectrum(obs.times()),
-            arrays=obs.as_arrays, jet=self.jet_break(obs.times()),
+            arrays=obs.as_arrays, jet=None,
         ).model()
 
     def spectrum(self, t, n=None, k=None):
@@ -283,12 +283,15 @@ class StratifiedFireballModel(BaseFireballModel):
         dict
             keys: f_peak, nu_a, nu_m, nu_c, p, k.
         """
+        # Optional jet break parameters
+        tj, sj = (self.tj or -1.0), (self.sj or 1.0)
+
         return {
             'p': self.p, 'k': radiation.k,
-            'f_peak': radiation.peak_flux(E, t),
-            'nu_c': radiation.cooling_frequency(E, t),
-            'nu_a': radiation.absorption_frequency(E, t),
-            'nu_m': radiation.synchrotron_frequency(E, t)
+            'f_peak': radiation.peak_flux(E, t, tj=tj, sj=sj),
+            'nu_c': radiation.cooling_frequency(E, t, tj=tj, sj=sj),
+            'nu_a': radiation.absorption_frequency(E, t, tj=tj, sj=sj),
+            'nu_m': radiation.synchrotron_frequency(E, t, tj=tj, sj=sj)
         }
 
     def spectrum_radiative(self, radiation, t):
@@ -553,7 +556,7 @@ class FireballModel(BaseFireballModel):
 
         # return the modeled observational data
         return ObservedSpectrumModel(**self.spectrum(obs.times()),
-            jet=self.jet_break(obs.times()), arrays=obs.as_arrays
+            jet=None, arrays=obs.as_arrays
         ).model(subset)
 
     def smooth(self, t):
@@ -670,12 +673,15 @@ class FireballModel(BaseFireballModel):
             # What is the energy after radiative loss?
             nrg = self.E * self.blast.energy_loss(t_trans / (1 + self.z))
 
+        # Optional jet break parameters
+        tj, sj = (self.tj or -1.0), (self.sj or 1.0)
+
         return {
             'p': self.p, 'k': self.k,
-            'f_peak': self.radiation.peak_flux(nrg, t),
-            'nu_c': self.radiation.cooling_frequency(nrg, t),
-            'nu_a': self.radiation.absorption_frequency(nrg, t),
-            'nu_m': self.radiation.synchrotron_frequency(nrg, t)
+            'f_peak': self.radiation.peak_flux(nrg, t, tj=tj, sj=sj),
+            'nu_c': self.radiation.cooling_frequency(nrg, t, tj=tj, sj=sj),
+            'nu_a': self.radiation.absorption_frequency(nrg, t, tj=tj, sj=sj),
+            'nu_m': self.radiation.synchrotron_frequency(nrg, t, tj=tj, sj=sj)
         }
 
     def spectrum_radiative(self, t):
