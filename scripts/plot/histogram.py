@@ -131,7 +131,7 @@ class SpectralIndexPlot(Profiler):
         self.model_kw = model_kw or {}
         self.obs = obs
 
-    def evaluate(self, time, lower, upper, nsamps=100):
+    def evaluate(self, time, lower, upper, nsamps=100, samples=None):
         """
         Evaluates the spectral index model for each
         randomly drawn set of parameters from the
@@ -148,7 +148,10 @@ class SpectralIndexPlot(Profiler):
         upper : float
             The upper integration bound [Hz].
 
-        nsamps : int, optional, default=200
+        samples : np.ndarray, optional
+            The number of samples to use.
+
+        nsamps : int, optional, default=100
             Number of samples to draw.
 
         Returns
@@ -156,7 +159,9 @@ class SpectralIndexPlot(Profiler):
         np.ndarray
             The evaluated spectral index values.
         """
-        samples = self.draw(nsamps)
+        if samples is None:
+            samples = self.draw(nsamps)
+
         modeled = np.full(len(samples), np.nan)
 
         for i, s in enumerate(samples):
@@ -164,12 +169,6 @@ class SpectralIndexPlot(Profiler):
 
             model = self.afterglow_model(**p.get('model'))
             index_spectrum = model.spectrum(time)
-
-            # Is there a jet break?
-            # if hasattr(model, 'jet_break'):
-            #     jet = model.jet_break(self.obs.times()[self.obs.times() == time])
-            # else:
-            #     jet = None
 
             # Is there a fast-to-slow transition?
             fts = False
@@ -180,7 +179,7 @@ class SpectralIndexPlot(Profiler):
 
             # Model the spectral index
             modeled[i] = SpectralIndexModel(**index_spectrum).evaluate(
-                lower, upper, fts=fts, jet=None
+                lower, upper, fts=fts
             )
 
         return modeled
@@ -214,12 +213,6 @@ class SpectralIndexPlot(Profiler):
         model = self.afterglow_model(**best)
         index_spectrum = model.spectrum(time)
 
-        # Is there a jet break?
-        # jet = None
-
-        # if hasattr(model, 'jet_break'):
-        #     jet = model.jet_break(self.obs.times()[self.obs.times() == time])
-
         # Is there a fast-to-slow transition?
         fts = False
 
@@ -229,7 +222,7 @@ class SpectralIndexPlot(Profiler):
 
         # Model the spectral index
         return SpectralIndexModel(**index_spectrum).evaluate(
-            lower, upper, fts=fts, jet=None
+            lower, upper, fts=fts
         )
 
     def model(self, indices, out_dir=None, best_params=None):
@@ -438,7 +431,6 @@ class Beaming(Profiler):
 
         # Plot the jet opening angle distribution
         title = None
-        # title = f"Jet Opening Angle Distribution"
 
         self.plot_histogram(
             angles, round(best_ang, 3), title,
@@ -446,12 +438,9 @@ class Beaming(Profiler):
         )
         plt.close()
 
-        # Plot the beaming-corrected energy distribution
-        # title = f"Beaming-Corrected Energy Distribution"
-
         self.plot_histogram(
             np.log10(energies), round(np.log10(best_en), 3), title,
-            r'$log_{10}E_{j, 52}$', 'energy_dist', out_dir
+            r'$\log_{10}E_{j, 52}$ [erg]', 'energy_dist', out_dir
         )
 
     @staticmethod
@@ -489,11 +478,6 @@ class Beaming(Profiler):
             best, color='red', linestyle='--',
             linewidth=2, label='Minimized'
         )
-
-        # Plot the count above each bar
-        # for ct, l, r in zip(cts, bins[:-1], bins[1:]):
-        #     if int(ct) != 0:
-        #         plt.text((l + r) / 2, ct + 0.1, str(int(ct)), ha='center', va='bottom')
 
         # Configure the plot
         plt.title(title)

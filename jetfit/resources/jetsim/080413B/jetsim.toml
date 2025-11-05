@@ -1,44 +1,38 @@
 # MCMC Parameter Configuriation File
-name = 'FireballModel'
+name = 'JetSimpy'
 
 #-------------- MODEL --------------
 #---------------- E ----------------
 [[model]]
-name  = "E52"
+name  = "Eiso"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
-    upper = 4.0
-    initial_guess = 0.40
-    initial_sigma = 0.25
-
-#-------------- MODEL --------------
-#--------------- lfo ---------------
-[[model]]
-name  = "lf0"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = 1.69
-    upper = 3.00
-    initial_guess = 2.3
-    initial_sigma = 0.1
+    lower = 50.0
+    upper = 56.0
+#    initial_guess = 52
+#    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #---------------- n ----------------
 [[model]]
-name  = "n017"
+name  = "A"
+scale = "linear"
+value = 0.0
+
+#-------------- MODEL --------------
+#---------------- A ----------------
+[[model]]
+name  = "n0"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-    initial_guess = -0.28
-    initial_sigma = 0.25
+#    initial_guess = -1.0
+#    initial_sigma = 0.3
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -50,8 +44,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-    initial_guess = -0.47
-    initial_sigma = 0.25
+#    initial_guess = -1.0
+#    initial_sigma = 1.0
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -63,8 +57,21 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-    initial_guess = -0.46
-    initial_sigma = 0.25
+#    initial_guess = -1.0
+#    initial_sigma = 1.0
+
+#-------------- MODEL --------------
+#---------------- LF ---------------
+[[model]]
+name  = "lf"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 1.69
+    upper = 3.0
+#    initial_guess = 1.8
+#    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #---------------- p ----------------
@@ -76,42 +83,49 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.24
-    initial_sigma = 0.10
+    initial_guess = 2.25
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#---------------- k ----------------
+#------------- theta_c -------------
 [[model]]
-name  = "k"
+name  = "theta_c"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -1.0
-    upper = 3.5
-    initial_guess = 2.95
-    initial_sigma = 0.25
+    lower = 0.0
+    upper = 1.0
+#    initial_guess = 0.8
+#    initial_sigma = 0.1
 
 #-------------- MODEL --------------
-#---------------- X ----------------
+#------------- theta_v -------------
 [[model]]
-name  = "hmf"
+name  = "theta_v"
 scale = "linear"
-value = 0.7
+value = 0.0
+
+[model.prior]
+    type  = "uniform"
+    lower = 0.0
+    upper = 1.0
+#    initial_guess = 0.4
+#    initial_sigma = 0.1
 
 #-------------- MODEL --------------
 #---------------- z ----------------
 [[model]]
 name  = "z"
 scale = "linear"
-value = 0.606
+value = 1.1
 
 #-------------- MODEL --------------
-#---------------- dL ---------------
+#---------------- d ----------------
 [[model]]
-name  = "dL28"
+name  = "d"
 scale = "linear"
-value = 1.135
+value = 7648.239
 
 #----------- EXTINCTION ------------
 #---------- source_frame -----------
@@ -124,25 +138,14 @@ scale = "linear"
     lower = 0.0
     upper = 0.5
     initial_guess = 0.05
-    initial_sigma = 0.03
+    initial_sigma = 0.05
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
 [[extinction]]
 name  = "ebv_milky_way"
 scale = "linear"
-value = 0.0815
-
-#----------- CALIBRATION -----------
-#-------------- V-band -------------
-[[offsets]]
-name  = "V_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
+value = 0.0315
 
 #----------- CALIBRATION -----------
 #-------------- R-band -------------
@@ -153,7 +156,7 @@ scale = "linear"
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
-    sigma = 0.03
+    sigma = 0.3
 
 #----------- CALIBRATION -----------
 #-------------- I-band -------------
@@ -164,7 +167,51 @@ scale = "linear"
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
+    sigma = 0.3
+
+#----------- CALIBRATION -----------
+#-------------- g-band -------------
+[[offsets]]
+name  = "g_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
     sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- r-band -------------
+[[offsets]]
+name  = "r_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- i-band -------------
+[[offsets]]
+name  = "i_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.03
+
+#----------- CALIBRATION -----------
+#-------------- z-band -------------
+[[offsets]]
+name  = "z_offset"
+scale = "linear"
+
+[offsets.prior]
+    type  = "gaussian"
+    mu    = 0.0
+    sigma = 0.04
 
 #----------- CALIBRATION -----------
 #-------------- J-band -------------
@@ -189,15 +236,37 @@ scale = "linear"
     sigma = 0.05
 
 #----------- CALIBRATION -----------
-#------------- uvw2-band -----------
+#-------------- K-band -------------
 [[offsets]]
-name  = "uvw2_offset"
+name  = "K_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
-    sigma = 0.04
+    sigma = 0.06
+
+#----------- HOST GALAXY -----------
+#-------------- g-band -------------
+[[host]]
+name  = "g_host"
+scale = "log"
+
+[host.prior]
+    type = "uniform"
+    lower = -4.5
+    upper = -3.0
+
+#----------- HOST GALAXY -----------
+#-------------- r-band -------------
+[[host]]
+name  = "r_host"
+scale = "log"
+
+[host.prior]
+    type = "uniform"
+    lower = -4.5
+    upper = -3.0
 
 #----------- CALIBRATION -----------
 #------------- uvm2-band -----------
@@ -264,5 +333,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
-    initial_guess = 0.09
-    initial_sigma = 0.02
+    initial_guess = 0.05
+    initial_sigma = 0.05

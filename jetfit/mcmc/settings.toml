@@ -1,9 +1,10 @@
 # MCMC Configuration File
 
 [sampler]
-name = 'parallel_tempered'
-num_walkers = 100
-burn_length = 5_000
-run_length  = 5_000
-ntemps      = 10
-#workers     = 4
+    name     = 'ensemble'
+
+    num_walkers = 50
+    burn_length = 100
+    run_length  = 100
+#    ntemps      = 10
+#    workers     = 32

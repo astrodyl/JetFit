@@ -187,7 +187,7 @@ class StratifiedFireballModel(BaseFireballModel):
 
         # return the modeled smoothed, unextinguished flux
         return ObservedSpectrumModel(**self.spectrum(obs.times()),
-            arrays=obs.as_arrays, jet=None,
+            arrays=obs.as_arrays
         ).model()
 
     def spectrum(self, t, n=None, k=None):
@@ -498,7 +498,7 @@ class FireballModel(BaseFireballModel):
     use_sa : bool, optional, default=True
         Should self-absorption be modeled?
     """
-    ref_radius = 1.0e17
+    ref_radius = 1.0e18
 
     # noinspection PyPep8Naming
     def __init__(self, E52, p, eps_b, eps_e, z, dL28, n017, k, hmf, lf0=None, tj=None, sj=None, sji=None, use_sa=True):
@@ -555,8 +555,8 @@ class FireballModel(BaseFireballModel):
             return np.array([np.nan])
 
         # return the modeled observational data
-        return ObservedSpectrumModel(**self.spectrum(obs.times()),
-            jet=None, arrays=obs.as_arrays
+        return ObservedSpectrumModel(
+            **self.spectrum(obs.times()), arrays=obs.as_arrays
         ).model(subset)
 
     def smooth(self, t):

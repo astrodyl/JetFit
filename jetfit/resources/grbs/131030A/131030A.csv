@@ -630,6 +630,6 @@ Time,TimeUnits,Value,ValueLower,ValueUpper,ValueUnits,ValueType,Wave,WaveLower,W
 767462.397,s,2.16E-13,5.38E-14,5.38E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,,slop,1,,,,,,
 870061.933,s,1.46E-13,2.85E-14,2.85E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,,slop,1,,,,,,
 1413543.347,s,4.56E-14,1.24E-14,1.24E-14,erg cm-2 s-1,Integrated Flux,,7.25E+16,2.42E+18,Hz,xray,,slop,1,,,,,,
-639,s,-7.00E-01,4.00E-02,4.00E-02,erg cm-2 s-1,Spectral Index,,7.25E+16,2.42E+18,Hz,,,,1,,,,,,
+639,s,-7.00E-01,4.00E-02,4.00E-02,erg cm-2 s-1,Spectral Index,,7.25E+16,2.42E+18,Hz,,,,0,,,,,,
 4387,s,-1.13E+00,2.70E-01,2.80E-01,erg cm-2 s-1,Spectral Index,,7.25E+16,2.42E+18,Hz,,,,1,,,,,,
 121314,s,-9.60E-01,9.80E-02,1.00E-01,erg cm-2 s-1,Spectral Index,,7.25E+16,2.42E+18,Hz,,,,1,,,,,,

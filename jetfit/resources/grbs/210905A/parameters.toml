@@ -35,8 +35,8 @@ scale = "log"
     type  = "uniform"
     lower = -10.0
     upper = 6.0
-    initial_guess = -5.0
-    initial_sigma = 5.00
+#    initial_guess = -5.0
+#    initial_sigma = 2.00
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -74,8 +74,8 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.25
-    initial_sigma = 0.25
+#    initial_guess = 2.40
+#    initial_sigma = 0.20
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -87,8 +87,8 @@ scale = "linear"
     type  = "uniform"
     lower = -10.0
     upper = 3.0
-    initial_guess = -5.0
-    initial_sigma = 5.0
+#    initial_guess = -5.0
+#    initial_sigma = 2.0
 
 #-------------- MODEL --------------
 #------------ tj (days) ------------
@@ -99,7 +99,9 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -1.0
-    upper = 1.0
+    upper = 2.0
+    initial_guess = 1.5
+    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #---------------- sj ---------------
@@ -110,7 +112,9 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 0.1
-    upper = 3.0
+    upper = 4.0
+    initial_guess = 0.6
+    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -161,8 +165,8 @@ scale = "linear"
 
 [offsets.prior]
     type  = "uniform"
-    lower = 0.0
-    upper = 2.4
+    lower = -1.0
+    upper = 3.0
 
 #----------- CALIBRATION -----------
 #-------------- J-band -------------
@@ -205,8 +209,8 @@ scale = "linear"
 
 [offsets.prior]
     type  = "uniform"
-    lower = 1.0
-    upper = 4.5
+    lower = -1.0
+    upper = 5.0
 
 #----------- CALIBRATION -----------
 #-------------- z-band -------------
@@ -216,8 +220,8 @@ scale = "linear"
 
 [offsets.prior]
     type  = "uniform"
-    lower = -0.5
-    upper = 1.6
+    lower = -1.0
+    upper = 2.0
 
 #--------------- SLOP --------------
 #--------------- slop --------------

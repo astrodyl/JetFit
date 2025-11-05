@@ -1,4 +1,3 @@
-import time
 import unittest
 
 import numpy as np
@@ -6,11 +5,6 @@ import astropy.units as u
 import astropy.constants as const
 from matplotlib import pyplot as plt
 
-from jetfit.core.input import Observation
-from jetfit.models.base import PeakFluxModel, SynchrotronFrequencyModel, \
-    f_peak_ad, nu_c_ad, nu_m_ad, f_peak_rad, nu_c_rad, nu_m_rad, nu_a_amc_ad, nu_a_acm_ad, nu_a_mac_ad, nu_a_cam_ad, \
-    cooling_frequency
-from jetfit.models.base import CoolingFrequencyModel, AbsorptionFrequencyModel
 from jetfit.models.fireball import FireballModel, StratifiedFireballModel
 
 
@@ -21,243 +15,6 @@ q_e = u.Quantity(4.8032e-10 * u.g**0.5 * u.cm**1.5 / u.s)
 c = const.c.cgs  # noqa
 
 
-class TestSelfAbsorptionModel(unittest.TestCase):
-    """"""
-    def test_radiative_models(self):
-        """"""
-        t = np.geomspace(0.01, 100, 500)
-        t = 1
-
-        E52 = 1
-        k = 2.0
-        n017 = 30
-        z = 0
-
-        f_pk_rad = f_peak_rad(1e52 * E52, n017 * 1e17 ** k, k,0.1, 1, z, 0.7, t)
-        f_pk_ad = f_peak_ad(1e52 * E52, n017 * 1e17 ** k, k,0.1, 1, z, 0.7, t)
-
-        nu_c_rad_val = nu_c_rad(1e52 * E52, n017 * 1e17 ** k, k, 0.1, z, t)
-        nu_m_rad_val = nu_m_rad(1e52 * E52, n017 * 1e17 ** k, k, 2.2, 0.1, 0.1, z, 0.7, t)
-        print()
-
-
-    def test_new_radiation(self):
-        """"""
-        # Params
-        k = 0
-        z = 0
-
-        # Normalized
-        E52 = 1
-        n017 = 1.0
-
-        # Un-normalized
-        n0 = n017 * 1e17 ** k
-        E = E52 * 1e52
-
-        # Models
-        old_nu_a_model = AbsorptionFrequencyModel(E52, n017, .1, .1, k, z, 0.7, 2.2)
-        old_nu_m_model = SynchrotronFrequencyModel(E52, .1, .1, k, z, 0.7, 2.2)
-        old_nu_c_model = CoolingFrequencyModel(E52, n017, .1, k, z)
-        old_f_pk_model = PeakFluxModel(E52, n017, .1, 1.0, z, k, 0.7)
-
-        # Observer-frame time [d]
-        t = np.geomspace(0.01, 100, 500)
-
-        # Compare nu_m values
-        nu_m_old = old_nu_m_model.evaluate(t)
-        nu_m_fast2 = nu_m_ad(E, k, 2.2, 0.1, 0.1,z, 0.7, t)
-        np.testing.assert_allclose(nu_m_fast2, nu_m_old, rtol=1e-4)
-
-        # Compare nu_c values
-        nu_c_old = old_nu_c_model.evaluate(t)
-        nu_c_fast2 = nu_c_ad(E, n0, k, 0.1, z, t)
-        np.testing.assert_allclose(nu_c_fast2, nu_c_old, rtol=1e-4)
-
-        # Compare f_pk values
-        f_pk_old = old_f_pk_model.evaluate(t)
-        f_pk_fast2 = f_peak_ad(E, n0, k,0.1, 1e28, z, 0.7, t)
-        np.testing.assert_allclose(f_pk_fast2, f_pk_old, rtol=1e-4)
-
-        # Compare AMC values
-        nu_a_amc_new = nu_a_amc_ad(E, n0, k, 2.2, 0.1, 0.1,z, 0.7, t)
-        nu_a_amc_old = old_nu_a_model.evaluate_amc(t)
-        np.testing.assert_allclose(nu_a_amc_new, nu_a_amc_old, rtol=1e-4)
-
-        # Compare ACM values
-        nu_a_acm_new = nu_a_acm_ad(E, n0, k, 0.1, z, 0.7, t)
-        nu_a_acm_old = old_nu_a_model.evaluate_acm(t)
-        np.testing.assert_allclose(nu_a_acm_new, nu_a_acm_old, rtol=1e-4)
-
-        # Compare CAM values
-        nu_a_mac_new = nu_a_mac_ad(E, n0, k, 2.2, 0.1, 0.1, z, 0.7, t)
-        nu_a_mac_old = old_nu_a_model.evaluate_mac(t)
-        np.testing.assert_allclose(nu_a_mac_new, nu_a_mac_old, rtol=1e-4)
-
-        # Compare CAM values
-        nu_a_cam_new = nu_a_cam_ad(E, n0, k, z, 0.7, t)
-        nu_a_cam_old = old_nu_a_model.evaluate_cam(t)
-        np.testing.assert_allclose(nu_a_cam_new, nu_a_cam_old, rtol=1e-4)
-
-        # t_src = days_to_sec(t) / (1 + z)
-        # r = radius(1e52 * E52, n017 * 1e17 ** k, k, t / (1 + z))
-        # g = lf(1e52 * E52, n017 * 1e17 ** k, k, t / (1 + z))
-        # B = mag_field(1e52 * E52, n017 * 1e17 ** k, k, 0.1, t / (1 + z))
-
-        # Compile the methods first
-        # nu_c_ad(1e52 * E52, n017 * 1e17 ** k, k, 0.1, z, t)
-
-        # start = time.time()
-        # for _ in range(10_000):
-            # cooling_frequency(E, n0, k, 0.1, z, t)
-            # nu_c_ad(1e52 * E52, n017 * 1e17 ** k, k, 0.1, z, t)
-            # f_peak_ad(1e52 * E52, n017 * 1e17 ** k, k,0.1, 1, z, 0.7, t)
-            # nu_m(1e52 * E52, n017 * 1e17 ** k, k, 2.2, 0.1, 0.1, z, 0.7, t)
-            # nu_c(1e52 * E52, n017 * 1e17 ** k, k, 0.1, z, t)
-            # rad_model.nu_a_acm(t)
-            # rad_model.nu_a_cam(t)
-            # rad_model.nu_a_mac(t)
-            # rad_model.nu_a_amc(t)
-        # end = time.time()
-        # print(end - start)
-
-        # start = time.time()
-        # for _ in range(10_000):
-            # nu_c_ad2(1e52 * E52, n017 * 1e17 ** k, k, 0.1, z, t)
-            # f_peak_rad(1e52 * E52, n017 * 1e17 ** k, k, 0.1, 1, z, 0.7, t)
-            # rad_model.f_peak(t)
-            # old_nu_c_model.evaluate(t)
-            # old_nu_m_model.evaluate(t)
-            # old_f_pk_model.evaluate(t)
-            # old_nu_a_model .evaluate_acm(t)
-            # old_nu_a_model.evaluate_mac(t)
-            # old_nu_a_model.evaluate_amc(t)
-        # end = time.time()
-        # print(end - start)
-
-        # Speed tests
-        fb_model = FireballModel(10, 2.5, 0.1, 0.5, 1.0, 2, 1, 0.0, 0.7, lf0=300)
-        obs = Observation.from_csv(r"C:\Projects\repos\JetFit\jetfit\resources\grbs\090618\090618.csv")
-
-        start = time.time()
-        for _ in range(1_000):
-            modeled = fb_model.model(obs)
-            # old_nu_c_model.evaluate(t)
-            # old_nu_m_model.evaluate(t)
-        end = time.time()
-        print(end - start)
-
-    def test_nu_a_cam(self):
-        """
-        Tests the self-absorption frequency in the fast-cooling
-        regime with spectral ordering nu_c < nu_a < nu_m.
-        """
-        # ISM
-        af_ism = AbsorptionFrequencyModel(
-            E=1.0, rho0=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=0.0, X=0.7, p=2.2
-        ).evaluate_cam(1.0)
-
-        # Wind
-        af_wind = AbsorptionFrequencyModel(
-            E=1.0, rho0=5e11 / m_p.value / 1e34, eps_e=0.1, eps_b=0.1, k=2.0, z=0.0, X=0.7, p=2.2
-        ).evaluate_cam(1.0)
-
-        print(af_ism, af_wind)
-
-    def test_nu_a_acm(self):
-        """
-        Tests the self-absorption frequency in the fast-cooling
-        regime with spectral ordering nu_a < nu_c < nu_m.
-
-        True values are taken from Table 2.6 (ISM) and Table 2.7 (wind)
-        in VDH (2007) [1]_.
-
-        References
-        ----------
-        .. [1] Van Der Horst (2007): Broadband view of blast wave physics :
-            a study of gamma-ray burst afterglows.
-        """
-        # ISM
-        af_ism = AbsorptionFrequencyModel(
-            E=1.0, rho0=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=0.0, X=0.7, p=2.2
-        ).evaluate_acm(1.0) / (0.5 ** -0.5)
-
-        # Wind
-        af_wind = AbsorptionFrequencyModel(
-            E=1.0, rho0=5e11 / m_p.value / 1e34, eps_e=0.1, eps_b=0.1, k=2.0, z=0.0, X=0.7, p=2.2
-        ).evaluate_acm(1.0) / (0.5 ** 0.6)
-
-        # True values (Tables 2.6, 2.7)
-        af_ism_true = 1.25e9
-        af_wind_true = 9.23e10
-
-        # Assert equal within 1% (ISM) or 2% (WIND)
-        self.assertAlmostEqual(af_ism / af_ism_true, 1.0, delta=0.01)
-        self.assertAlmostEqual(af_wind / af_wind_true, 1.0, delta=0.02)
-
-    def test_nu_a_amc(self):
-        """
-        Tests the self-absorption frequency in the slow-cooling
-        regime with spectral ordering nu_a < nu_m < nu_c.
-
-        True values are taken from Table 2.6 (ISM) and Table 2.7 (wind)
-        in VDH (2007) [1]_.
-
-        References
-        ----------
-        .. [1] Van Der Horst (2007): Broadband view of blast wave physics :
-            a study of gamma-ray burst afterglows.
-        """
-        # ISM
-        af_ism = AbsorptionFrequencyModel(
-            E=1.0, rho0=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=0.0, X=0.7, p=2.2
-        ).evaluate_amc(1.0) / (0.5 ** -1)
-
-        # Wind
-        af_wind = AbsorptionFrequencyModel(
-            E=1.0, rho0=5e11 / m_p.value / 1e34, eps_e=0.1, eps_b=0.1, k=2.0, z=0.0, X=0.7, p=2.2
-        ).evaluate_amc(1.0) / (0.5 ** (-2 / 5))
-
-        # True values (Tables 2.6, 2.7)
-        af_ism_true = 7.75e10
-        af_wind_true = 5.16e11
-
-        # Assert equal within 1%
-        self.assertAlmostEqual(af_ism / af_ism_true, 1.0, delta=0.01)
-        self.assertAlmostEqual(af_wind / af_wind_true, 1.0, delta=0.01)
-
-    def test_nu_a_mac(self):
-        """
-        Tests the self-absorption frequency in the slow-cooling
-        regime with spectral ordering nu_m < nu_a < nu_c.
-
-        True values are taken from Table 2.6 (ISM) and Table 2.7 (wind)
-        in VDH (2007) [1]_.
-
-        References
-        ----------
-        .. [1] Van Der Horst (2007): Broadband view of blast wave physics :
-            a study of gamma-ray burst afterglows.
-        """
-        # ISM
-        af_ism = AbsorptionFrequencyModel(
-            E=1.0, rho0=1.0, eps_e=0.1, eps_b=0.1, k=0.0, z=0.0, X=0.7, p=2.2
-        ).evaluate_mac(1.0) / (0.5 ** -0.31)
-
-        # Wind
-        af_wind = AbsorptionFrequencyModel(
-            E=1.0, rho0=5e11 / m_p.value / 1e34, eps_e=0.1, eps_b=0.1, k=2.0, z=0.0, X=0.7, p=2.2
-        ).evaluate_mac(1.0) / (0.5 ** 0.016)
-
-        # True values (Tables 2.6, 2.7)
-        af_ism_true = 1.13e11
-        af_wind_true = 4.38e11
-
-        # Assert equal within 1%
-        self.assertAlmostEqual(af_ism / af_ism_true, 1.0, delta=0.01)
-        self.assertAlmostEqual(af_wind / af_wind_true, 1.0, delta=0.01)
-
-
 class TestCharacteristicModels(unittest.TestCase):
     """"""
 
@@ -266,9 +23,9 @@ class TestCharacteristicModels(unittest.TestCase):
         """ Plots the smoothed density and density power-laws. """
 
         model = StratifiedFireballModel(
-            E=4.0, p=2.5, eps_b=0.001, eps_e=0.1, X=0.7,
-            k1=2.0, k2=0.0, nt=1.0, rt=1e17, sn=3.0,
-            dL=2.0, z=0.0
+            E52=4.0, p=2.5, eps_b=0.001, eps_e=0.1, hmf=0.7,
+            k1=2.0, k2=0.0, n0t=1.0, rt=1e17, sn=3.0,
+            dL28=2.0, z=0.0
         )
 
         ts = np.geomspace(0.0012, 10, 500)  # 100s to 2 days
@@ -299,204 +56,6 @@ class TestCharacteristicModels(unittest.TestCase):
             plt.xscale('log')
         plt.show()
 
-    def test_linsolve_vdh(self):
-        """"""
-
-        # k-values to evaluate
-        ks = np.linspace(-3.0, 3.0, 100)
-        # ks = np.linspace(0.0, 2.0, 100)
-
-        # Define necessary params for evaluating models
-        t = 1.0     # observing time in days
-        p = 2.2     # electron energy index
-        hmf = 0.7   # hydrogen mass fraction
-                    #   ~1.0 for ISM
-                    #   ~0.0 for wind
-        z = 0.0     # redshift
-        d = 1.0     # luminosity distance
-        n = 1.0     # 5e11 / m_p.value / 1e34
-
-        # Define reference characteristic values
-        f_p_mjy = 1.0   # peak flux [mJy]
-        nu_a_hz = 1e9   # absorption frequency [Hz]
-        nu_m_hz = 1e12  # synchrotron frequency [Hz]
-        nu_c_hz = 1e14  # cooling frequency [Hz]
-
-        # Define the characteristic models with all physical parameters
-        # of interest set to unity. When evaluating the model, this will
-        # return only the pre-factor that we need to solve the system of
-        # equations.
-        peak_flux_model = PeakFluxModel(
-            E=1.0, rho0=n, eps_b=1.0, dL=d, z=z, k=0.0, X=hmf)
-        nu_m_model = SynchrotronFrequencyModel(
-            E=1.0, eps_e=1.0, eps_b=1.0, k=0.0, z=z, X=hmf, p=p)
-        nu_c_model = CoolingFrequencyModel(
-            E=1.0, rho0=n, eps_b=1.0, k=0.0, z=z)
-        nu_a_model = AbsorptionFrequencyModel(
-            E=1.0, rho0=n, eps_e=1.0, eps_b=1.0, k=0.0, z=z, X=hmf, p=p)
-
-        # For each value of k, construct and solve a system of equations for:
-        # (1) energy (normalized to 1/52),
-        # (2) the number density (normalized to m_p and 1e17cm),
-        # (3) the electric field energy fraction, and
-        # (4) the magnetic field energy fraction.
-
-        sols = []
-        for k in ks:
-
-            # Update the models with the new k value
-            peak_flux_model.k = nu_m_model.k = nu_c_model.k = nu_a_model.k = k
-
-            # System of equations for slow cooling (nu_a < nu_m < nu_c)
-            a_slow = np.array([
-                # E                             n0                  eps_e       eps_b
-                [0.5 * (8 - 3*k) / (4 - k),     2 / (4 - k),        0.0,        0.5 ],  # log(F_nu_max)
-                [-0.5 * (4 - 3*k) / (4 - k),   -4 / (4 - k),        0.0,       -1.5 ],  # log(nu_c)
-                [0.5,                           0.0,                2.0,        0.5 ],  # log(nu_m)
-                [0.8 * (1 - k) / (4 - k),       2.4 / (4 - k),     -1.0,        0.2 ]   # log(nu_a_slow)
-            ])
-
-            # log(characteristics) minus log(pre-factors)
-            b_slow = np.array([
-                np.log10(f_p_mjy) - np.log10(peak_flux_model(t=t)),
-                np.log10(nu_c_hz) - np.log10(nu_c_model(t=t)),
-                np.log10(nu_m_hz) - np.log10(nu_m_model(t=t)),
-                np.log10(nu_a_hz) - np.log10(nu_a_model(t=t, order='amc'))
-            ])
-
-            sols.append(10 ** np.linalg.solve(a_slow, b_slow))
-
-        sols = np.asarray(sols)
-
-        titles = (
-            r'Energy ($E_{52}$)',
-            r'Density ($n_{0}$)',
-            r'Electric Field Fraction ($\epsilon_{E}$)',
-            r'Magnetic Field Fraction ($\epsilon_{B}$)'
-        )
-        y_labels = (r'$E_{52}$', r'$n_{0}$', r'$\epsilon_{E}$', r'$\epsilon_{B}$')
-        colors = ('red', 'green', 'blue', 'purple')
-
-        for i, title in enumerate(titles):
-
-            # Add reference values to labels
-            plt.plot([], [], alpha=0, label=r'$F_{peak}$ = ' + f'1 mJy')
-            plt.plot([], [], alpha=0, label=r'$\nu_{c}$ = ' + r'$10^{14}$ Hz')
-            plt.plot([], [], alpha=0, label=r'$\nu_{m}$ = ' + r'$10^{12}$ Hz')
-            plt.plot([], [], alpha=0, label=r'$\nu_{a}$ = ' + r'$10^{9}$ Hz')
-
-            # Plot the data
-            plt.plot(ks, sols[:, i], linewidth=0.75, color=colors[i])
-
-            # Configure the plot
-            plt.title(title)
-            plt.xlabel('k')
-            plt.ylabel(y_labels[i])
-            plt.grid(alpha=0.4)
-            plt.legend()
-            plt.show()
-
-    def test_scaling(self):
-        """"""
-        for k in (0.0, 1.0, 1.333, 2.0):
-            model = FireballModel(
-                E=1.0, rho0=1.0, p=2.2, k=k, z=0.0, dL=1.0,
-                eps_e=0.1, eps_b=0.1, X=0.7
-            )
-
-            # Base values to compare
-            base_f_peak = model.f_peak(1.0)
-            base_nu_m = model.nu_m(1.0)
-            base_nu_c = model.nu_c(1.0)
-
-            # Test that a change in time behaves as expected
-            t2_f_peak = model.f_peak(2.0)
-            t2_nu_m = model.nu_m(2.0)
-            t2_nu_c = model.nu_c(2.0)
-
-            # Assert equal within 1%
-            e_pf = -(0.5 * (k / (4 - k)))
-            e_nm = -1.5
-            e_nc = -(0.5 * ((4 - 3*k) / (4 - k)))
-            self.assertAlmostEqual(t2_f_peak / base_f_peak, 2 ** e_pf, delta=0.01)
-            self.assertAlmostEqual(t2_nu_m / base_nu_m, 2 ** e_nm, delta=0.01)
-            self.assertAlmostEqual(t2_nu_c / base_nu_c, 2 ** e_nc, delta=0.01)
-
-            # Test that a change in energy behaves as expected
-            model.E = 2.0
-            e2_f_peak = model.f_peak(1.0)
-            e2_nu_m = model.nu_m(1.0)
-            e2_nu_c = model.nu_c(1.0)
-            model.E = 1.0
-
-            # Assert equal within 1%
-            e_pf = 0.5 * (8 - 3 * k) / (4 - k)
-            e_nm = 0.5
-            e_nc = -0.5 * (4 - 3 * k) / (4 - k)
-            self.assertAlmostEqual(e2_f_peak / base_f_peak, 2 ** e_pf, delta=0.01)
-            self.assertAlmostEqual(e2_nu_m / base_nu_m, 2 ** e_nm, delta=0.01)
-            self.assertAlmostEqual(e2_nu_c / base_nu_c, 2 ** e_nc, delta=0.01)
-
-            # Test that a change in density behaves as expected
-            model.rho0 = 2.0
-            d2_f_peak = model.f_peak(1.0)
-            d2_nu_m = model.nu_m(1.0)
-            d2_nu_c = model.nu_c(1.0)
-            model.rho0 = 1.0
-
-            # Assert equal within 1%
-            e_pf = 2 / (4 - k)
-            e_nm = 0.0
-            e_nc = -4 / (4 - k)
-            self.assertAlmostEqual(d2_f_peak / base_f_peak, 2 ** e_pf, delta=0.01)
-            self.assertAlmostEqual(d2_nu_m / base_nu_m, 2 ** e_nm, delta=0.01)
-            self.assertAlmostEqual(d2_nu_c / base_nu_c, 2 ** e_nc, delta=0.01)
-
-            # Test that a change in redshift behaves as expected
-            model.z = 1.0
-            z2_f_peak = model.f_peak(1.0)
-            z2_nu_m = model.nu_m(1.0)
-            z2_nu_c = model.nu_c(1.0)
-            model.z = 0.0
-
-            # Assert equal within 1%
-            e_pf = 0.5 * (8 - k) / (4 - k)
-            e_nm = 0.5
-            e_nc =-0.5 * (4 + k) / (4 - k)
-            self.assertAlmostEqual(z2_f_peak / base_f_peak, 2 ** e_pf, delta=0.01)
-            self.assertAlmostEqual(z2_nu_m / base_nu_m, 2 ** e_nm, delta=0.01)
-            self.assertAlmostEqual(z2_nu_c / base_nu_c, 2 ** e_nc, delta=0.01)
-
-            # Test that a change in magnetic fraction behaves as expected
-            model.eps_b = 0.2
-            b2_f_peak = model.f_peak(1.0)
-            b2_nu_m = model.nu_m(1.0)
-            b2_nu_c = model.nu_c(1.0)
-            model.eps_b = 0.1
-
-            # Assert equal within 1%
-            e_pf = 0.5
-            e_nm = 0.5
-            e_nc = -1.5
-            self.assertAlmostEqual(b2_f_peak / base_f_peak, 2 ** e_pf, delta=0.01)
-            self.assertAlmostEqual(b2_nu_m / base_nu_m, 2 ** e_nm, delta=0.01)
-            self.assertAlmostEqual(b2_nu_c / base_nu_c, 2 ** e_nc, delta=0.01)
-
-            # Test that a change in electric fraction behaves as expected
-            model.eps_e = 0.2
-            b2_f_peak = model.f_peak(1.0)
-            b2_nu_m = model.nu_m(1.0)
-            b2_nu_c = model.nu_c(1.0)
-            model.eps_e = 0.1
-
-            # Assert equal within 1%
-            e_pf = 0.0
-            e_nm = 2.0
-            e_nc = 0.0
-            self.assertAlmostEqual(b2_f_peak / base_f_peak, 2 ** e_pf, delta=0.01)
-            self.assertAlmostEqual(b2_nu_m / base_nu_m, 2 ** e_nm, delta=0.01)
-            self.assertAlmostEqual(b2_nu_c / base_nu_c, 2 ** e_nc, delta=0.01)
-
     def test_vdh_ism(self):
         """
         Test that the general k-model reduces to the ISM (k=0) case
@@ -510,8 +69,8 @@ class TestCharacteristicModels(unittest.TestCase):
             a study of gamma-ray burst afterglows.
         """
         model = FireballModel(
-            E=1.0, rho0=1.0, p=2.2, k=0.0, z=0.0, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.7
+            E52=1.0, n017=1.0, p=2.2, k=0.0, z=0.0, dL28=1.0,
+            eps_e=0.1, eps_b=0.1, hmf=0.7
         )
 
         # Modeled values
@@ -550,8 +109,8 @@ class TestCharacteristicModels(unittest.TestCase):
         n0 = 5e11 / 1.67e-24 / 1e34
 
         model = FireballModel(
-            E=1.0, rho0=n0, p=2.2, k=2.0, z=0.0, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.7
+            E52=1.0, n017=n0, p=2.2, k=2.0, z=0.0, dL28=1.0,
+            eps_e=0.1, eps_b=0.1, hmf=0.7
         )
 
         # Modeled values
@@ -577,8 +136,8 @@ class TestCharacteristicModels(unittest.TestCase):
         Test that the spectral values match Sari, Piran, & Narayan 1998.
         """
         model = FireballModel(
-            E=1.0, rho0=1.0, p=2.5, k=0.0, z=0.0, dL=1.0,
-            eps_e=1, eps_b=1, X=1.0
+            E52=1.0, n017=1.0, p=2.5, k=0.0, z=0.0, dL28=1.0,
+            eps_e=1, eps_b=1, hmf=1.0
         )
 
         # Modeled values
@@ -592,39 +151,6 @@ class TestCharacteristicModels(unittest.TestCase):
         nu_c_true = 2.7e12
         nu_m_true = 5.7e14
         f_peak_true = 1.1e2
-
-        # Assert equal within 5%
-        self.assertAlmostEqual(f_peak / f_peak_true, 1.0, delta=0.05)
-        self.assertAlmostEqual(nu_m / nu_m_true, 1.0, delta=0.05)
-        self.assertAlmostEqual(nu_c / nu_c_true, 1.0, delta=0.05)
-
-    def test_cl_wind(self):
-        """
-        Test that the spectral values match CL 2000.
-        """
-        z = 1.0
-
-        model = FireballModel(
-            E=1.0, rho0=1.0, p=2.5, k=2.0, z=z, dL=1.0,
-            eps_e=0.1, eps_b=0.1, X=0.0
-        )
-
-        # Normalization since we normalize density to 1e17cm,
-        # but for k=2, VDH normalizes to A=5e11 * A_x,
-        norm = (1 / 5e11) * 1e34 * 1.67e-24
-
-        # Modeled values
-        f_peak = model.f_peak(1.0)
-        nu_m = model.nu_m(1.0)
-        nu_c = model.nu_c(1.0)
-
-        # True values
-        f_peak_true = 20.0 * (
-            (((np.sqrt(1 + z) - 1) / (np.sqrt(2) - 1)) ** -2) *
-            (((1 + z) / 2) ** 0.5) * norm
-        )
-        nu_m_true = 5e12 * ((1 + z) / 2) ** 0.5
-        nu_c_true = (2e12 * ((1 + z) / 2) ** -1.5) / (norm**2)
 
         # Assert equal within 5%
         self.assertAlmostEqual(f_peak / f_peak_true, 1.0, delta=0.05)

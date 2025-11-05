@@ -5,8 +5,11 @@ from synphot import SpectralElement
 
 from jetfit.core.structs import DataType
 from jetfit.core.utils import save_plot_unique, days_to_sec, sec_to_days
-from jetfit.models.base import has_fts_transition
+from jetfit.models.base import has_fts_transition, RadiationModel, SpectralIndexModel
+from jetfit.models.fireball import StratifiedFireballModel
+from jetfit.models.jetsim import JetSimpy
 from scripts.plot.base import OPTION_MAP, Profiler
+from scripts.plot.histogram import SpectralIndexPlot
 
 EFF_WL = {
     'U': SpectralElement.from_filter('johnson_u').pivot(),
@@ -49,6 +52,7 @@ EFF_WL = {
 }
 
 # aliases
+EFF_WL['C'] = EFF_WL['S']
 EFF_WL['r2'] = EFF_WL['r']
 EFF_WL['i2'] = EFF_WL['i']
 EFF_WL['z2'] = EFF_WL['z']
@@ -338,9 +342,10 @@ class LightCurvePlot:
 
         # ax.set_title(title)
         ax.set_ylabel('Flux Density [mJy]')
+        ax.set_xlabel('Time Since Trigger [days]')
         ax.set_yscale('log')
         ax.set_xscale('log')
-        ax.tick_params(axis='x', top=False, bottom=True)
+        ax.tick_params(axis='x', top=False, bottom=True, reset=True)
 
         # Add secondary x-axis
         # ax.xaxis.set_ticks_position('none')
@@ -489,7 +494,7 @@ class LightCurvePlot:
         ax = self.ax if axes == 'upper' else self.ax1
         self._plot_observation(formatted_data, spreads, excluded, axes)
         # if axes == 'upper':
-        ax.legend(loc='lower left', ncols=3, columnspacing=0.25, handletextpad=0.25, fontsize=8)
+        ax.legend(loc='lower left', ncols=2, columnspacing=0.25, handletextpad=0.25, fontsize=12)
         ax.grid(alpha=0.3)
         # self.ax.set_ylim(bottom=1e-7)
 
@@ -605,12 +610,6 @@ def model_freqs(model, t, params, **kwargs):
     """
     afterglow_model = model(**params.get('model'), **kwargs)
 
-    # Freeze the spectrum at the jet-break time
-    # tj = params.get('model').get('tj')
-    #
-    # if tj is not None:
-    #     t = np.where(t > tj, tj, t)
-
     nu_m = afterglow_model.nu_m(t)
     nu_c = afterglow_model.nu_c(t)
     nu_a = model_nu_a(afterglow_model, t, nu_m, nu_c)
@@ -668,24 +667,29 @@ class FrequencyPlotter(Profiler):
         self.model = model
         self.model_kw = model_kw
 
-        self.ax = None
+        self.samples = self.draw()
+
+        self.axes = None
         self._set_axes()
 
     def _set_axes(self) -> None:
         """ Set plot axes. """
-        _, ax = plt.subplots(figsize=(8, 8))
+        fig, axes = plt.subplots(2,1, figsize=(8, 8), sharex=True)
+        fig.subplots_adjust(hspace=0)
 
         # ax.set_title('Critical Frequencies')
-        ax.set_xlabel('Time Since Trigger [days]')
-        ax.set_ylabel('Frequency [Hz]')
+        axes[1].set_xlabel('Time Since Trigger [days]', fontsize=16)
+        axes[0].set_ylabel('Frequency [Hz]', fontsize=16)
+        axes[1].set_ylabel('Spectral Index', fontsize=16)
 
         # Define secondary axis
-        ax2 = ax.secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
-        ax2.set_xlabel("Time Since Trigger [seconds]", labelpad=10)
-        ax2.xaxis.set_ticks_position('none')
-        ax2.tick_params(axis='x', top=True, bottom=False)
-        ax.tick_params(axis='x', top=False, bottom=True)
-        self.ax = ax
+        # ax2 = axes[0].secondary_xaxis('top', functions=(days_to_sec, sec_to_days))
+        # ax2.set_xlabel("Time Since Trigger [seconds]", labelpad=10)
+        # ax2.xaxis.set_ticks_position('none')
+        # ax2.tick_params(axis='x', top=True, bottom=False)
+        # axes[0].tick_params(axis='x', top=False, bottom=True)
+        self.axes = axes
+        self.fig = fig
 
     def plot_all(self, obs, best=None, out_dir=None):
         """
@@ -710,13 +714,85 @@ class FrequencyPlotter(Profiler):
         # Plot the frequencies
         self.plot_dist(times, best)
         self.plot_data(obs)
+        self.plot_indices(obs, best, times)
 
-        self.ax.set_xlim(times.min(), times.max())
+        self.axes[1].set_xlim(times.min(), times.max())
 
         if out_dir is not None:
-            save_plot_unique('frequencies', 'pdf', str(out_dir), dpi=400)
+            save_plot_unique('frequencies', 'pdf', str(out_dir))
 
-    def plot_dist(self, times, best=None):
+    def plot_indices(self, obs, best=None, times=None):
+        """"""
+        if times is None:
+            epoch = obs.epoch(mask=obs.flux_loc)
+
+            times = np.geomspace(
+                epoch.min() / 2, epoch.max() * 2, num=200
+            )
+
+        if best is None:
+            best = self.best(cat='model')
+
+        # Plot best for all times
+        model = self.model(**best.get('model'), **(self.model_kw or {}))
+        fts = False
+        if not isinstance(model, JetSimpy):
+            full_spectrum = model.spectrum(obs.times())
+            fts = has_fts_transition(full_spectrum['nu_m'], full_spectrum['nu_c'])
+        indices = model.spectral_index(times, obs.int_lowers()[0], obs.int_uppers()[0], fts=fts)
+        self.axes[1].plot(times, indices, color='black', zorder=99, linestyle='--')
+
+        # Plot AMPy medians
+        for j, index in enumerate(obs.data[obs.sindex_loc]):
+
+            for i, s in enumerate(self.samples):
+                p = self.params.samples_to_dict(s)
+                model = self.model(**p.get('model'), **(self.model_kw or {}))
+                index_spectrum = model.spectrum(times)
+
+                # Is there a fast-to-slow transition?
+                fts = False
+
+                if not isinstance(model, JetSimpy):
+                    full_spectrum = model.spectrum(obs.times())
+                    fts = has_fts_transition(full_spectrum['nu_m'], full_spectrum['nu_c'])
+
+                # Model the spectral index
+                modeled = SpectralIndexModel(**index_spectrum).evaluate(
+                    index.int_range.lower.to_value('Hz'), index.int_range.upper.to_value('Hz'), fts=fts
+                )
+
+                self.axes[1].plot(times, modeled, alpha=0.2, color='royalblue', label='AMPy' if (j==0 and i==0) else None)
+
+            self.axes[1].errorbar(
+                index.time.to_value('d'), index.value.value,
+                yerr=((index.uncertainty.lower.value,), (index.uncertainty.lower.value,)),
+                fmt='o', linestyle='none', capsize=3, color='black', zorder=999, label='XRT' if j==0 else None
+            )
+        self.axes[1].legend(loc='best')
+
+        handles, labels = [], []
+        h, l = self.axes[0].get_legend_handles_labels()
+        handles.extend(h)
+        labels.extend(l)
+
+        num_entries = len(labels)
+        desired_rows = 4
+        ncol = int((num_entries + desired_rows - 1) // desired_rows)
+
+        self.fig.legend(
+            handles, labels,
+            mode='expand',
+            loc="upper center",
+            bbox_to_anchor=(0.0825, 1.01, .907, 0.01),
+            ncol=ncol,
+            frameon=True,
+            fancybox=False,
+            edgecolor="black"
+        )
+        plt.tight_layout(rect=[0, 0, 1, 0.9])  # leave space for legend
+
+    def plot_dist(self, times, best=None, nsamps=None):
         """
         Plot the distribution of frequencies.
 
@@ -725,8 +801,13 @@ class FrequencyPlotter(Profiler):
         times : np.ndarray
             The observer-frame times [d].
         """
+        if nsamps is not None:
+            samples = self.draw(nsamps)
+        else:
+            samples = self.samples
+
         # Model the frequencies for each randomly sampled set
-        for sample in self.draw(nsamps=100):
+        for sample in samples:
             params = self.params.samples_to_dict(sample, cat='model')
 
             nu_m, nu_c, nu_a = model_freqs(
@@ -734,11 +815,11 @@ class FrequencyPlotter(Profiler):
             )
 
             # Plot the critical frequencies
-            self.ax.loglog(times, nu_m, color='blue', alpha=0.1)
-            self.ax.loglog(times, nu_c, color='orange', alpha=0.1)
-
             if nu_a is not None:
-                self.ax.loglog(times, nu_a, color='green', alpha=0.1)
+                self.axes[0].loglog(times, nu_a, color='tab:green', alpha=0.1)
+
+            self.axes[0].loglog(times, nu_m, color='tab:blue', alpha=0.1)
+            self.axes[0].loglog(times, nu_c, color='tab:orange', alpha=0.1)
 
         self.plot_best(times, best)
 
@@ -759,12 +840,29 @@ class FrequencyPlotter(Profiler):
             self.model, times, best, **(self.model_kw or {})
         )
 
-        # Over-plot with the most likely frequencies
-        self.ax.loglog(times, best_nu_ms, color='blue', linewidth=2, label=r'$\nu_m$')
-        self.ax.loglog(times, best_nu_cs, color='orange', linewidth=2, label=r'$\nu_c$')
+        # Get rad to ad time
+        # if self.model.__name__ == 'StratifiedFireballModel':
+        #     model = self.model(**best.get('model'), **(self.model_kw or {}))
+        #
+        #     n, k = model.smooth(times)
+        #     n = n * model.ref_radius ** k
+        #
+        #     radiation = RadiationModel(
+        #         n, k, model.p, model.eps_b, model.eps_e, model.dL, model.z, model.hmf
+        #     )
+        #
+        #     rta = radiation.rad_to_ad_time(model.E / model.lf0, times, model.nu_m(times), model.nu_c(times))
+        #     print(rta)
+        #
+        #     if rta is not None:
+        #         self.axes[0].axvline(rta, color='grey', linestyle='--')
 
+        # Over-plot with the most likely frequencies
         if best_nu_as is not None:
-            self.ax.loglog(times, best_nu_as, color='green', linewidth=2, label=r'$\nu_a$')
+            self.axes[0].loglog(times, best_nu_as, color='tab:green', linewidth=2, label=r'$\nu_a$')
+
+        self.axes[0].loglog(times, best_nu_ms, color='tab:blue', linewidth=2,   label=r'$\nu_m$')
+        self.axes[0].loglog(times, best_nu_cs, color='tab:orange', linewidth=2, label=r'$\nu_c$')
 
     def plot_data(self, obs):
         """
@@ -801,28 +899,41 @@ class FrequencyPlotter(Profiler):
 
             if x == 'Ic': band = 'I'
             elif x == 'Rc': band = 'R'
-            elif x == 'Ka': band = r'$K_a$'
-            elif x == 'Kb': band = r'$K_b$'
-            elif x == 'Kc': band = r'$K_c$'
-            elif x == 'Kd': band = r'$K_d$'
+            elif x == 'C': band = '3 GHz'
+            elif x == 'Ka': band = '6 GHz'
+            elif x == 'Kb': band = '272 GHz'
+            elif x == 'Kc': band = '290 GHz'
+            elif x == 'Kd': band = '341 GHz'
             elif x == 'uvot-u': band = 'UVOT-u'
             elif x == 'uvot-b': band = 'UVOT-b'
             elif x == 'uvot-v': band = 'UVOT-v'
             elif x == 'uvw1': band = 'UVOT-uvw1'
             elif x == 'uvm2': band = 'UVOT-uvm2'
             elif x == 'uvw2': band = 'UVOT-uvw2'
-            elif x == 'xray': band = 'XRT'
+            elif x == 'xray': band = 'XRAY'
             elif x == 'S': band = '345 GHz'
             else: band = x
 
-            self.ax.scatter(plot_data[x]['t'], plot_data[x]['nu'], label=band, **OPTION_MAP[x])
+            self.axes[0].scatter(plot_data[x]['t'], plot_data[x]['nu'], label=band, **OPTION_MAP[x])
 
-        self.ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), frameon=True, edgecolor='black', facecolor='white')
-        self.ax.grid(alpha=0.3)
+        # self.ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), frameon=True, edgecolor='black', facecolor='white')
+        # self.ax.set_ylim(1e2, 1e22)
+        # self.axes[0].legend(loc='lower left', ncols=4, facecolor='white', columnspacing=0.25, handletextpad=0.25, fontsize=12)
+        self.axes[0].grid(alpha=0.3, axis='x')
 # </editor-fold>
 
 
 # <editor-fold desc="Single Density Profile"
+def cm_to_pc(val):
+    """"""
+    return val * 3.2407792896664E-19
+
+
+def pc_to_cm(val):
+    """"""
+    return val / 3.2407792896664E-19
+
+
 class DensityProfiler(Profiler):
     """
     Density profiler.
@@ -1013,8 +1124,15 @@ class DensityProfiler(Profiler):
             log_scale=False
         )
 
+        # Define secondary axis
+        ax2 = ax.secondary_xaxis('top', functions=(cm_to_pc, pc_to_cm))
+        ax2.set_xlabel("Radius [pc]", labelpad=10)
+        ax2.xaxis.set_ticks_position('none')
+        ax2.tick_params(axis='x', top=True, bottom=False)
+        ax.tick_params(axis='x', top=False, bottom=True)
+
         ax.axvline(self.r_ref['best'][0], **self.r_ref_options)
-        ax.set_title('Power-Law Index Profile')
+        # ax.set_title('Power-Law Index Profile')
         ax.set_ylabel(r'Power-Law Index k')
         ax.set_xlabel(r'Radius [cm]')
         ax.set_xscale('log')

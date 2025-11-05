@@ -6,7 +6,7 @@ from scipy import stats
 
 from jetfit.core.structs import Prior
 from jetfit.mcmc.parameters import priors
-from jetfit.mcmc.priors import GaussianPrior, UniformPrior, TruncatedGaussianPrior, MilkyWayRvPrior
+from jetfit.mcmc.priors import GaussianPrior, UniformPrior, TruncatedGaussianPrior, MilkyWayRvPrior, PowerLawPrior
 
 
 class TestPriorFactory(unittest.TestCase):
@@ -300,6 +300,123 @@ class TestMilkyWayRvPrior(unittest.TestCase):
         ax.set_title(str(rv_prior) + f' with n={n}')
         ax.set_ylabel('$p(logR_{v}^{MW})$')
         ax.set_xlabel(r'$logR_{v}^{MW}$')
+        ax.legend(loc='best')
+        plt.show()
+
+
+class TestPowerLawPrior(unittest.TestCase):
+    """"""
+
+    # @unittest.skip("Test=Plot PowerLaw, Reason=For visual inspection only")
+    def test_plot_distribution(self):
+        """
+        Plots the results of `PowerLawPrior.draw` and `PowerLawPrior.evaluate()`.
+        """
+        lower, upper, exponent, guess, sigma = 10, 80, 2, 3, 1
+
+        # Create a distribution centered on zero, with an initial guess
+        pl = priors.PowerLawPrior(lower, upper, exponent, guess, sigma)
+
+        n = 10_000
+        # samples_g = pl.draw(n, initial=False)
+        samples_f = pl.draw(n, initial=False)
+
+        x = np.linspace(
+            1, 100,
+            1000
+        )
+        xxx = []
+        for xi in x:
+            xxx.append(pl.evaluate(xi))
+
+        fig, ax = plt.subplots(1, 1)
+        ax.hist(samples_f, density=True, bins='auto', facecolor='#2ab0ff', edgecolor='#169acf', alpha=0.5,
+                label='Full Samples')
+        # _, _, rects = ax.hist(samples_g, density=True, bins='auto', alpha=0.5, label='Initial Samples')
+        ax.plot(x, xxx, 'r-', lw=5, alpha=0.6, label='Sampled PDF')
+
+        # Normalize the heights of the histograms
+        # h = (abs(lower) + abs(upper)) / (sigma * 2)
+
+        # for r in rects:
+        #     r.set_height(r.get_height() / h)
+
+        # Plot vertical lines to compare theoretical and sampled mu, sigma
+        # ax.vlines(guess + sigma, 0, 0.15, color='black', alpha=0.5, linestyles='dashed', label=r'True Initial Region')
+        # ax.vlines(guess - sigma, 0, 0.15, color='black', alpha=0.5, linestyles='dashed')
+
+        ax.set_title(str(pl) + f' with n={n} samples')
+        # ax.set_ylim(0, 0.15)
+        ax.legend(loc='best')
+        plt.show()
+
+
+class TestSinePrior(unittest.TestCase):
+    """"""
+
+    # @unittest.skip("Test=Plot PowerLaw, Reason=For visual inspection only")
+    def test_plot_distribution(self):
+        """
+        Plots the results of `PowerLawPrior.draw` and `PowerLawPrior.evaluate()`.
+        """
+        lower, upper, guess, sigma = 0, 1, 0.5, 1
+        prior = priors.SinePrior(lower, upper, guess, sigma)
+
+        # Draw samples
+        samples = prior.draw(n=10_000, initial=False)
+
+        # Histogram (empirical distribution)
+        bins = 100
+        hist, bin_edges = np.histogram(samples, bins=bins, density=True)
+        bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+
+        # Evaluate analytic PDF at those bins
+        pdf = np.array([prior.evaluate(x) for x in bin_centers])
+
+        # Normalize if needed
+        pdf /= np.trapz(pdf, bin_centers)
+
+        # Optionally plot for visual confirmation
+        plt.figure()
+        plt.plot(bin_centers, pdf, 'r-', label='evaluate()')
+        plt.hist(samples, bins=bins, density=True, alpha=0.5, label='draw() histogram')
+        plt.title(f'Test of {prior}')
+        plt.xlabel('x')
+        plt.ylabel('Probability density')
+        plt.legend()
+        plt.show()
+
+        # Optional automatic test:
+        # Check that the two distributions are reasonably close
+        max_diff = np.max(np.abs(hist - pdf))
+        assert max_diff < 0.05, f"draw() and evaluate() differ by up to {max_diff:.3f}"
+
+        lower, upper, guess, sigma = 0, 2 * 3.1415, 0.5, 1
+
+        # Create a distribution centered on zero, with an initial guess
+        pl = priors.SinePrior(lower, upper, guess, sigma)
+
+        n = 10_000
+        # samples_g = pl.draw(n, initial=False)
+        samples_f = pl.draw(n, initial=False)
+
+        fig, ax = plt.subplots(1, 1)
+        ax.hist(samples_f, density=True, bins='auto', facecolor='#2ab0ff', edgecolor='#169acf', alpha=0.5,
+                label='Full Samples')
+        # _, _, rects = ax.hist(samples_g, density=True, bins='auto', alpha=0.5, label='Initial Samples')
+
+        # Normalize the heights of the histograms
+        # h = (abs(lower) + abs(upper)) / (sigma * 2)
+
+        # for r in rects:
+        #     r.set_height(r.get_height() / h)
+
+        # Plot vertical lines to compare theoretical and sampled mu, sigma
+        # ax.vlines(guess + sigma, 0, 0.15, color='black', alpha=0.5, linestyles='dashed', label=r'True Initial Region')
+        # ax.vlines(guess - sigma, 0, 0.15, color='black', alpha=0.5, linestyles='dashed')
+
+        ax.set_title(str(pl) + f' with n={n} samples')
+        # ax.set_ylim(0, 0.15)
         ax.legend(loc='best')
         plt.show()
 

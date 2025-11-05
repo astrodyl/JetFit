@@ -233,7 +233,7 @@ def mag_to_flux(mag, mag_error, dfilter, system, ebv=None):
 
 if __name__ == '__main__':
 
-    event = '140506A'
+    event = '220101A'
 
     # mags = [24.71,24.24,23.66,23.13,24.27,24.43,23.7,23.71]
     # errors = [0.11,0.1,0.17,0.17,0.14,0.21,0.15,0.23]

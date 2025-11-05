@@ -70,7 +70,7 @@ def get_pool_context(workers=None, executor='process'):
         Note that unless a free-threaded Python is installed,
         multithreading will not yield any benefits. Even if a
         no-GIL Python version is used, the performance increase
-        depends  on the likelihood implementation.
+        depends on the likelihood implementation.
 
         Pure Python implementations will see a large performance
         increase. If the likelihood uses Cython, then it depends
@@ -641,6 +641,7 @@ class MCMC:
                 self.start_run_pos = start_pos
 
             else:
+                print('burning')
                 self.start_burn_pos = start_pos
 
                 # Run burn in and save the last position
@@ -657,6 +658,7 @@ class MCMC:
                 self.sampler.reset()
 
             # Run production
+            print('running')
             self.sampler.run_mcmc(
                 self.start_run_pos, iterations, **(run_kw or {})
             )
@@ -861,7 +863,7 @@ def log_likelihood_fn(theta, params, models) -> float:
     # Model the observed afterglow
     modeled = models.model(p)
 
-    # A nan always results in -inf likelihood.
+    # A nan always results in an -inf likelihood.
     if np.isnan(modeled.min()):
         return -np.inf
 

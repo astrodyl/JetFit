@@ -264,8 +264,8 @@ def gamma(E, n0, k, t_src, adiabatic=True):
     Parameters
     ----------
     E : float
-        The explosion energy [erg]. If ``evo==radiative``,
-        assumes that ``E=E0 / Gamma0``.
+        The explosion energy [erg]. If ``adiabatic`` is
+        True, assumes that ``E=E0 / Gamma0``.
 
     n0 : float or np.ndarray
         The number density normalization [cm(k-3)].
@@ -289,7 +289,10 @@ def gamma(E, n0, k, t_src, adiabatic=True):
     hdc_a = 16.0 / (17.0 - 4.0 * k)
     hdc_b = 4.0 - k
 
-    exp = -0.5 / (4.0 - k) if adiabatic else -1.0 / (7.0 - 2.0 * k)
+    if adiabatic:
+        exp = -1.0 / (2.0 * (4.0 - k))
+    else:
+        exp = -1.0 / (7.0 - 2.0 * k)
 
     return (
         hdc_a * hdc_b ** (3.0 - k) * np.pi *
@@ -306,8 +309,8 @@ def radius(E, n0, k, t_src, adiabatic=True):
     Parameters
     ----------
     E : float
-        The explosion energy [erg]. If ``evo==radiative``,
-        assumes that ``E=E0 / Gamma0``.
+        The explosion energy [erg]. If ``adiabatic`` is
+        True, assumes that ``E=E0 / Gamma0``.
 
     n0 : float or np.ndarray
         The number density normalization [cm(k-3)].
@@ -335,12 +338,12 @@ def radius(E, n0, k, t_src, adiabatic=True):
         return (
             # where 1.5e-13 ~= pi * MassP * SoL
             hdc_b * E * t_src / (1.575318e-13 * hdc_a * n0)
-        ) ** (1 / (4 - k))
+        ) ** (1.0 / (4.0 - k))
 
     return (
         # where 7.4e-16 ~= (pi * MassP)**2 * SoL**3
-        hdc_b * E ** 2 * t_src / (7.439734e-16 * (hdc_a * n0) ** 2)
-    ) ** (1 / (7 - 2 * k))
+        hdc_b * E ** 2.0 * t_src / (7.439734e-16 * (hdc_a * n0) ** 2.0)
+    ) ** (1.0 / (7.0 - 2.0 * k))
 
 
 # noinspection PyPep8Naming
@@ -487,7 +490,7 @@ class RadiationModel:
 
     def rad_to_ad_smooth(self, t, t_trans, rad, ad):
         """ Smooths the radiative and adiabatic evolutions. """
-        # Generalized s(p) from GS02 for break 9 (s23) and break 11 (s12)
+        # Generalized s(p) from GS02 for break 9 (s23)
         s = 3.34 + 0.17 * self.k - (0.82 + 0.035 * self.k) * self.p
 
         # Radiative efficiency
@@ -777,8 +780,6 @@ def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=Tru
     nu_c = cooling_frequency(E, n0, k, eps_b, z, t_obs, adiabatic, tj, sj)
 
     if adiabatic:
-        fast = nu_c < nu_m
-
         # Determine slow-cooling absorption frequencies
         nu_amc = nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, tj, sj)
         nu_mac = nu_a_mac_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, tj, sj)
@@ -787,8 +788,7 @@ def absorption_frequency(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, adiabatic=Tru
         slow_weight = 1.0 / (1.0 + (nu_amc / nu_m) ** 3.0)
         res = slow_weight * nu_amc + (1.0 - slow_weight) * nu_mac
 
-        if fast.any():  # type: ignore
-
+        if (nu_c < nu_m).any():  # type: ignore
 
             # Determine fast-cooling absorption frequencies
             nu_acm = nu_a_acm_ad(E, n0, k, eps_b, z, hmf, t_obs, tj, sj)
@@ -1258,7 +1258,7 @@ def nu_m_rad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs):
 
 # noinspection PyPep8Naming
 @njit(cache=True)
-def nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, tj=1.0, sj=1.0):
+def nu_a_amc_ad(E, n0, k, p, eps_b, eps_e, z, hmf, t_obs, tj=-1.0, sj=1.0):
     """
     Calculates the self-absorption frequency [Hz] in the
     weak self-absorption regime (nu_a < nu_m < nu_c) for
@@ -2167,13 +2167,10 @@ class ObservedSpectrumModel:
 
     fts : bool, optional, default=`has_fts_transition()`
         Model a fast-to-slow transition?
-
-    jet : JetBreakModel, optional
-        The jet break spectrum and smoothing parameters.
     """
     def __init__(
         self, nu_m, nu_c, f_peak, p, k, arrays,
-        nu_a=None, fts=None, jet=None
+        nu_a=None, fts=None
     ):
         self.nu_a = nu_a
         self.nu_m = nu_m
@@ -2185,7 +2182,6 @@ class ObservedSpectrumModel:
         self.arrays = arrays
         self.has_fts = has_fts_transition(
             self.nu_m, self.nu_c) if fts is None else fts
-        self.jet = jet
 
     @property
     def is_valid(self) -> bool:
@@ -2245,8 +2241,7 @@ class ObservedSpectrumModel:
             The unextinguished spectral flux [mJy].
         """
         return SpectralFluxModel(**self.spectrum(mask)).evaluate(
-            self.arrays.frequencies[mask], self.has_fts,
-            self.jet.subset(mask) if self.jet else None,
+            self.arrays.frequencies[mask], self.has_fts
         )
 
     def integrated_flux(self, mask):
@@ -2266,7 +2261,7 @@ class ObservedSpectrumModel:
         return IntegratedFluxModel(**self.spectrum(mask)).evaluate(
             self.arrays.int_lower[mask],
             self.arrays.int_upper[mask],
-            self.has_fts, self.jet.subset(mask) if self.jet else None
+            self.has_fts
         )
 
     def spectral_index(self, mask):
@@ -2286,7 +2281,7 @@ class ObservedSpectrumModel:
         return SpectralIndexModel(**self.spectrum(mask)).evaluate(
             self.arrays.int_lower[mask],
             self.arrays.int_upper[mask],
-            self.has_fts, self.jet.subset(mask) if self.jet else None
+            self.has_fts
         )
 
     def spectrum(self, mask=None):
@@ -2433,23 +2428,6 @@ class BaseFireballModel:
         """ Placeholder. """
         raise NotImplementedError('spectrum is not implemented.')
 
-    def jet_break(self, t):
-        """
-        Jet break model.
-
-        Parameters
-        ----------
-        t : np.ndarray of float
-            The observer times [d] used to smooth the break.
-
-        Returns
-        -------
-        JetBreakModel
-        """
-        if self.tj is not None and self.sj is not None:
-            return JetBreakModel(SpectralFluxModel(
-                **self.spectrum(self.tj)), self.tj, t, self.p, self.sj)
-
     def spectral_flux(self, t, nu, fts=False):
         """
         Calculates the spectral fluxes at time(s) ``t`` for
@@ -2471,9 +2449,7 @@ class BaseFireballModel:
         float np.ndarray of float
             The modeled spectral flux [mJy].
         """
-        return SpectralFluxModel(**self.spectrum(t)).evaluate(
-            nu, fts, None  # self.jet_break(t)
-        )
+        return SpectralFluxModel(**self.spectrum(t)).evaluate(nu, fts)
 
     def integrated_flux(self, t, lower, upper, fts=False):
         """
@@ -2497,7 +2473,7 @@ class BaseFireballModel:
             The modeled spectral flux [erg cm-2 s-1].
         """
         return IntegratedFluxModel(**self.spectrum(t)).evaluate(
-            lower, upper, fts, None  # self.jet_break(t)
+            lower, upper, fts
         )
 
     def spectral_index(self, t, lower, upper, fts=False):
@@ -2522,7 +2498,7 @@ class BaseFireballModel:
             The modeled spectral index.
         """
         return SpectralIndexModel(**self.spectrum(t)).evaluate(
-            lower, upper, fts, None  # self.jet_break(t)
+            lower, upper, fts
         )
 
 
@@ -2720,7 +2696,7 @@ class BaseFluxModel:
 
     def _fts_smoothing(self, s12, s23):
         """
-        Determines the smoothing factors for a doubly-broken
+        Determines the smoothing factors for a doubly broken
         spectrum with a fast-to-slow cooling transition.
 
         Parameters
@@ -2827,7 +2803,7 @@ class SpectralFluxModel(BaseFluxModel):
         """
         return self.evaluate(val.frequency.value)
 
-    def evaluate_sharp(self, nu, jet=None):
+    def evaluate_sharp(self, nu):
         """
         Models the spectral flux using a sharply-broken spectrum.
 
@@ -2835,10 +2811,6 @@ class SpectralFluxModel(BaseFluxModel):
         ----------
         nu : float or np.ndarray of float
             The observed frequency [Hz].
-
-        jet : JetBreakModel, optional
-            Smooths the flux across the jet break.
-
         Returns
         -------
         float or np.ndarray of float
@@ -2863,13 +2835,9 @@ class SpectralFluxModel(BaseFluxModel):
         res[seg1] *= (nu[seg1] / nu12[seg1]) ** b2[seg1]
         res[seg2] *= (nu23[seg2] / nu12[seg2]) ** b2[seg2] * (nu[seg2] / nu23[seg2]) ** b3[seg2]
 
-        # Smooth across the jet break
-        if jet is not None:
-            res = jet.smooth(res, nu)  # type: ignore
-
         return res[0] if res.size == 1 else res
 
-    def evaluate(self, nu, fts=False, jet=None):
+    def evaluate(self, nu, fts=False):
         """
         Calculates the smoothed flux for frequency, `nu`.
 
@@ -2895,9 +2863,6 @@ class SpectralFluxModel(BaseFluxModel):
 
         fts : bool, optional, default=False
             Is there a fast-to-slow cooling transition?
-
-        jet : JetBreakModel, optional, default=None
-            Smooths the flux across the jet break.
 
         Returns
         -------
@@ -2931,10 +2896,6 @@ class SpectralFluxModel(BaseFluxModel):
 
         if self.cam is not None and self.cam.any():
             flux = self.correct_cam_flux(flux, nu)  # type: ignore
-
-        # Smooth across the jet break
-        if jet is not None:
-            flux = jet.smooth(flux, nu, fts)  # type: ignore
 
         # return the smoothed spectral flux [mJy]
         return flux[0] if flux.size == 1 else flux
@@ -3024,7 +2985,7 @@ class IntegratedFluxModel(BaseFluxModel):
             upper=val.int_range.upper.value
         )
 
-    def evaluate(self, lower, upper, fts=False, jet=None):
+    def evaluate(self, lower, upper, fts=False):
         """
         Evaluates the integrated flux model using the
         ``lower`` and ``upper`` integration limits.
@@ -3040,9 +3001,6 @@ class IntegratedFluxModel(BaseFluxModel):
         fts : bool, optional, default=False
             Is there a fast-to-slow cooling transition?
 
-        jet : JetBreakModel, optional, default=None
-            Smooths the flux across the jet break.
-
         Returns
         -------
         float or np.ndarray of float
@@ -3050,11 +3008,11 @@ class IntegratedFluxModel(BaseFluxModel):
         """
         beta = SpectralIndexModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a
-        ).evaluate(lower, upper, fts, jet)
+        ).evaluate(lower, upper, fts)
 
         flux = SpectralFluxModel(
             self.nu_m, self.nu_c, self.f_peak, self.p, self.k, self.nu_a
-        ).evaluate(lower, fts, jet)
+        ).evaluate(lower, fts)
 
         # return the smoothed integrated flux [erg cm-2 s-1]
         return 1e-26 * (
@@ -3094,7 +3052,7 @@ class SpectralIndexModel(BaseFluxModel):
             upper=val.int_range.upper.value,
         )
 
-    def evaluate(self, lower, upper, fts=False, jet=None):
+    def evaluate(self, lower, upper, fts=False):
         """
         Approximates the spectral index using a two
         point approximation.
@@ -3110,9 +3068,6 @@ class SpectralIndexModel(BaseFluxModel):
         fts : bool, optional, default=False
             Is there a fast-to-slow cooling transition?
 
-        jet : JetBreakModel, optional, default=None
-            Smooths the flux across the jet break.
-
         Returns
         -------
         float or np.ndarray of float
@@ -3124,75 +3079,8 @@ class SpectralIndexModel(BaseFluxModel):
         # return the spectral index
         return (
             np.log10(
-                model.evaluate(upper, fts, jet) /
-                model.evaluate(lower, fts, jet)
+                model.evaluate(upper, fts) /
+                model.evaluate(lower, fts)
             ) /
             np.log10(upper / lower)
         )
-
-
-class JetBreakModel:
-    """
-    Models a jet break in the afterglow light curve.
-
-    Parameters
-    ----------
-    t_jet : float
-        The jet-break time [d].
-
-    t_obs : np.ndarray of float
-        The times to smooth over [d].
-
-    p : float
-        The electron energy index.
-
-    s : float, optional, default=3
-        The smoothing parameter.
-    """
-    def __init__(self, f_jet, t_jet, t_obs, p, s=3):
-        self.f_jet = f_jet
-        self.t_jet = t_jet
-        self.t_obs = t_obs
-        self.p = p
-        self.s = s
-
-    def __repr__(self):
-        """ Human-readable representation """
-        return f'JetBreakModel(t_jet={self.t_jet}, .., s={self.s})'
-
-    def __call__(self, *args, **kwargs):
-        """ Calls the smooth method. """
-        return self.smooth(*args, **kwargs)
-
-    def subset(self, mask):
-        """ Returns a ``JetBreakModel`` with a subset of times. """
-        return self.__class__(
-            self.f_jet, self.t_jet, self.t_obs[mask], self.p, self.s
-        )
-
-    def smooth(self, f_obs, nu, fts=False):
-        """
-        Smooths the flux ``f_obs`` with the jet flux via
-        a smoothly broken power law.
-
-        Parameters
-        ----------
-        f_obs : np.ndarray of float
-            The modeled jet-break flux [mJy or erg cm-2 s-1].
-
-        nu : np.ndarray of float
-
-        fts : bool, optional, default=False
-            Is there a fast-to-slow cooling transition?
-
-        Returns
-        -------
-        np.ndarray of float
-            The smoothed flux [mJy or erg cm-2 s-1].
-        """
-        f_jet = self.f_jet(nu, fts)
-
-        return (
-            f_obs ** -self.s +
-            (f_jet * (self.t_obs / self.t_jet) ** -self.p) ** -self.s
-        ) ** -(1 / self.s)

@@ -247,10 +247,7 @@ def hill(x1, x2, w):
     return w * x1 + (1.0 - w) * x2
 
 def chi_squared(
-    f: np.ndarray[float],
-    y: np.ndarray[float],
-    e: np.ndarray[float],
-    s = None,
+    f: np.ndarray, y: np.ndarray, e: np.ndarray, s = None,
 ) -> float:
     """
     Calculates the chi-squared value.

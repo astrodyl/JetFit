@@ -4,8 +4,11 @@ import unittest
 import numpy as np
 from matplotlib import pyplot as plt
 
+from jetfit.core.utils import save_plot_unique
 from jetfit.models.base import SpectralFluxModel
 
+import scienceplots
+plt.style.use(['science'])
 
 class TestSpectralFlux(unittest.TestCase):
     """"""
@@ -196,7 +199,7 @@ class TestSpectralFlux(unittest.TestCase):
         plt.legend()
         plt.show()
 
-    @unittest.skip("Test=AMC, Reason=For visual inspection only")
+    # @unittest.skip("Test=AMC, Reason=For visual inspection only")
     def test_AMC(self):
         """
         Visual inspection of slow-cooling smoothing approximation.
@@ -237,7 +240,7 @@ class TestSpectralFlux(unittest.TestCase):
         plt.legend()
         plt.show()
 
-    @unittest.skip("Test=FTS, Reason=For visual inspection only")
+    # @unittest.skip("Test=FTS, Reason=For visual inspection only")
     def test_fts_smoothing(self):
         """"""
         # Define the frequencies

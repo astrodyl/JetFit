@@ -1,42 +1,34 @@
 # MCMC Parameter Configuriation File
-name = 'FireballModel'
+name = 'JetSimpy'
 
 #-------------- MODEL --------------
 #---------------- E ----------------
 [[model]]
-name  = "E52"
+name  = "Eiso"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
-    lower = -2.0
-    upper = 4.0
-    initial_guess = 1.0
-    initial_sigma = 0.3
-
-#-------------- MODEL --------------
-#--------------- lfo ---------------
-[[model]]
-name  = "lf0"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = 1.69
-    upper = 3.00
+    lower = 50.0
+    upper = 56.0
 
 #-------------- MODEL --------------
 #---------------- n ----------------
 [[model]]
-name  = "n017"
+name  = "A"
+scale = "linear"
+value = 0.0
+
+#-------------- MODEL --------------
+#---------------- A ----------------
+[[model]]
+name  = "n0"
 scale = "log"
 
 [model.prior]
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-    initial_guess = -2.1
-    initial_sigma = 0.6
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -48,8 +40,6 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-    initial_guess = -0.96
-    initial_sigma = 0.3
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -61,8 +51,17 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-    initial_guess = -0.99
-    initial_sigma = 0.3
+
+#-------------- MODEL --------------
+#---------------- LF ---------------
+[[model]]
+name  = "lf"
+scale = "log"
+
+[model.prior]
+    type  = "uniform"
+    lower = 1.69
+    upper = 3.00
 
 #-------------- MODEL --------------
 #---------------- p ----------------
@@ -74,68 +73,45 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.05
-    initial_sigma = 0.10
+    initial_guess = 2.25
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
-#---------------- k ----------------
+#------------- theta_c -------------
 [[model]]
-name  = "k"
+name  = "theta_c"
 scale = "linear"
 
 [model.prior]
     type  = "uniform"
-    lower = -5.0
-    upper = 3.0
-    initial_guess = -1.6
-    initial_sigma = 0.3
-
-#-------------- MODEL --------------
-#------------ tj (days) ------------
-[[model]]
-name  = "tj"
-scale = "log"
-
-[model.prior]
-    type  = "uniform"
-    lower = -1.0
+    lower = 0.0
     upper = 1.0
-    initial_guess = 0.18
-    initial_sigma = 0.3
 
 #-------------- MODEL --------------
-#---------------- sj ---------------
+#------------- theta_v -------------
 [[model]]
-name  = "sj"
+name  = "theta_v"
 scale = "linear"
+value = 0.0
 
 [model.prior]
     type  = "uniform"
-    lower = 0.1
-    upper = 3.0
-    initial_guess = 0.5
-    initial_sigma = 0.2
-
-#-------------- MODEL --------------
-#---------------- X ----------------
-[[model]]
-name  = "hmf"
-scale = "linear"
-value = 0.7
+    lower = 0.0
+    upper = 1.0
 
 #-------------- MODEL --------------
 #---------------- z ----------------
 [[model]]
 name  = "z"
 scale = "linear"
-value = 2.198
+value = 0.00973
 
 #-------------- MODEL --------------
-#---------------- dL ---------------
+#---------------- d ----------------
 [[model]]
-name  = "dL28"
+name  = "d"
 scale = "linear"
-value = 5.52
+value = 39.498
 
 #----------- EXTINCTION ------------
 #---------- source_frame -----------
@@ -147,42 +123,20 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.5
-    initial_guess = 0.1
-    initial_sigma = 0.1
+    initial_guess = 0.05
+    initial_sigma = 0.05
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
 [[extinction]]
 name  = "ebv_milky_way"
 scale = "linear"
-value = 0.1205
+value = 0.1053
 
 #----------- CALIBRATION -----------
-#-------------- B-band -------------
+#-------------- v-band -------------
 [[offsets]]
-name  = "B_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#-------------- R-band -------------
-[[offsets]]
-name  = "Rc_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- CALIBRATION -----------
-#-------------- I-band -------------
-[[offsets]]
-name  = "Ic_offset"
+name  = "V_offset"
 scale = "linear"
 
 [offsets.prior]

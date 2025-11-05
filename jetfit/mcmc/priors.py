@@ -39,6 +39,9 @@ def prior_factory(d: dict):
         case Prior.MILKYWAYRV:
             return MilkyWayRvPrior.from_dict(d)
 
+        case Prior.POWERLAW:
+            return PowerLawPrior.from_dict(d)
+
 
 class GaussianPrior:
     """
@@ -243,7 +246,7 @@ class MilkyWayRvPrior:
 
         return samples_log
 
-    def evaluate(self, x, norm=False) -> float | np.ndarray:
+    def evaluate(self, x) -> float | np.ndarray:
         """
         Evaluates the prior at the sampled value `x`.
 
@@ -252,22 +255,13 @@ class MilkyWayRvPrior:
         x : float or array_like
             The sampled value.
 
-        norm : bool, optional, default: False
-            Should the prior be normalized? Normalization is
-            not required for maximizing likelihoods with MCMC.
-
         Returns
         -------
         float or np.ndarray of float
             The prior evaluated at `x`.
         """
-
-        # CCM implementation only supports 2 > x < 6
-        if x < 0.302 or x > 0.778:
-            return -np.inf
-
         sig = self.sigma_low if x < self.mu else self.sigma_high
-        norm = (self.sigma_low + self.sigma_high) * np.sqrt(np.pi / 2) if norm else 1.0
+        norm = (self.sigma_low + self.sigma_high) * np.sqrt(np.pi / 2)
 
         return np.exp(-0.5 * ((x - self.mu) / sig) ** 2) / norm
 
@@ -412,9 +406,13 @@ class UniformPrior(BoundedMixin):
         self.initial_sigma = initial_sigma
 
     def __repr__(self) -> str:
+        """ Human-readable representation. """
         class_name = self.__class__.__name__
-        f"{class_name}(lower={self.lower}, upper={self.upper}"
-        return f"{class_name}(lower={self.lower}, upper={self.upper}, initial={self.initial_guess}+/-{self.initial_sigma})"
+        return f"{class_name}(lower={self.lower}, upper={self.upper})"
+
+    def __call__(self, *args, **kwargs):
+        """ Calls self.evaluate(*args, **kwargs) """
+        return self.evaluate(*args, **kwargs)
 
     @classmethod
     def from_dict(cls, d: dict):
@@ -429,7 +427,7 @@ class UniformPrior(BoundedMixin):
         Returns
         -------
         UniformPrior
-            Instantiated from dictionary.
+            Instantiated from a dictionary.
 
         Raises
         ------
@@ -451,6 +449,31 @@ class UniformPrior(BoundedMixin):
 
         return cls(lower, upper, initial, sigma)
 
+    def _bounds(self, initial: bool):
+        """
+        Returns the bounds of prior considering the initial region.
+
+        Parameters
+        ----------
+        initial : bool
+            If True, and `self.initial_guess` and `self.initial_sigma`
+            are set, samples will be drawn from a truncated region
+            centered around `initial_guess ± initial_sigma`, clipped
+            to within [lower, upper]. If False, samples are drawn from
+            the full prior range.
+
+        Returns
+        -------
+        tuple
+        """
+        if initial:
+            if self.initial_guess is not None and self.initial_sigma is not None:
+                return (
+                    max(self.initial_guess - self.initial_sigma, self.lower),
+                    min(self.initial_guess + self.initial_sigma, self.upper),
+                )
+        return self.lower, self.upper
+
     def draw(self, n: int, initial: bool = True) -> float | np.ndarray:
         """
         Draws ``n`` samples from the uniform distribution.
@@ -464,22 +487,18 @@ class UniformPrior(BoundedMixin):
             The number of samples to draw.
 
         initial : bool
-            If ``True`` only samples from the initial region (if defined).
-            Else, draws from between ``lower`` and ``upper``.
+            If True, and `self.initial_guess` and `self.initial_sigma`
+            are set, samples will be drawn from a truncated region
+            centered around `initial_guess ± initial_sigma`, clipped
+            to within [lower, upper]. If False, samples are drawn from
+            the full prior range.
 
         Returns
         -------
         np.ndarray or float
             Drawn sample(s) from the uniform distribution.
         """
-        if initial:
-            if self.initial_guess is not None and self.initial_sigma is not None:
-                return np.random.uniform(
-                    max(self.initial_guess - self.initial_sigma, self.lower),
-                    min(self.initial_guess + self.initial_sigma, self.upper),
-                    size=n
-                )
-        return np.random.uniform(self.lower, self.upper, size=n)
+        return np.random.uniform(*self._bounds(initial), size=n)
 
     def evaluate(self, x: float) -> float:
         """
@@ -497,6 +516,90 @@ class UniformPrior(BoundedMixin):
         """
         return 0.0 if self.encompasses(x) else -np.inf
 
+
+class PowerLawPrior(UniformPrior):
+    """
+    Uniform prior.
+
+    Attributes
+    ----------
+    initial_guess : float
+        The expected position in the prior.
+
+    initial_sigma : float
+        The expected one-sided sigma of the initial position.
+    """
+    def __init__(
+        self,
+        lower: float,
+        upper: float,
+        exponent: int,
+        initial_guess: float = None,
+        initial_sigma: float = None
+    ):
+        super().__init__(lower, upper, initial_guess, initial_sigma)
+        self.exponent = exponent
+
+    @override
+    def draw(self, n: int, initial: bool = True) -> float | np.ndarray:
+        """
+        Draw samples from the power-law prior distribution.
+
+        Parameters
+        ----------
+        n : int
+            The number of samples to draw.
+
+        initial : bool, optional
+            If True, and `self.initial_guess` and `self.initial_sigma`
+            are set, samples will be drawn from a truncated region
+            centered around `initial_guess ± initial_sigma`, clipped
+            to within [lower, upper]. If False, samples are drawn from
+            the full prior range.
+
+        Returns
+        -------
+        float or np.ndarray
+            Sampled values from the power-law prior distribution.
+        """
+        lo, up = self._bounds(initial)
+
+        if n == -1:
+            # Special case: P(x) ~ 1/x
+            return lo * (up / lo) ** np.random.rand(n)
+
+        # Exponent plus one (aka `pone`)
+        pone = self.exponent + 1
+
+        return (
+            (np.random.rand(n) * (up ** pone - lo ** pone)) + lo ** pone
+        ) ** (1.0 / pone)
+
+    @override
+    def evaluate(self, x: float) -> float:
+        """
+        Evaluates the prior at the sampled value ``x``.
+
+        Parameters
+        ----------
+        x : float
+            The sampled value measured in radians.
+
+        Returns
+        -------
+        float
+
+        """
+        if not self.encompasses(x):
+            return -np.inf
+
+        # Exponent plus one (aka `pone`)
+        pone = self.exponent + 1
+
+        return (
+            pone * x ** self.exponent /
+            (self.lower ** pone - self.upper ** pone)
+        )
 
 class SinePrior(UniformPrior):
     """
@@ -523,13 +626,23 @@ class SinePrior(UniformPrior):
     type = Prior.SINE
 
     def __init__(
-            self,
-            lower: float,
-            upper: float,
-            initial_guess: float = None,
-            initial_sigma: float = None
+        self,
+        lower: float,
+        upper: float,
+        initial_guess: float = None,
+        initial_sigma: float = None
     ):
         super().__init__(lower, upper, initial_guess, initial_sigma)
+
+    @override
+    def draw(self, n: int, initial: bool = True) -> float | np.ndarray:
+        """"""
+        lower, upper = self._bounds(initial)
+
+        cos_min = np.cos(lower)
+        cos_max = np.cos(upper)
+        cos_theta = cos_min - np.random.rand(n) * (cos_min - cos_max)
+        return np.arccos(cos_theta)
 
     @override
     def evaluate(self, x: float) -> float:
@@ -546,4 +659,7 @@ class SinePrior(UniformPrior):
         float
             The sine of ``x`` if within bounds else ``-np.inf``.
         """
-        return np.sin(x) if self.encompasses(x) else -np.inf
+        if not self.encompasses(x):
+            return -np.inf
+
+        return np.sin(x) / (np.cos(self.lower) - np.cos(self.upper))

@@ -15,14 +15,14 @@ scale = "log"
 #-------------- MODEL --------------
 #---------------- n ----------------
 [[model]]
-name  = "n0"
+name  = "A"
 scale = "linear"
 value = 0.0
 
 #-------------- MODEL --------------
 #---------------- A ----------------
 [[model]]
-name  = "A"
+name  = "n0"
 scale = "log"
 
 [model.prior]
@@ -143,7 +143,7 @@ value = 1.3021
 #----------- CALIBRATION -----------
 #------------- g1-band -------------
 [[offsets]]
-name  = "g1_offset"
+name  = "g_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -154,7 +154,7 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #------------- r1-band -------------
 [[offsets]]
-name  = "r1_offset"
+name  = "r_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -165,7 +165,7 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #------------- i1-band -------------
 [[offsets]]
-name  = "i1_offset"
+name  = "i_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -176,7 +176,7 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #------------- z1-band -------------
 [[offsets]]
-name  = "z1_offset"
+name  = "z_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -260,3 +260,5 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
+    initial_guess = 0.05
+    initial_sigma = 0.05

@@ -1,8 +1,10 @@
 import unittest
 
 import numpy as np
+from matplotlib import pyplot as plt
 
-from jetfit.models.base import cooling_frequency, synchrotron_frequency
+from jetfit.models.base import cooling_frequency, synchrotron_frequency, energy_rad, gamma, radius, energy_ad, MassP, \
+    SoL
 from jetfit.models.base import peak_flux, nu_a_amc_ad, nu_a_mac_ad, nu_a_acm_ad, nu_a_acm_rad
 
 
@@ -257,6 +259,48 @@ class TestSpectralFunctions(unittest.TestCase):
         # Assert equal within 1%
         self.assertAlmostEqual(nu_a_ism / nu_a_ism_true, 1.0, delta=0.01)
         self.assertAlmostEqual(nu_a_win / nu_a_win_true, 1.0, delta=0.01)
+
+    def test_energy_plot(self):
+        """"""
+        k = 1.0
+        n0 = 1.0 * 1e17 ** k
+        gamma0 = 500
+        t = np.geomspace(1e0, 1e6)
+
+        # Radiative
+        E0 = 1e52 / gamma0
+        gamma_rad = gamma(E0, n0, k, t, adiabatic=False)
+        r_rad = radius(E0, n0, k, t, adiabatic=False)
+
+        # GammaB_ad = 500 * t ** -((3 - k) / (2 * (4 - k)))
+        # R_ad = (4 - k) * GammaB_ad **2 * SoL * t
+        #
+        # GammaB_rad = 500 * (t * gamma0) ** -((3 - k) / (7 - 2*k))
+        # R_rad = (4 - k) * GammaB_rad **2 * SoL * t
+        #
+        # e_ad = 16 / (17 - 4*k) * np.pi * MassP * n0 * SoL ** 2 * 10**np.log10(GammaB_ad ** 2 * R_ad ** (3 - k))
+        # e_rad = 16 / (17 - 4*k) * np.pi * MassP * n0 * SoL ** 2 * 10**np.log10(GammaB_rad * gamma0 * R_rad ** (3 - k))
+        # plt.loglog(t, e_ad, label='ad')
+        # plt.loglog(t, e_rad, label='rad')
+        # plt.legend()
+        # plt.show()
+
+        # Adiabatic
+        gamma_ad = gamma(1e52, n0, k, t)
+        r_ad = radius(1e52, n0, k, t)
+
+        nrg_rad = energy_rad(n0, k, gamma_rad, gamma0, r_rad)
+        nrg_ad = energy_ad(n0, k, gamma_ad, r_ad)
+
+        nrg = 1e52 * (gamma_rad / gamma0)
+
+        plt.plot(t, nrg_rad, label="rad")
+        plt.xscale('log')
+        # plt.loglog(t, nrg_ad, label="ad")
+        plt.loglog(t, nrg, label="")
+        plt.legend()
+        plt.show()
+
 
 
 if __name__ == '__main__':

@@ -23,7 +23,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = 1.69
-    upper = 3.00
+    upper = 4.00
     initial_guess = 1.85
     initial_sigma = 0.15
 
