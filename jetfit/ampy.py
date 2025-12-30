@@ -8,7 +8,8 @@ from jetfit.mcmc.parameters import Parameters
 from jetfit.models.boosted import BoostedFireballModel
 from jetfit.models.fireball import FireballModel, StratifiedFireballModel
 from jetfit.models.jetsim import JetSimpy
-
+from jetfit.models.vegasafterglow import VegasAfterglowModel
+            
 
 def model_factory(name: str):
     """
@@ -28,6 +29,8 @@ def model_factory(name: str):
             return BoostedFireballModel
         case 'JetSimpy':
             return JetSimpy
+        case 'VegasAfterglowModel':
+            return VegasAfterglowModel
         case _:
             raise ValueError(
                 f'Unknown model {name}.'

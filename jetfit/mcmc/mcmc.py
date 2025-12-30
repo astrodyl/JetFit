@@ -70,7 +70,7 @@ def get_pool_context(workers=None, executor='process'):
         Note that unless a free-threaded Python is installed,
         multithreading will not yield any benefits. Even if a
         no-GIL Python version is used, the performance increase
-        depends on the likelihood implementation.
+        depends  on the likelihood implementation.
 
         Pure Python implementations will see a large performance
         increase. If the likelihood uses Cython, then it depends
@@ -298,16 +298,45 @@ class PTSampler:
             for j, p in enumerate(params.fitting):
                 pos[i, :, j] = p.prior.draw(self.nwalkers)
 
-        # Overwrite with each temperature's best position
+        # Overwrite invalid positions (inf or NaN log-posterior) with each
+        # temperature's best position. If no valid positions exist for a
+        # temperature, resample up to max_tries before failing.
         log_p = np.full((self.ntemps, self.nwalkers), -np.inf)
 
         for i in range(self.ntemps):
+            # evaluate log-posterior for each walker, treating NaN as -inf
             for j in range(self.nwalkers):
-                log_p[i, j] = log_posterior_fn(pos[i, j], params, models)  # type: ignore
+                lp = log_posterior_fn(pos[i, j], params, models)  # type: ignore
+                if np.isnan(lp):
+                    lp = -np.inf
+                log_p[i, j] = lp
 
-            pos[i][np.isinf(log_p[i])] = np.array(
-                pos[i][np.nanargmax(log_p[i])], copy=True
-            )
+            valid = np.isfinite(log_p[i])
+            print(f'Temperature {i}: {valid.sum()} valid walkers out of {self.nwalkers}')
+            if valid.any():
+            # replace invalid walkers with the best walker for this temp
+                best = np.nanargmax(log_p[i])
+                if not valid.all():
+                    pos[i][~valid] = np.array(pos[i][best], copy=True)
+            else:
+            # no valid walkers: try to resample positions until at least one is valid
+                max_tries = 1000
+                for attempt in range(max_tries):
+                    # resample all walkers from priors
+                    for k, p in enumerate(params.fitting):
+                        pos[i, :, k] = p.prior.draw(self.nwalkers)
+                    for j in range(self.nwalkers):
+                        lp = log_posterior_fn(pos[i, j], params, models)  # type: ignore
+                        if np.isnan(lp):
+                            lp = -np.inf
+                        log_p[i, j] = lp
+                        if np.isfinite(log_p[i]).any():
+                            break
+                        else:
+                            raise RuntimeError(f'Failed to initialize any valid walker for temperature {i}')
+            # replace any remaining invalids with the best
+            best = np.nanargmax(log_p[i])
+            pos[i][~np.isfinite(log_p[i])] = np.array(pos[i][best], copy=True)
 
         return pos
 
@@ -641,7 +670,6 @@ class MCMC:
                 self.start_run_pos = start_pos
 
             else:
-                print('burning')
                 self.start_burn_pos = start_pos
 
                 # Run burn in and save the last position
@@ -658,7 +686,6 @@ class MCMC:
                 self.sampler.reset()
 
             # Run production
-            print('running')
             self.sampler.run_mcmc(
                 self.start_run_pos, iterations, **(run_kw or {})
             )
@@ -863,8 +890,9 @@ def log_likelihood_fn(theta, params, models) -> float:
     # Model the observed afterglow
     modeled = models.model(p)
 
-    # A nan always results in an -inf likelihood.
+    # A nan always results in -inf likelihood.
     if np.isnan(modeled.min()):
+        print("check the data here")
         return -np.inf
 
     # Apply calibration offsets

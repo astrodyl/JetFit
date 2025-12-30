@@ -80,6 +80,7 @@ def plot_results(ampy, results_dir, event):
     visualize.plot_density_profile_ampy(ampy, out_dir=results_dir)
 
     # Plot the histograms!
+    histogram.plot_spectral_indices_ampy(ampy, out_dir=results_dir)
     histogram.plot_jet_correction_ampy(ampy, out_dir=results_dir)
 
     # Plot the MCMC diagnostics!
@@ -126,11 +127,17 @@ def main(obs_path, params_path, mcmc_path, results_dir, event, resume=False):
         os.makedirs(results_dir)
 
     # Create the AMPy object
+    # print(f"DEBUG: Creating Ampy object...")
+    # print(f"  obs_path: {obs_path}")
+    # print(f"  params_path: {params_path}")
     ampy = Ampy(obs_path, params_path)
+    # print(f"DEBUG: Ampy object created successfully!")
 
     # Prepare the MCMC run
+    # print(f"DEBUG: Preparing MCMC run...")
     mcmc_params = utils.MCMCSettingsReader(mcmc_path)
     sampler_name = mcmc_params.data['sampler']['name']
+    # print(f"DEBUG: Sampler: {sampler_name}")
 
     sampler_kw, run_kw = {}, {}
 
@@ -144,16 +151,28 @@ def main(obs_path, params_path, mcmc_path, results_dir, event, resume=False):
         sampler_kw['backend'] = backend
 
     # Run the MCMC routine
-    ampy.run_mcmc(
-        nwalkers=mcmc_params.num_walkers,
-        iterations=mcmc_params.run_length,
-        burn=mcmc_params.burn_length,
-        sampler=sampler_name,
-        workers=mcmc_params.workers,
-        ntemps=mcmc_params.ntemps,
-        run_kw=run_kw,
-        sampler_kw=sampler_kw,
-    )
+    # print(f"DEBUG: Starting MCMC run...")
+    # print(f"  nwalkers: {mcmc_params.num_walkers}")
+    # print(f"  iterations: {mcmc_params.run_length}")
+    # print(f"  burn: {mcmc_params.burn_length}")
+    try:
+        ampy.run_mcmc(
+            nwalkers=mcmc_params.num_walkers,
+            iterations=mcmc_params.run_length,
+            burn=mcmc_params.burn_length,
+            sampler=sampler_name,
+            workers=mcmc_params.workers,
+            ntemps=mcmc_params.ntemps,
+            run_kw=run_kw,
+            sampler_kw=sampler_kw,
+        )
+        print(f"DEBUG: MCMC run completed!")
+    except Exception as e:
+        print(f"DEBUG: MCMC run FAILED with error:")
+        print(f"  {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
     # ptemcee does not support backend like emcee
     if sampler_name == 'parallel_tempered':
@@ -175,7 +194,7 @@ if __name__ == "__main__":
 
     # Specify the event to run
     if args.event is None:
-        event_name = '130612A'
+        event_name = '080413B'
     else:
         event_name = args.event
 
@@ -211,3 +230,4 @@ if __name__ == "__main__":
                 else False,
         }
     )
+    print(utils.get_results_path() / event_name)
