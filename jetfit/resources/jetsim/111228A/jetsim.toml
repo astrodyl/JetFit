@@ -130,7 +130,6 @@ name  = "ebv_milky_way"
 scale = "linear"
 value = 0.0279
 
-
 #----------- CALIBRATION -----------
 #-------------- B-band -------------
 [[offsets]] # USNO B1
@@ -167,16 +166,7 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #-------------- g-band -------------
 [[offsets]]
-name  = "g1_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-[[offsets]]
-name  = "g2_offset"
+name  = "g_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -187,16 +177,7 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #-------------- r-band -------------
 [[offsets]]
-name  = "r1_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-[[offsets]]
-name  = "r2_offset"
+name  = "r_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -207,16 +188,7 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #-------------- i-band -------------
 [[offsets]]
-name  = "i1_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-[[offsets]]
-name  = "i2_offset"
+name  = "i_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -227,16 +199,7 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #-------------- z-band -------------
 [[offsets]]
-name  = "z1_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-[[offsets]]
-name  = "z2_offset"
+name  = "z_offset"
 scale = "linear"
 
 [offsets.prior]
@@ -247,119 +210,24 @@ scale = "linear"
 #----------- CALIBRATION -----------
 #-------------- J-band -------------
 [[offsets]]  # 2MASS
-name  = "J1_offset"
+name  = "J_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
     mu    = 0.0
     sigma = 0.04
-
-[[offsets]]  # 2MASS
-name  = "J2_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#-------------- H-band -------------
-[[offsets]]
-name  = "H_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.05
 
 #----------- CALIBRATION -----------
 #-------------- K-band -------------
 [[offsets]]  # 2MASS
-name  = "K1_offset"
+name  = "K_offset"
 scale = "linear"
 
 [offsets.prior]
     type  = "gaussian"
-    mu    = 0.0
+    mu = 0.0
     sigma = 0.06
-
-[[offsets]]  # 2MASS
-name  = "K2_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.06
-
-#----------- CALIBRATION -----------
-#------------- uvw2-band -----------
-[[offsets]]
-name  = "uvw2_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#------------- uvm2-band -----------
-[[offsets]]
-name  = "uvm2_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- CALIBRATION -----------
-#------------ uvw1-band ------------
-[[offsets]]
-name  = "uvw1_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.04
-
-#----------- CALIBRATION -----------
-#----------- uvot-u-band -----------
-[[offsets]]
-name  = "uvot-u_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.03
-
-#----------- CALIBRATION -----------
-#----------- uvot-b-band -----------
-[[offsets]]
-name  = "uvot-b_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.02
-
-#----------- CALIBRATION -----------
-#------------ uvot-v-band ----------
-[[offsets]]
-name  = "uvot-v_offset"
-scale = "linear"
-
-[offsets.prior]
-    type  = "gaussian"
-    mu    = 0.0
-    sigma = 0.02
 
 #--------------- SLOP --------------
 #--------------- slop --------------
@@ -371,5 +239,3 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
-    initial_guess = 0.05
-    initial_sigma = 0.05

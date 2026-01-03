@@ -247,7 +247,10 @@ def hill(x1, x2, w):
     return w * x1 + (1.0 - w) * x2
 
 def chi_squared(
-    f: np.ndarray, y: np.ndarray, e: np.ndarray, s = None,
+    f: np.ndarray[float],
+    y: np.ndarray[float],
+    e: np.ndarray[float],
+    s = None,
 ) -> float:
     """
     Calculates the chi-squared value.
@@ -487,7 +490,7 @@ def get_results_path() -> Path:
     Path
         The project results directory.
     """
-    return get_project_root() / 'jetfit' / 'results'
+    return get_project_root() / 'jetfit' / 'results' /'Vegastesting' / 'test1'
 
 
 def get_resource_path() -> Path:

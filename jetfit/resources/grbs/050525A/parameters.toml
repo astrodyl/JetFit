@@ -11,7 +11,7 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
-    initial_guess = 0.40
+    initial_guess = 0.48347571
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -24,8 +24,6 @@ scale = "log"
     type  = "uniform"
     lower = 1.69
     upper = 3.00
-    initial_guess = 2.3
-    initial_sigma = 0.1
 
 #-------------- MODEL --------------
 #---------------- n ----------------
@@ -37,7 +35,7 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-    initial_guess = -0.28
+    initial_guess = -0.37405297
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -50,7 +48,7 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-    initial_guess = -0.47
+    initial_guess = -0.5249882
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -63,7 +61,7 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-    initial_guess = -0.46
+    initial_guess = -0.18186114
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -76,8 +74,8 @@ scale = "linear"
     type  = "uniform"
     lower = 2.0
     upper = 3.0
-    initial_guess = 2.24
-    initial_sigma = 0.10
+    initial_guess = 2.1890807259806646
+    initial_sigma = 0.25
 
 #-------------- MODEL --------------
 #---------------- k ----------------
@@ -89,7 +87,7 @@ scale = "linear"
     type  = "uniform"
     lower = -1.0
     upper = 3.5
-    initial_guess = 2.95
+    initial_guess = 2.9153500775809307
     initial_sigma = 0.25
 
 #-------------- MODEL --------------
@@ -123,8 +121,8 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.5
-    initial_guess = 0.05
-    initial_sigma = 0.03
+#    initial_guess = 0.04079
+#    initial_sigma = 0.01
 
 #----------- EXTINCTION ------------
 #------------ milky_way ------------
@@ -264,5 +262,3 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.2
-    initial_guess = 0.09
-    initial_sigma = 0.02

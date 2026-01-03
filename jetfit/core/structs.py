@@ -45,7 +45,6 @@ class Prior(Enum):
     GAUSSIAN   = 'gaussian'
     TGAUSSIAN  = 'tgaussian'
     UNIFORM    = 'uniform'
-    POWERLAW   = 'powerlaw'
     SINE       = 'sine'
     MILKYWAYRV = 'milkywayrv'
 
@@ -99,7 +98,7 @@ class BoundedMixin:
 
         Parameters
         ----------
-        value : float
+        value : float or astropy.units.Quantity
             The value to check.
 
         Returns
@@ -800,13 +799,13 @@ class SpectralIndex(Integrable):
     _int_type = u.Hz.physical_type  # type: ignore
 
     def __init__(
-        self,
-        value: u.Quantity,
-        lower: u.Quantity,
-        upper: u.Quantity,
-        time: u.Quantity,
-        int_lower: u.Quantity,
-        int_upper: u.Quantity
+            self,
+            value: u.Quantity,
+            lower: u.Quantity,
+            upper: u.Quantity,
+            time: u.Quantity,
+            int_lower: u.Quantity,
+            int_upper: u.Quantity
     ):
         super().__init__(int_lower, int_upper)
 

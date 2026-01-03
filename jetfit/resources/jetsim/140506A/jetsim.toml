@@ -15,14 +15,14 @@ scale = "log"
 #-------------- MODEL --------------
 #---------------- n ----------------
 [[model]]
-name  = "A"
+name  = "n0"
 scale = "linear"
 value = 0.0
 
 #-------------- MODEL --------------
 #---------------- A ----------------
 [[model]]
-name  = "n0"
+name  = "A"
 scale = "log"
 
 [model.prior]

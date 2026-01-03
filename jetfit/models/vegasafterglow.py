@@ -115,20 +115,22 @@ class VegasAfterglowModel:
                 "Install it from: https://github.com/YihanWangAstro/VegasAfterglow"
             )
 
-        self.E_iso52 = E52*1e52  # Convert to erg
-        self.lf0 = 10**lf0
+        # NOTE: JetFit already converts "scale=log" parameters to linear
+        # So we receive linear values here, NOT log10 values
+        self.E_iso52 = E52 * 1e52  # E52 is linear multiplier, convert to erg
+        self.lf0 = lf0             # Already linear (JetFit converted from log10)
         self.theta_c = theta_c
         self.theta_v = theta_v
-        self.eps_e = eps_e
-        self.eps_B = eps_B
+        self.eps_e = eps_e         # Already linear (JetFit converted from log10)
+        self.eps_B = eps_B         # Already linear (JetFit converted from log10)
         self.p = p
         self.z = z
-        self.nt = nt
-        self.rt = rt
+        self.nt = nt               # Still log10 (used in smooth_broken_medium)
+        self.rt = rt               # Still log10 (used in smooth_broken_medium)
         self.k1 = k1
         self.k2 = k2
         self.sn = sn
-        self.lumi_dist = dl28*1e28  # Convert to cm
+        self.lumi_dist = dl28 * 1e28  # dl28 is linear multiplier, convert to cm
         self.jet_type = jet_type
         self.medium_type = medium_type
         self.n_ism = n_ism
@@ -212,10 +214,26 @@ class VegasAfterglowModel:
     def _setup_model(self):
         """Initialize the VegasAfterglow model with current parameters."""
 
-        params = self.params
-        # print(f"DEBUG: Converting log-scale parameters...")
-        converted_params = self._convert_log_scales(params)
-        self._sanity_check_physical(converted_params)
+        # Build params dict from instance attributes (already converted in __init__)
+        params = {
+            "E52": self.E_iso52 / 1e52,  # Convert back for logging
+            "lf0": self.lf0,             # Already linear from __init__
+            "theta_c": self.theta_c,
+            "theta_v": self.theta_v,
+            "eps_e": self.eps_e,
+            "eps_B": self.eps_B,
+            "p": self.p,
+            "z": self.z,
+            "dl28": self.lumi_dist / 1e28,
+            "nt": self.nt,
+            "rt": self.rt,
+            "k1": self.k1,
+            "k2": self.k2,
+            "sn": self.sn,
+        }
+        
+        # Run sanity checks on the linear values
+        self._sanity_check_physical(params)
 
         
         # print(f"DEBUG: Setting up model with parameters:")

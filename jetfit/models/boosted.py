@@ -294,7 +294,7 @@ class BoostedFireballModel:
             of t and f are handled.
         """
         return SpectralFluxModel(**self.spectrum(t)).evaluate(
-            nu, fts=fts
+            nu, fts=fts, sharp=self.sharp
         )
 
     def integrated_flux(self, t, lower, upper, fts=False):

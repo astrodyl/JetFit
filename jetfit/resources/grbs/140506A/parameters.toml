@@ -11,8 +11,8 @@ scale = "log"
     type  = "uniform"
     lower = -2.0
     upper = 4.0
-    initial_guess = 2.5
-    initial_sigma = 0.5
+#    initial_guess = 2.67
+#    initial_sigma = 0.5
 
 #-------------- MODEL --------------
 #--------------- lfo ---------------
@@ -35,8 +35,8 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 6.0
-    initial_guess = -3.0
-    initial_sigma = 3.0
+#    initial_guess = -3.0
+#    initial_sigma = 3.0
 
 #-------------- MODEL --------------
 #-------------- eps_e --------------
@@ -48,8 +48,6 @@ scale = "log"
     type  = "uniform"
     lower = -6.0
     upper = 0.0
-    initial_guess = -1.8
-    initial_sigma = 1.0
 
 #-------------- MODEL --------------
 #-------------- eps_b --------------
@@ -85,8 +83,8 @@ scale = "linear"
     type  = "uniform"
     lower = -6.0
     upper = 2.0
-    initial_guess = -2.5
-    initial_sigma = 1.0
+    initial_guess = -3.0
+    initial_sigma = 3.0
 
 #-------------- MODEL --------------
 #------------ tj (days) ------------
@@ -97,9 +95,7 @@ scale = "log"
 [model.prior]
     type  = "uniform"
     lower = -1.0
-    upper = 1.5
-    initial_guess = 1.0
-    initial_sigma = 0.2
+    upper = 1.0
 
 #-------------- MODEL --------------
 #---------------- sj ---------------
@@ -110,7 +106,7 @@ scale = "linear"
 [model.prior]
     type  = "uniform"
     lower = 0.1
-    upper = 5.0
+    upper = 3.0
 
 #-------------- MODEL --------------
 #---------------- X ----------------
@@ -143,7 +139,7 @@ scale = "linear"
     type  = "uniform"
     lower = 0.0
     upper = 0.5
-    initial_guess = 0.2
+    initial_guess = 0.05
     initial_sigma = 0.05
 
 #----------- EXTINCTION ------------
