@@ -31,7 +31,7 @@ scale = "log"
 #----------- TRANSITION ------------
 #--------------- nt ----------------
 [[model]]
-name  = "nt"
+name  = "n017"
 scale = "linear"
 
 [model.prior]

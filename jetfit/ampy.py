@@ -9,6 +9,7 @@ from jetfit.models.boosted import BoostedFireballModel
 from jetfit.models.fireball import FireballModel, StratifiedFireballModel
 from jetfit.models.jetsim import JetSimpy
 from jetfit.models.vegasafterglow import VegasAfterglowModel
+from jetfit.models.powerlawVegas import powerlawVegasModel
             
 
 def model_factory(name: str):
@@ -31,6 +32,8 @@ def model_factory(name: str):
             return JetSimpy
         case 'VegasAfterglowModel':
             return VegasAfterglowModel
+        case 'powerlawVegasModel':
+            return powerlawVegasModel
         case _:
             raise ValueError(
                 f'Unknown model {name}.'
