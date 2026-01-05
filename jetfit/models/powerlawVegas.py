@@ -58,7 +58,7 @@ class powerlawVegasModel:
     eps_e : float
         Fraction of shock energy in electrons. Must be in [0, 1].
 
-    eps_B : float
+    eps_b : float
         Fraction of shock energy in magnetic field. Must be in [0, 1].
 
     p : float
@@ -86,6 +86,7 @@ class powerlawVegasModel:
     ----------
     .. [1] VegasAfterglow: A Numerical Code for GRB Afterglow
     """
+    
     def __init__(
         self,
         E52,
@@ -93,18 +94,20 @@ class powerlawVegasModel:
         theta_c,
         theta_v,
         eps_e,
-        eps_B,
+        eps_b,
         p,
         z,
         dl28,
         n017,  # number density at r = 10^17 cm [cm^-3] (log scale in parameters.toml)
-        k,     # density power-law index: n(r) = n017 * (r/r0)^(-k)
+        k,
+        hmf = 0.7,     # density power-law index: n(r) = n017 * (r/r0)^(-k)
         n_ism=None,
         A_star=None,
         k_e=None,
         k_g=None,
         jet_type='tophat',
         medium_type='powerlaw',
+        ref_radius=1.0e17,
 
     ):
         if not _HAS_VEGASAFTERGLOW:
@@ -120,9 +123,10 @@ class powerlawVegasModel:
         self.theta_c = theta_c
         self.theta_v = theta_v
         self.eps_e = eps_e         # Already linear (JetFit converted from log10)
-        self.eps_B = eps_B         # Already linear (JetFit converted from log10)
+        self.eps_b = eps_b         # Already linear (JetFit converted from log10)
         self.p = p
         self.z = z
+        self.hmf = hmf
         self.lumi_dist = dl28 * 1e28  # dl28 is linear multiplier, convert to cm
         self.jet_type = jet_type
         self.medium_type = medium_type
@@ -132,6 +136,8 @@ class powerlawVegasModel:
         self.A_star = A_star
         self.k_e = k_e
         self.k_g = k_g
+        self.ref_radius = ref_radius  # Reference radius [cm]
+
 
         # Initialize VegasAfterglow components
         self._setup_model()
@@ -143,7 +149,7 @@ class powerlawVegasModel:
         Returns a new dict with converted values (others kept unchanged).
         """
         log_keys = {
-            "E52", "lf0", "nt", "rt", "eps_e", "eps_B",
+            "E52", "lf0", "nt", "rt", "eps_e", "eps_b",
             "g_host", "r_host", "dl28"
         }
 
@@ -173,11 +179,11 @@ class powerlawVegasModel:
     def _sanity_check_physical(self, params: dict) -> None:
         """Print warnings for common physical constraint violations."""
         ee = params.get("eps_e")
-        eb = params.get("eps_B")
+        eb = params.get("eps_b")
         if ee is not None and eb is not None:
             try:
                 if (ee + eb) >= 1.0:
-                    print(f"[vegasafterglow][WARN] eps_e + eps_B >= 1 ({ee + eb}) -> invalid (energy fractions)")
+                    print(f"[vegasafterglow][WARN] eps_e + eps_b >= 1 ({ee + eb}) -> invalid (energy fractions)")
             except Exception:
                 pass
 
@@ -216,7 +222,7 @@ class powerlawVegasModel:
             "theta_c": self.theta_c,
             "theta_v": self.theta_v,
             "eps_e": self.eps_e,
-            "eps_B": self.eps_B,
+            "eps_b": self.eps_b,
             "p": self.p,
             "z": self.z,
             "dl28": self.lumi_dist / 1e28,
@@ -312,7 +318,7 @@ class powerlawVegasModel:
 
         radiation = Radiation(
             eps_e=self.eps_e,
-            eps_B=self.eps_B,
+            eps_B=self.eps_b,
             p=self.p
         )
 
@@ -329,14 +335,14 @@ class powerlawVegasModel:
     def is_valid(self) -> bool:
         """Check if model parameters are physically valid."""
         valid = (
-            (self.eps_B + self.eps_e) < 1.0 and
+            (self.eps_b + self.eps_e) < 1.0 and
             self.p >= 2.0 and
             self.theta_c > 0 and
             self.lf0 > 1
         )
         # if not valid:
             # print(f"DEBUG: Model is_valid=False:")
-            # print(f"  eps_B + eps_e = {self.eps_B + self.eps_e} < 1.0? {(self.eps_B + self.eps_e) < 1.0}")
+            # print(f"  eps_b + eps_e = {self.eps_b + self.eps_e} < 1.0? {(self.eps_b + self.eps_e) < 1.0}")
             # print(f"  p = {self.p} >= 2.0? {self.p >= 2.0}")
             # print(f"  theta_c = {self.theta_c} > 0? {self.theta_c > 0}")
             # print(f"  lf0 = {self.lf0} > 1? {self.lf0 > 1}")
@@ -346,8 +352,7 @@ class powerlawVegasModel:
         """
         Calculate the minimum synchrotron frequency (cooling break).
         
-        This is an analytical approximation since VegasAfterglow is numerical.
-        Uses standard synchrotron formulas for electron injection frequency.
+        This extracts nu_m from VegasAfterglow's details.
         
         Parameters
         ----------
@@ -359,20 +364,40 @@ class powerlawVegasModel:
         np.ndarray of float
             Minimum synchrotron frequency [Hz].
         """
-        # Placeholder: return typical nu_m scaling
-        # nu_m ~ eps_e^2 * eps_B^(1/2) * (1+z) * t^(-3/2) for ISM
-        # This is a rough approximation - VegasAfterglow computes spectra numerically
         t_sec = days_to_sec(t)
-        
-        # Rough scaling (should be calibrated to actual model output)
-        nu_m_0 = 1e14  # Typical scale [Hz]
-        return nu_m_0 * (t_sec / 1e5)**(-1.5)
+        t_sec = np.atleast_1d(t_sec)
+
+        try:
+            # Get details over the time range - details() is a method call with (t_min, t_max)
+            details = self.vegas_model.details(t_sec.min(), t_sec.max())
+            
+            # Extract nu_m from the model's details
+            # Shape is typically [phi, theta, time] - take the on-axis value
+            nu_m = np.asarray(details.fwd.nu_m[0,0,:]*details.fwd.Doppler[0,0,:]/(1+self.z))
+            print("[vegasafterglow] nu_m extraction debug (at t_min, on-axis):")
+            print(f" nu_m: {nu_m[10:15]} Hz")
+            print(f"  t_obs: {details.fwd.t_obs[0,0,10:15]} s, r: {details.fwd.r[0,0,10:15]} cm")
+            print(f" t_src: {details.fwd.t_comv[0,0,10:15]*details.fwd.Gamma[0,0,10:15]} s")
+            print(f"  nu_mBAd: {details.fwd.nu_m[0,0,10:15]} Hz, B_comv: {details.fwd.B_comv[0,0,10:15]} G, gamma_m: {details.fwd.gamma_m[0,0,10:15]}")
+            print(f"  Doppler: {details.fwd.Doppler[0,0,10:15]}, z: {self.z}")
+            
+            # Interpolate to match requested times if needed
+            if len(nu_m) != len(t_sec):
+                t_details = np.asarray(details.fwd.t_obs[0, 0, :])
+                nu_m = np.interp(t_sec, t_details, nu_m)
+        except Exception as e:
+            # Fallback to analytical approximation if model doesn't expose nu_m
+            print(f"Warning: Could not extract nu_m from VegasAfterglow: {e}")
+            nu_m_0 = 1e14  # Typical scale [Hz]
+            nu_m = nu_m_0 * (t_sec / 1e5)**(-1.5)
+
+        return np.atleast_1d(nu_m)
     
     def nu_c(self, t, **kwargs):
         """
         Calculate the cooling frequency.
         
-        This is an analytical approximation since VegasAfterglow is numerical.
+        This extracts nu_c from VegasAfterglow's details.
         
         Parameters
         ----------
@@ -384,19 +409,32 @@ class powerlawVegasModel:
         np.ndarray of float
             Cooling frequency [Hz].
         """
-        # Placeholder: return typical nu_c scaling
-        # nu_c ~ eps_B^(-3/2) * (1+z) * t^(-1/2) for ISM
         t_sec = days_to_sec(t)
-        
-        # Rough scaling
-        nu_c_0 = 1e16  # Typical scale [Hz]
-        return nu_c_0 * (t_sec / 1e5)**(-0.5)
+        t_sec = np.atleast_1d(t_sec)
+
+        try:
+            # Get details over the time range - details() is a method call with (t_min, t_max)
+            details = self.vegas_model.details(t_sec.min(), t_sec.max())
+            
+            # Extract nu_c from the model's details
+            nu_c = np.asarray(details.fwd.nu_c[0,0,:]*details.fwd.Doppler[0,0,:]/(1+self.z))
+            
+            # Interpolate to match requested times if needed
+            if len(nu_c) != len(t_sec):
+                t_details = np.asarray(details.fwd.t_obs[0, 0, :])
+                nu_c = np.interp(t_sec, t_details, nu_c)
+        except Exception as e:
+            print(f"Warning: Could not extract nu_c from VegasAfterglow: {e}")
+            nu_c_0 = 1e16  # Typical scale [Hz]
+            nu_c = nu_c_0 * (t_sec / 1e5)**(-0.5)
+
+        return np.atleast_1d(nu_c)
     
     def nu_a(self, t, **kwargs):
         """
         Calculate the self-absorption frequency.
         
-        This is an analytical approximation since VegasAfterglow is numerical.
+        This extracts nu_a from VegasAfterglow's details.
         
         Parameters
         ----------
@@ -408,13 +446,26 @@ class powerlawVegasModel:
         np.ndarray of float
             Self-absorption frequency [Hz].
         """
-        # Placeholder: return typical nu_a scaling
-        # nu_a scaling depends on geometry and density profile
         t_sec = days_to_sec(t)
-        
-        # Rough scaling (decays with time)
-        nu_a_0 = 1e10  # Typical scale [Hz]
-        return nu_a_0 * (t_sec / 1e5)**(-1.2)
+        t_sec = np.atleast_1d(t_sec)
+
+        try:
+            # Get details over the time range - details() is a method call with (t_min, t_max)
+            details = self.vegas_model.details(t_sec.min(), t_sec.max())
+            
+            # Extract nu_a from the model's details
+            nu_a = np.asarray(details.fwd.nu_a[0,0,:]*details.fwd.Doppler[0,0,:]/(1+self.z))
+            
+            # Interpolate to match requested times if needed
+            if len(nu_a) != len(t_sec):
+                t_details = np.asarray(details.fwd.t_obs[0, 0, :])
+                nu_a = np.interp(t_sec, t_details, nu_a)
+        except Exception as e:
+            print(f"Warning: Could not extract nu_a from VegasAfterglow: {e}")
+            nu_a_0 = 1e10  # Typical scale [Hz]
+            nu_a = nu_a_0 * (t_sec / 1e5)**(-1.2)
+
+        return np.atleast_1d(nu_a)
     
     def spectrum(self, t, **kwargs):
         """
@@ -439,7 +490,7 @@ class powerlawVegasModel:
         n_eff, k_eff = self.smooth(t, **kwargs)
         
         # Estimate peak flux (very rough approximation)
-        # F_peak ~ (eps_B * eps_e^2)^(1/2) * E / (d_L^2 * t)
+        # F_peak ~ (eps_b * eps_e^2)^(1/2) * E / (d_L^2 * t)
         t_sec = days_to_sec(t)
         t_arr = np.atleast_1d(t_sec)
         
@@ -501,7 +552,7 @@ class powerlawVegasModel:
         """
         Return blast wave radius at given times.
         
-        This is a rough estimate since VegasAfterglow computes it numerically.
+        Extracts the actual computed radius from VegasAfterglow's details.
         
         Parameters
         ----------
@@ -513,30 +564,28 @@ class powerlawVegasModel:
         np.ndarray
             Blast wave radius [cm].
         """
-        # Rough Sedov-Taylor or Blandford-McKee scaling
-        # R ~ (E / n)^(1/5) * c * t^(2/5)  for ISM
-        # or R ~ c * t * Gamma0 for early times
         t_sec = days_to_sec(t)
+        t_sec = np.atleast_1d(t_sec)
         
-        # Very rough approximation
-        c = 2.998e10  # cm/s
-        R = c * t_sec * np.sqrt(self.lf0)  # Rough ballpark
-        return R
-    
-    @property
-    def ref_radius(self):
-        """
-        Return the reference/transition radius.
-        
-        Returns
-        -------
-        float
-            Reference radius [cm].
-        """
-        if self.medium_type.lower() == 'smooth_broken':
-            return 10**self.rt  # Transition radius in cm
-        else:
-            return 1e17  # Default scale
+        try:
+            # Get details over the time range
+            details = self.vegas_model.details(t_sec.min(), t_sec.max())
+            
+            # Extract radius from VegasAfterglow (lab frame, in cm)
+            # Shape is [phi, theta, time] - take on-axis value
+            r = np.asarray(details.fwd.r[0, 0, :])
+            
+            # Interpolate to match requested times if needed
+            if len(r) != len(t_sec):
+                t_details = np.asarray(details.fwd.t_obs[0, 0, :])
+                r = np.interp(t_sec, t_details, r)
+            
+            return r
+        except Exception as e:
+            print(f"Warning: Could not extract radius from VegasAfterglow: {e}")
+            # Fallback to rough approximation
+            c = 2.998e10  # cm/s
+            return c * t_sec / (1 + self.z)  # Very rough: R ~ c * t_src
 
     def spectral_flux(self, t, nu, **kwargs):
         """
@@ -687,5 +736,20 @@ class powerlawVegasModel:
                 obs.int_lowers()[sim],
                 obs.int_uppers()[sim]
             )
+        
+        #break freqs
+        details = self.vegas_model.details(1e3,3e7)
+        if (nmm := obs.as_arrays.numin_loc).any():
+            if subset is not None:
+                nmm = np.logical_and(nmm, subset)
+            res[nmm] = details.fwd.nu_m[0,0,obs.indices()[nmm]]
+        if (ncm := obs.as_arrays.numax_loc).any():
+            if subset is not None:
+                ncm = np.logical_and(ncm, subset)
+            res[ncm] = details.fwd.nu_c[0,0,obs.indices()[ncm]]
+        if (nam := obs.as_arrays.nua_loc).any():
+            if subset is not None:
+                nam = np.logical_and(nam, subset)
+            res[nam] = details.fwd.nu_a[0,0,obs.indices()[nam]]
 
         return res

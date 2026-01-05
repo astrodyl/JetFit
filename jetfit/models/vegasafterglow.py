@@ -137,6 +137,7 @@ class VegasAfterglowModel:
         self.A_star = A_star
         self.k_e = k_e
         self.k_g = k_g
+        self.ref_radius = 1.0e17          # Reference radius [cm]
 
         # Initialize VegasAfterglow components
         self._setup_model()
@@ -570,7 +571,7 @@ class VegasAfterglowModel:
         if self.medium_type.lower() == 'smooth_broken':
             return 10**self.rt  # Transition radius in cm
         else:
-            return 1e17  # Default scale
+            return self.ref_radius  # Default scale
 
     def spectral_flux(self, t, nu, **kwargs):
         """
