@@ -235,8 +235,21 @@ class powerlawVegasModel:
 
         # Reference radius: 10^17 cm
         r0 = 1e17  # cm
-        
-        # Single power-law density profile: n(r) = n017 * (r/r0)^(-k)
+        # print("[vegasafterglow] Setting up VegasAfterglow Model with parameters:")
+        # print(f"  E_iso52: {self.E_iso52} erg")
+        # print(f"  lf0: {self.lf0}")
+        # print(f"  theta_c: {self.theta_c} rad")
+        # print(f"  theta_v: {self.theta_v} rad")
+        # print(f"  eps_e: {self.eps_e}")
+        # print(f"  eps_b: {self.eps_b}")
+        # print(f"  p: {self.p}")
+        # print(f"  z: {self.z}")
+        # print(f"  lumi_dist: {self.lumi_dist} cm")
+        # print(f"  medium_type: {self.medium_type}")
+        # print(f"  jet_type: {self.jet_type}")
+        # print(f"  n017: {self.n017} cm^-3 at r0={r0} cm")
+        # print(f"  k: {self.k}")
+        # # Single power-law density profile: n(r) = n017 * (r/r0)^(-k)
         # Returns mass density rho in g/cm^3 for VegasAfterglow Medium
         def power_law_medium(phi, theta, r):
             """
@@ -374,22 +387,28 @@ class powerlawVegasModel:
             # Extract nu_m from the model's details
             # Shape is typically [phi, theta, time] - take the on-axis value
             nu_m = np.asarray(details.fwd.nu_m[0,0,:]*details.fwd.Doppler[0,0,:]/(1+self.z))
-            print("[vegasafterglow] nu_m extraction debug (at t_min, on-axis):")
-            print(f" nu_m: {nu_m[10:15]} Hz")
-            print(f"  t_obs: {details.fwd.t_obs[0,0,10:15]} s, r: {details.fwd.r[0,0,10:15]} cm")
-            print(f" t_src: {details.fwd.t_comv[0,0,10:15]*details.fwd.Gamma[0,0,10:15]} s")
-            print(f"  nu_mBAd: {details.fwd.nu_m[0,0,10:15]} Hz, B_comv: {details.fwd.B_comv[0,0,10:15]} G, gamma_m: {details.fwd.gamma_m[0,0,10:15]}")
-            print(f"  Doppler: {details.fwd.Doppler[0,0,10:15]}, z: {self.z}")
+            
+            # Get radius and time arrays for comparison with FireballModel
+            r_vegas = np.asarray(details.fwd.r[0, 0, :])
+            t_obs_vegas = np.asarray(details.fwd.t_obs[0, 0, :])
+            
+            # Find index closest to requested time for debug output
+            idx_mid = len(t_obs_vegas) // 2
+            # print(f"Radius VegasAfterglow {r_vegas[idx_mid]:.3e} cm at t_obs={t_obs_vegas[idx_mid]:.3e} s")
+            
+            # print("[vegasafterglow] nu_m extraction debug (at t_min, on-axis):")
+            # print(f"  nu_m: {nu_m[14:18]} Hz")
+            # print(f"  t_obs: {details.fwd.t_obs[0,0,14:18]} s, r: {details.fwd.r[0,0,14:18]} cm")
+            # print(f"  t_src: {details.fwd.t_comv[0,0,14:18]*details.fwd.Gamma[0,0,14:18]} s")
+            # print(f"  nu_mBAd: {details.fwd.nu_m[0,0,14:18]} Hz, B_comv: {details.fwd.B_comv[0,0,14:18]} G, gamma_m: {details.fwd.gamma_m[0,0,14:18]}")
+            # print(f"  Doppler: {details.fwd.Doppler[0,0,14:18]}, z: {self.z}")
             
             # Interpolate to match requested times if needed
             if len(nu_m) != len(t_sec):
                 t_details = np.asarray(details.fwd.t_obs[0, 0, :])
                 nu_m = np.interp(t_sec, t_details, nu_m)
         except Exception as e:
-            # Fallback to analytical approximation if model doesn't expose nu_m
-            print(f"Warning: Could not extract nu_m from VegasAfterglow: {e}")
-            nu_m_0 = 1e14  # Typical scale [Hz]
-            nu_m = nu_m_0 * (t_sec / 1e5)**(-1.5)
+            raise RuntimeError(f"Failed to extract nu_m from VegasAfterglow: {e}")
 
         return np.atleast_1d(nu_m)
     
@@ -424,9 +443,7 @@ class powerlawVegasModel:
                 t_details = np.asarray(details.fwd.t_obs[0, 0, :])
                 nu_c = np.interp(t_sec, t_details, nu_c)
         except Exception as e:
-            print(f"Warning: Could not extract nu_c from VegasAfterglow: {e}")
-            nu_c_0 = 1e16  # Typical scale [Hz]
-            nu_c = nu_c_0 * (t_sec / 1e5)**(-0.5)
+            raise RuntimeError(f"Failed to extract nu_c from VegasAfterglow: {e}")
 
         return np.atleast_1d(nu_c)
     
@@ -448,6 +465,7 @@ class powerlawVegasModel:
         """
         t_sec = days_to_sec(t)
         t_sec = np.atleast_1d(t_sec)
+        # pee = self.pee 
 
         try:
             # Get details over the time range - details() is a method call with (t_min, t_max)
@@ -461,52 +479,38 @@ class powerlawVegasModel:
                 t_details = np.asarray(details.fwd.t_obs[0, 0, :])
                 nu_a = np.interp(t_sec, t_details, nu_a)
         except Exception as e:
-            print(f"Warning: Could not extract nu_a from VegasAfterglow: {e}")
-            nu_a_0 = 1e10  # Typical scale [Hz]
-            nu_a = nu_a_0 * (t_sec / 1e5)**(-1.2)
+            raise RuntimeError(f"Failed to extract nu_a from VegasAfterglow: {e}")
 
         return np.atleast_1d(nu_a)
     
     def spectrum(self, t, **kwargs):
         """
         Return a dictionary of spectral characteristics at given times.
-        
-        This provides the same interface as analytical models for compatibility
-        with JetFit's plotting routines.
-        
-        Parameters
-        ----------
-        t : np.ndarray of float
-            Observer times [days].
-            
-        Returns
-        -------
-        dict
-            Dictionary with keys: 'nu_m', 'nu_c', 'nu_a', 'f_peak', 'p', 'k'
-            containing the characteristic frequencies [Hz], peak flux, and
-            spectral parameters at each time.
+        ...
         """
         # Get density parameters
         n_eff, k_eff = self.smooth(t, **kwargs)
         
-        # Estimate peak flux (very rough approximation)
-        # F_peak ~ (eps_b * eps_e^2)^(1/2) * E / (d_L^2 * t)
-        t_sec = days_to_sec(t)
-        t_arr = np.atleast_1d(t_sec)
+        # Get break frequencies
+        nu_m = self.nu_m(t, **kwargs)
+        nu_c = self.nu_c(t, **kwargs)
+        nu_a = self.nu_a(t, **kwargs)
         
-        # Rough peak flux scaling
-        f_peak_scale = 1e-3  # mJy, typical scale
-        f_peak = f_peak_scale * (t_arr / 1e5)**(-1.0)
+        # Compute f_peak by evaluating flux at nu_m (the spectral peak)
+        # In slow cooling (nu_m < nu_c), peak is at nu_m
+        # In fast cooling (nu_c < nu_m), peak is at nu_c
+        nu_peak = np.minimum(nu_m, nu_c)  # Peak is at min(nu_m, nu_c)
+        f_peak = self.spectral_flux(t, nu_peak)
         
         return {
-            'nu_m': self.nu_m(t, **kwargs),
-            'nu_c': self.nu_c(t, **kwargs),
-            'nu_a': self.nu_a(t, **kwargs),
+            'nu_m': nu_m,
+            'nu_c': nu_c,
+            'nu_a': nu_a,
             'f_peak': f_peak,
             'p': self.p,
             'k': k_eff,
         }
-    
+
     def smooth(self, t, **kwargs):
         """
         Return effective density normalization and power-law index.
@@ -537,6 +541,9 @@ class powerlawVegasModel:
             n_eff = np.full_like(t_arr, n0t)
             k_eff = np.full_like(t_arr, k_avg)
             return n_eff, k_eff
+        elif self.medium_type.lower() == 'powerlaw':
+            t_arr = np.atleast_1d(t)
+            return np.full_like(t_arr, self.n017), np.full_like(t_arr, self.k)
         elif self.medium_type.lower() == 'ism':
             t_arr = np.atleast_1d(t)
             return np.full_like(t_arr, self.n_ism), np.zeros_like(t_arr)
@@ -545,8 +552,8 @@ class powerlawVegasModel:
             # Wind: k=2 always
             return np.full_like(t_arr, self.A_star), np.full_like(t_arr, 2.0)
         else:
-            t_arr = np.atleast_1d(t)
-            return np.full_like(t_arr, np.nan), np.full_like(t_arr, np.nan)
+            raise ValueError(f"Unknown medium_type '{self.medium_type}' in smooth(). "
+                           f"Supported types: 'powerlaw', 'ism', 'wind', 'smooth_broken'")
     
     def radii(self, t, **kwargs):
         """
@@ -582,10 +589,7 @@ class powerlawVegasModel:
             
             return r
         except Exception as e:
-            print(f"Warning: Could not extract radius from VegasAfterglow: {e}")
-            # Fallback to rough approximation
-            c = 2.998e10  # cm/s
-            return c * t_sec / (1 + self.z)  # Very rough: R ~ c * t_src
+            raise RuntimeError(f"Failed to extract radius from VegasAfterglow: {e}")
 
     def spectral_flux(self, t, nu, **kwargs):
         """
@@ -736,20 +740,5 @@ class powerlawVegasModel:
                 obs.int_lowers()[sim],
                 obs.int_uppers()[sim]
             )
-        
-        #break freqs
-        details = self.vegas_model.details(1e3,3e7)
-        if (nmm := obs.as_arrays.numin_loc).any():
-            if subset is not None:
-                nmm = np.logical_and(nmm, subset)
-            res[nmm] = details.fwd.nu_m[0,0,obs.indices()[nmm]]
-        if (ncm := obs.as_arrays.numax_loc).any():
-            if subset is not None:
-                ncm = np.logical_and(ncm, subset)
-            res[ncm] = details.fwd.nu_c[0,0,obs.indices()[ncm]]
-        if (nam := obs.as_arrays.nua_loc).any():
-            if subset is not None:
-                nam = np.logical_and(nam, subset)
-            res[nam] = details.fwd.nu_a[0,0,obs.indices()[nam]]
 
         return res
